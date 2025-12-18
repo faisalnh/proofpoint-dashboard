@@ -9,6 +9,8 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import SelfAssessment from "./pages/SelfAssessment";
+import ManagerReview from "./pages/ManagerReview";
+import DirectorApproval from "./pages/DirectorApproval";
 import Admin from "./pages/Admin";
 import Rubrics from "./pages/Rubrics";
 import NotFound from "./pages/NotFound";
@@ -39,12 +41,12 @@ const App = () => (
             } />
             <Route path="/manager" element={
               <ProtectedRoute requiredRoles={['manager', 'admin']}>
-                <Dashboard /> {/* Placeholder - will create Manager page */}
+                <ManagerReview />
               </ProtectedRoute>
             } />
             <Route path="/director" element={
               <ProtectedRoute requiredRoles={['director', 'admin']}>
-                <Dashboard /> {/* Placeholder - will create Director page */}
+                <DirectorApproval />
               </ProtectedRoute>
             } />
             <Route path="/rubrics" element={
