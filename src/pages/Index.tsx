@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { Activity, ArrowRight, Shield, BarChart3, Users, FileCheck } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Activity, ArrowRight, Shield, BarChart3, Users, FileCheck, LogIn } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const navigate = useNavigate();
-
+  const { user, loading } = useAuth();
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -46,21 +47,36 @@ const Index = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
-                size="lg" 
-                onClick={() => navigate("/assessment")}
-                className="text-base px-6"
-              >
-                Start Self-Assessment
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg"
-                className="text-base px-6"
-              >
-                View Demo
-              </Button>
+              {user ? (
+                <Button 
+                  size="lg" 
+                  onClick={() => navigate("/dashboard")}
+                  className="text-base px-6"
+                >
+                  Go to Dashboard
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    size="lg" 
+                    onClick={() => navigate("/auth")}
+                    className="text-base px-6"
+                  >
+                    Get Started
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => navigate("/auth")}
+                    className="text-base px-6"
+                  >
+                    <LogIn className="mr-2 h-5 w-5" />
+                    Sign In
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -128,9 +144,9 @@ const Index = () => {
             </div>
             <Button 
               size="lg" 
-              onClick={() => navigate("/assessment")}
+              onClick={() => navigate(user ? "/dashboard" : "/auth")}
             >
-              Begin Assessment
+              {user ? "Go to Dashboard" : "Get Started"}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>
