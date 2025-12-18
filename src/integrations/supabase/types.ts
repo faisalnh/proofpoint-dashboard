@@ -159,24 +159,30 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          evidence_guidance: string | null
           id: string
           name: string
+          score_options: Json | null
           section_id: string
           sort_order: number
         }
         Insert: {
           created_at?: string
           description?: string | null
+          evidence_guidance?: string | null
           id?: string
           name: string
+          score_options?: Json | null
           section_id: string
           sort_order?: number
         }
         Update: {
           created_at?: string
           description?: string | null
+          evidence_guidance?: string | null
           id?: string
           name?: string
+          score_options?: Json | null
           section_id?: string
           sort_order?: number
         }

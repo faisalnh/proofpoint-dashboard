@@ -13,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { IndicatorEditDialog, IndicatorFormData } from '@/components/rubrics/IndicatorEditDialog';
 import { 
   FileText, 
   Plus,
@@ -21,7 +22,8 @@ import {
   Globe,
   Building2,
   Loader2,
-  GripVertical
+  GripVertical,
+  Link
 } from 'lucide-react';
 
 interface Department {
@@ -47,12 +49,20 @@ interface RubricSection {
   sort_order: number;
 }
 
+interface ScoreOption {
+  score: number;
+  label: string;
+  enabled: boolean;
+}
+
 interface RubricIndicator {
   id: string;
   section_id: string;
   name: string;
   description: string | null;
   sort_order: number;
+  evidence_guidance: string | null;
+  score_options: ScoreOption[] | null;
 }
 
 export default function Rubrics() {
@@ -79,8 +89,10 @@ export default function Rubrics() {
   // Section form
   const [newSection, setNewSection] = useState({ name: '', weight: 0, templateId: '' });
   
-  // Indicator form
-  const [newIndicator, setNewIndicator] = useState({ name: '', description: '', sectionId: '' });
+  // Indicator dialog state
+  const [indicatorDialogOpen, setIndicatorDialogOpen] = useState(false);
+  const [editingIndicator, setEditingIndicator] = useState<RubricIndicator | null>(null);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -95,7 +107,12 @@ export default function Rubrics() {
     if (deptsRes.data) setDepartments(deptsRes.data);
     if (templatesRes.data) setTemplates(templatesRes.data as RubricTemplate[]);
     if (sectionsRes.data) setSections(sectionsRes.data as RubricSection[]);
-    if (indicatorsRes.data) setIndicators(indicatorsRes.data as RubricIndicator[]);
+    if (indicatorsRes.data) {
+      setIndicators(indicatorsRes.data.map(ind => ({
+        ...ind,
+        score_options: ind.score_options as unknown as ScoreOption[] | null
+      })) as RubricIndicator[]);
+    }
     
     setLoading(false);
   };
@@ -167,26 +184,58 @@ export default function Rubrics() {
       fetchData();
     }
   };
+  const openAddIndicator = (sectionId: string) => {
+    setEditingIndicator(null);
+    setEditingSectionId(sectionId);
+    setIndicatorDialogOpen(true);
+  };
 
-  const handleAddIndicator = async (sectionId: string) => {
-    if (!newIndicator.name.trim()) return;
+  const openEditIndicator = (indicator: RubricIndicator) => {
+    setEditingIndicator(indicator);
+    setEditingSectionId(indicator.section_id);
+    setIndicatorDialogOpen(true);
+  };
+
+  const handleSaveIndicator = async (data: IndicatorFormData) => {
+    if (!editingSectionId && !editingIndicator) return;
     
-    const maxOrder = Math.max(0, ...indicators.filter(i => i.section_id === sectionId).map(i => i.sort_order));
+    const sectionId = editingIndicator?.section_id || editingSectionId!;
     
-    const { error } = await supabase.from('rubric_indicators').insert({
-      section_id: sectionId,
-      name: newIndicator.name.trim(),
-      description: newIndicator.description.trim() || null,
-      sort_order: maxOrder + 1
-    });
-    
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    if (editingIndicator) {
+      // Update existing
+      const { error } = await supabase.from('rubric_indicators').update({
+        name: data.name.trim(),
+        description: data.description?.trim() || null,
+        evidence_guidance: data.evidence_guidance?.trim() || null,
+        score_options: JSON.parse(JSON.stringify(data.score_options))
+      }).eq('id', editingIndicator.id);
+      
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        throw error;
+      }
+      toast({ title: 'Updated', description: 'Indicator updated' });
     } else {
+      // Create new
+      const maxOrder = Math.max(0, ...indicators.filter(i => i.section_id === sectionId).map(i => i.sort_order));
+      
+      const { error } = await supabase.from('rubric_indicators').insert({
+        section_id: sectionId,
+        name: data.name.trim(),
+        description: data.description?.trim() || null,
+        evidence_guidance: data.evidence_guidance?.trim() || null,
+        score_options: JSON.parse(JSON.stringify(data.score_options)),
+        sort_order: maxOrder + 1
+      });
+      
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        throw error;
+      }
       toast({ title: 'Added', description: 'Indicator added' });
-      setNewIndicator({ name: '', description: '', sectionId: '' });
-      fetchData();
     }
+    
+    fetchData();
   };
 
   const handleDeleteIndicator = async (id: string) => {
@@ -374,45 +423,54 @@ export default function Rubrics() {
                             {getSectionIndicators(section.id).map(indicator => (
                               <div 
                                 key={indicator.id}
-                                className="flex items-center justify-between p-2 rounded bg-muted/30"
+                                className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
                               >
-                                <div>
+                                <div className="flex-1">
                                   <p className="font-medium text-sm">{indicator.name}</p>
                                   {indicator.description && (
                                     <p className="text-xs text-muted-foreground">{indicator.description}</p>
                                   )}
+                                  <div className="flex items-center gap-3 mt-1">
+                                    {indicator.evidence_guidance && (
+                                      <span className="inline-flex items-center gap-1 text-xs text-primary">
+                                        <Link className="h-3 w-3" /> Evidence guide
+                                      </span>
+                                    )}
+                                    {indicator.score_options && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {indicator.score_options.filter(o => o.enabled).length} scores enabled
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => handleDeleteIndicator(indicator.id)}
-                                >
-                                  <Trash2 className="h-3 w-3 text-destructive" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={() => openEditIndicator(indicator)}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={() => handleDeleteIndicator(indicator.id)}
+                                  >
+                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </div>
                               </div>
                             ))}
                             
-                            {/* Add Indicator */}
-                            <div className="flex items-end gap-2 pt-2">
-                              <div className="flex-1">
-                                <Input
-                                  placeholder="New indicator name"
-                                  value={newIndicator.sectionId === section.id ? newIndicator.name : ''}
-                                  onChange={(e) => setNewIndicator({ 
-                                    name: e.target.value, 
-                                    description: newIndicator.sectionId === section.id ? newIndicator.description : '',
-                                    sectionId: section.id 
-                                  })}
-                                />
-                              </div>
-                              <Button 
-                                size="sm"
-                                onClick={() => handleAddIndicator(section.id)}
-                                disabled={newIndicator.sectionId !== section.id || !newIndicator.name.trim()}
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            </div>
+                            {/* Add Indicator Button */}
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="w-full mt-2"
+                              onClick={() => openAddIndicator(section.id)}
+                            >
+                              <Plus className="h-4 w-4 mr-1" /> Add Indicator
+                            </Button>
                           </div>
                           
                           <Button 
@@ -470,6 +528,20 @@ export default function Rubrics() {
           </div>
         )}
       </main>
+      
+      {/* Indicator Edit Dialog */}
+      <IndicatorEditDialog
+        open={indicatorDialogOpen}
+        onOpenChange={setIndicatorDialogOpen}
+        indicator={editingIndicator ? {
+          name: editingIndicator.name,
+          description: editingIndicator.description,
+          evidence_guidance: editingIndicator.evidence_guidance,
+          score_options: editingIndicator.score_options || []
+        } : null}
+        onSave={handleSaveIndicator}
+        mode={editingIndicator ? 'edit' : 'create'}
+      />
     </div>
   );
 }
