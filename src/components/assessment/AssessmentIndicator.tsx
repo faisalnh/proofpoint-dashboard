@@ -16,9 +16,10 @@ interface AssessmentIndicatorProps {
   indicator: IndicatorData;
   onChange: (updates: Partial<IndicatorData>) => void;
   index: number;
+  readonly?: boolean;
 }
 
-export function AssessmentIndicator({ indicator, onChange, index }: AssessmentIndicatorProps) {
+export function AssessmentIndicator({ indicator, onChange, index, readonly = false }: AssessmentIndicatorProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   
   const isComplete = indicator.score !== null && (
@@ -76,6 +77,7 @@ export function AssessmentIndicator({ indicator, onChange, index }: AssessmentIn
             <ScoreSelector
               value={indicator.score}
               onChange={(score) => onChange({ score })}
+              disabled={readonly}
             />
           </div>
           
@@ -83,6 +85,7 @@ export function AssessmentIndicator({ indicator, onChange, index }: AssessmentIn
             score={indicator.score}
             value={indicator.evidence}
             onChange={(evidence) => onChange({ evidence })}
+            disabled={readonly}
           />
         </div>
       )}
