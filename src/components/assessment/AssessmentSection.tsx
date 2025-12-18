@@ -12,6 +12,7 @@ export interface SectionData {
 interface AssessmentSectionProps {
   section: SectionData;
   onIndicatorChange: (indicatorId: string, updates: Partial<IndicatorData>) => void;
+  readonly?: boolean;
 }
 
 function calculateSectionScore(indicators: IndicatorData[]): number | null {
@@ -22,7 +23,7 @@ function calculateSectionScore(indicators: IndicatorData[]): number | null {
   return sum / scoredIndicators.length;
 }
 
-export function AssessmentSection({ section, onIndicatorChange }: AssessmentSectionProps) {
+export function AssessmentSection({ section, onIndicatorChange, readonly = false }: AssessmentSectionProps) {
   const sectionScore = calculateSectionScore(section.indicators);
   const completedCount = section.indicators.filter(i => 
     i.score !== null && (i.score === 2 || i.evidence.trim().length > 0)
@@ -68,6 +69,7 @@ export function AssessmentSection({ section, onIndicatorChange }: AssessmentSect
             indicator={indicator}
             index={index}
             onChange={(updates) => onIndicatorChange(indicator.id, updates)}
+            readonly={readonly}
           />
         ))}
       </div>
