@@ -378,24 +378,6 @@ export default function SelfAssessment() {
             <div className="sticky top-24">
               <WeightedScoreDisplay sections={sections} />
               
-              {/* Legend */}
-              <div className="mt-4 p-4 bg-card border rounded-xl">
-                <h4 className="text-sm font-medium text-foreground mb-3">Score Guide</h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-evidence-alert" />
-                    <span className="text-muted-foreground">0-1: Evidence of failure required</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-muted-foreground" />
-                    <span className="text-muted-foreground">2: Meets standard (optional notes)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-evidence-success" />
-                    <span className="text-muted-foreground">3-4: Evidence of achievement required</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
