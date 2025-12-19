@@ -548,6 +548,86 @@ export default function DirectorApproval() {
           ))}
         </div>
 
+        {/* Score Summary */}
+        <Card className="mt-8">
+          <CardHeader className="bg-muted/30">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Score Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="space-y-6">
+              {currentAssessment.sections.map(section => {
+                const sectionIndicators = section.indicators.map(ind => ({
+                  name: ind.name,
+                  staffScore: currentAssessment.staffScores[ind.id],
+                  managerScore: currentAssessment.managerScores[ind.id],
+                }));
+                
+                const validManagerScores = sectionIndicators.filter(i => i.managerScore !== null && i.managerScore !== undefined);
+                const sectionAvg = validManagerScores.length > 0
+                  ? validManagerScores.reduce((sum, i) => sum + (i.managerScore ?? 0), 0) / validManagerScores.length
+                  : null;
+                
+                return (
+                  <div key={section.id} className="border rounded-lg overflow-hidden">
+                    <div className="bg-secondary/50 px-4 py-2 flex items-center justify-between">
+                      <span className="font-semibold">{section.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{section.weight}%</Badge>
+                        {sectionAvg !== null && (
+                          <Badge className={cn(
+                            sectionAvg < 2 && "bg-destructive",
+                            sectionAvg >= 2 && sectionAvg < 3 && "bg-muted-foreground",
+                            sectionAvg >= 3 && "bg-primary"
+                          )}>
+                            Avg: {sectionAvg.toFixed(2)}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="divide-y">
+                      {sectionIndicators.map((ind, idx) => (
+                        <div key={idx} className="px-4 py-2 flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{ind.name}</span>
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-muted-foreground">Staff:</span>
+                              <Badge variant="secondary" className="font-mono">
+                                {ind.staffScore ?? '--'}/4
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-muted-foreground">Manager:</span>
+                              <Badge variant="default" className="font-mono bg-primary">
+                                {ind.managerScore ?? '--'}/4
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* Total Score & Grade */}
+              <div className="border-t pt-4 flex items-center justify-between">
+                <span className="text-lg font-semibold">Final Score</span>
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl font-mono font-bold text-primary">
+                    {currentAssessment.final_score?.toFixed(2) || '--'}
+                  </span>
+                  {currentAssessment.final_grade && (
+                    <Badge className="text-lg px-4 py-1">{currentAssessment.final_grade}</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Manager Overall Notes */}
         {currentAssessment.manager_notes && (
           <Card className="mt-8 border-primary/20">
