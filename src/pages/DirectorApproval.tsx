@@ -407,27 +407,60 @@ export default function DirectorApproval() {
                   const staffEv = getEvidenceText(staffEvRaw);
                   const managerEv = getEvidenceText(managerEvRaw);
                   
+                  // Get score label from score_options
+                  const getScoreLabel = (score: number | null | undefined, options: ScoreOption[] | undefined): string => {
+                    if (score === null || score === undefined || !options) return '';
+                    const option = options.find(o => o.score === score);
+                    return option?.label || '';
+                  };
+                  
+                  const staffScoreLabel = getScoreLabel(staffScore, indicator.score_options);
+                  const managerScoreLabel = getScoreLabel(managerScore, indicator.score_options);
+                  
                   return (
                     <div key={indicator.id} className={cn("border-b last:border-0 p-4", idx % 2 === 0 && "bg-muted/20")}>
-                      <h4 className="font-medium mb-3">{indicator.name}</h4>
+                      <h4 className="font-medium mb-1">{indicator.name}</h4>
+                      {indicator.description && (
+                        <p className="text-sm text-muted-foreground mb-3">{indicator.description}</p>
+                      )}
                       
                       <div className="grid grid-cols-2 gap-6">
                         {/* Staff */}
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Staff Self-Assessment</p>
-                          <Badge variant={staffScore <= 1 ? 'destructive' : staffScore >= 3 ? 'default' : 'secondary'}>
-                            {staffScore ?? '--'}/4
-                          </Badge>
-                          {staffEv && <p className="text-sm mt-2 text-muted-foreground">{staffEv}</p>}
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Staff Self-Assessment</p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={staffScore <= 1 ? 'destructive' : staffScore >= 3 ? 'default' : 'secondary'}>
+                              {staffScore ?? '--'}/4
+                            </Badge>
+                            {staffScoreLabel && (
+                              <span className="text-sm font-medium">{staffScoreLabel}</span>
+                            )}
+                          </div>
+                          {staffEv && (
+                            <div className="mt-2 p-2 bg-muted/30 rounded text-sm">
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Evidence:</p>
+                              <p className="text-muted-foreground">{staffEv}</p>
+                            </div>
+                          )}
                         </div>
                         
                         {/* Manager */}
-                        <div className="border-l pl-6">
-                          <p className="text-xs font-medium text-primary uppercase tracking-wide mb-2">Manager Review</p>
-                          <Badge className="bg-primary" variant="default">
-                            {managerScore ?? '--'}/4
-                          </Badge>
-                          {managerEv && <p className="text-sm mt-2 text-muted-foreground">{managerEv}</p>}
+                        <div className="border-l pl-6 space-y-2">
+                          <p className="text-xs font-medium text-primary uppercase tracking-wide">Manager Review</p>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-primary" variant="default">
+                              {managerScore ?? '--'}/4
+                            </Badge>
+                            {managerScoreLabel && (
+                              <span className="text-sm font-medium text-primary">{managerScoreLabel}</span>
+                            )}
+                          </div>
+                          {managerEv && (
+                            <div className="mt-2 p-2 bg-primary/5 rounded text-sm">
+                              <p className="text-xs font-medium text-primary mb-1">Comments:</p>
+                              <p className="text-muted-foreground">{managerEv}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
