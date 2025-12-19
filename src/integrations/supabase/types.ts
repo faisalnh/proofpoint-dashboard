@@ -82,6 +82,7 @@ export type Database = {
           id: string
           manager_evidence: Json | null
           manager_id: string | null
+          manager_notes: string | null
           manager_reviewed_at: string | null
           manager_scores: Json | null
           period: string
@@ -103,6 +104,7 @@ export type Database = {
           id?: string
           manager_evidence?: Json | null
           manager_id?: string | null
+          manager_notes?: string | null
           manager_reviewed_at?: string | null
           manager_scores?: Json | null
           period: string
@@ -124,6 +126,7 @@ export type Database = {
           id?: string
           manager_evidence?: Json | null
           manager_id?: string | null
+          manager_notes?: string | null
           manager_reviewed_at?: string | null
           manager_scores?: Json | null
           period?: string

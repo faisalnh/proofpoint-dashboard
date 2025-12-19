@@ -48,6 +48,7 @@ interface ManagerReviewData {
   sections: SectionData[];
   managerScores: Record<string, number>;
   managerEvidence: Record<string, string>;
+  managerNotes: string;
 }
 
 export default function ManagerReview() {
@@ -125,6 +126,7 @@ export default function ManagerReview() {
           sections,
           managerScores,
           managerEvidence,
+          managerNotes: (data as any).manager_notes || '',
         });
       }
 
@@ -150,6 +152,11 @@ export default function ManagerReview() {
     });
   };
 
+  const handleManagerNotesChange = (notes: string) => {
+    if (!reviewData) return;
+    setReviewData({ ...reviewData, managerNotes: notes });
+  };
+
   const handleSave = async () => {
     if (!reviewData || !assessmentId) return;
 
@@ -159,6 +166,7 @@ export default function ManagerReview() {
       .update({
         manager_scores: reviewData.managerScores,
         manager_evidence: reviewData.managerEvidence,
+        manager_notes: reviewData.managerNotes,
         manager_id: user?.id,
         updated_at: new Date().toISOString(),
       })
@@ -194,6 +202,7 @@ export default function ManagerReview() {
       .update({
         manager_scores: reviewData.managerScores,
         manager_evidence: reviewData.managerEvidence,
+        manager_notes: reviewData.managerNotes,
         manager_id: user?.id,
         status: 'manager_reviewed',
         manager_reviewed_at: new Date().toISOString(),
@@ -421,6 +430,25 @@ export default function ManagerReview() {
             )}
           />
         </div>
+
+        {/* Overall Manager Notes */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Overall Manager Notes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              placeholder="Add overall notes, recommendations, or feedback for this assessment..."
+              value={reviewData.managerNotes}
+              onChange={(e) => handleManagerNotesChange(e.target.value)}
+              rows={4}
+              className="resize-none"
+            />
+          </CardContent>
+        </Card>
 
         {/* Actions */}
         <div className="flex justify-end gap-3 mt-8 p-4 bg-card border rounded-xl">
