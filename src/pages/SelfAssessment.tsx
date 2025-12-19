@@ -14,7 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare, User, UserCheck, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useAssessment, useMyAssessments, useRubricTemplates, SectionData, IndicatorData, hasValidEvidence } from "@/hooks/useAssessment";
+import { useAssessment, useMyAssessments, useRubricTemplates, SectionData, IndicatorData, hasValidEvidence, getGradeFromScore } from "@/hooks/useAssessment";
 import { supabase } from "@/integrations/supabase/client";
 import { getStatusLabel } from "@/lib/assessmentStatus";
 
@@ -399,13 +399,19 @@ export default function SelfAssessment() {
                         <User className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">Self Assessment</span>
                       </div>
-                      <div className="text-2xl font-bold font-mono">
-                        {sections.reduce((acc, s) => {
+                      {(() => {
+                        const selfScore = sections.reduce((acc, s) => {
                           const scored = s.indicators.filter(i => i.score !== null);
                           if (scored.length === 0) return acc;
                           return acc + scored.reduce((sum, i) => sum + (i.score || 0), 0) / scored.length * s.weight / 100;
-                        }, 0).toFixed(2)}
-                      </div>
+                        }, 0);
+                        return (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-bold font-mono">{selfScore.toFixed(2)}</span>
+                            <span className="text-lg font-semibold text-muted-foreground">({getGradeFromScore(selfScore)})</span>
+                          </div>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
                   <Card className="bg-primary/5 border-primary/20">
@@ -414,13 +420,19 @@ export default function SelfAssessment() {
                         <UserCheck className="h-4 w-4 text-primary" />
                         <span className="text-sm font-medium text-primary">Manager Review</span>
                       </div>
-                      <div className="text-2xl font-bold font-mono text-primary">
-                        {sections.reduce((acc, s) => {
+                      {(() => {
+                        const managerScore = sections.reduce((acc, s) => {
                           const scored = s.indicators.filter(i => i.managerScore !== null);
                           if (scored.length === 0) return acc;
                           return acc + scored.reduce((sum, i) => sum + (i.managerScore || 0), 0) / scored.length * s.weight / 100;
-                        }, 0).toFixed(2)}
-                      </div>
+                        }, 0);
+                        return (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-bold font-mono text-primary">{managerScore.toFixed(2)}</span>
+                            <span className="text-lg font-semibold text-primary/70">({getGradeFromScore(managerScore)})</span>
+                          </div>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
                 </div>
