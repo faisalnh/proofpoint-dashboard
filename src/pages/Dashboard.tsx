@@ -193,19 +193,23 @@ export default function Dashboard() {
               <p className="text-muted-foreground">No assessments yet. Start your first one!</p>
             ) : (
               <div className="space-y-3">
-                {assessments.map(assessment => (
-                  <div 
-                    key={assessment.id} 
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                {assessments.map((assessment) => (
+                  <Link
+                    key={assessment.id}
+                    to={`/assessment?id=${assessment.id}`}
+                    className="block"
+                    aria-label={`Open assessment for ${assessment.period}`}
                   >
-                    <div>
-                      <p className="font-medium">{assessment.period}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(assessment.created_at).toLocaleDateString()}
-                      </p>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div>
+                        <p className="font-medium">{assessment.period}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(assessment.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {getStatusBadge(assessment.status)}
                     </div>
-                    {getStatusBadge(assessment.status)}
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
