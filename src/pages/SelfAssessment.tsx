@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { AssessmentSection, WeightedScoreDisplay, ReviewComparisonSection, ReviewSectionData } from "@/components/assessment";
 import { RaiseQuestionModal } from "@/components/assessment/RaiseQuestionModal";
+import { MyQuestionsPanel } from "@/components/assessment/MyQuestionsPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -449,7 +450,7 @@ export default function SelfAssessment() {
           
           {/* Score Panel */}
           <div className="lg:col-span-4">
-            <div className="sticky top-24">
+            <div className="sticky top-24 space-y-4">
               {!isReviewed && <WeightedScoreDisplay sections={sections} />}
               
               {/* Legend for Review */}
@@ -474,6 +475,16 @@ export default function SelfAssessment() {
                     </div>
                   </CardContent>
                 </Card>
+              )}
+
+              {/* My Questions */}
+              {isReviewed && assessment && (
+                <MyQuestionsPanel
+                  assessmentId={assessment.id}
+                  indicators={sections.flatMap(s => 
+                    s.indicators.map(i => ({ id: i.id, name: i.name }))
+                  )}
+                />
               )}
             </div>
           </div>
