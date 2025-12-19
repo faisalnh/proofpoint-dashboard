@@ -237,7 +237,9 @@ export default function ManagerReview() {
 
   // No assessment selected - show team list
   if (!assessmentId) {
-    const pendingAssessments = assessments.filter(a => a.status === 'self_submitted' || a.status === 'manager_reviewed');
+    const pendingAssessments = assessments.filter(a => a.status === 'self_submitted');
+    const inProgressAssessments = assessments.filter(a => a.status === 'manager_reviewed');
+    const completedAssessments = assessments.filter(a => ['approved', 'acknowledged'].includes(a.status));
     
     return (
       <div className="min-h-screen bg-background">
@@ -251,39 +253,99 @@ export default function ManagerReview() {
             <p className="text-muted-foreground mt-1">Review and score your team's assessments</p>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Reviews</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pendingAssessments.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No assessments pending review</p>
-              ) : (
-                <div className="space-y-2">
-                  {pendingAssessments.map(a => (
-                    <div
-                      key={a.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/manager?id=${a.id}`)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-5 w-5 text-primary" />
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Reviews ({pendingAssessments.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingAssessments.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">No assessments pending review</p>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingAssessments.map(a => (
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/manager?id=${a.id}`)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{a.staff_name}</div>
+                            <div className="text-sm text-muted-foreground">{a.period}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium">{a.staff_name}</div>
-                          <div className="text-sm text-muted-foreground">{a.period}</div>
-                        </div>
+                        <Badge variant="secondary">{getStatusLabel(a.status)}</Badge>
                       </div>
-                      <Badge variant={a.status === 'self_submitted' ? 'secondary' : 'default'}>
-                        {getStatusLabel(a.status)}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {inProgressAssessments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Awaiting Director Approval ({inProgressAssessments.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {inProgressAssessments.map(a => (
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/manager?id=${a.id}`)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                            <User className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{a.staff_name}</div>
+                            <div className="text-sm text-muted-foreground">{a.period}</div>
+                          </div>
+                        </div>
+                        <Badge variant="outline">{getStatusLabel(a.status)}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {completedAssessments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Completed ({completedAssessments.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {completedAssessments.map(a => (
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/manager?id=${a.id}`)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                            <CheckCircle className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{a.staff_name}</div>
+                            <div className="text-sm text-muted-foreground">{a.period}</div>
+                          </div>
+                        </div>
+                        <Badge variant="default">{getStatusLabel(a.status)}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </main>
       </div>
     );
