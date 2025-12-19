@@ -22,28 +22,28 @@ export const STATUS_CONFIG: Record<AssessmentStatus, StatusInfo> = {
   },
   self_submitted: {
     label: 'Submitted',
-    description: 'Awaiting manager review',
+    description: 'Awaiting manager appraisal',
     step: 1,
   },
   manager_reviewed: {
-    label: 'Reviewed',
-    description: 'Awaiting staff acknowledgement',
+    label: 'Manager Reviewed',
+    description: 'Awaiting director approval',
     step: 2,
+  },
+  approved: {
+    label: 'Director Approved',
+    description: 'Awaiting staff acknowledgement',
+    step: 3,
   },
   acknowledged: {
     label: 'Acknowledged',
-    description: 'Pending director approval',
-    step: 3,
-  },
-  approved: {
-    label: 'Approved',
     description: 'Assessment complete',
     step: 4,
   },
   rejected: {
     label: 'Rejected',
     description: 'Sent back for revision',
-    step: 2,
+    step: 3,
   },
 };
 
