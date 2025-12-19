@@ -185,73 +185,71 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
                 
                 {/* Evidence Input with File Upload */}
                 <div className="space-y-2">
-                  {item.type === "file" && item.fileName ? (
-                    <div className="flex items-center gap-2 h-9 px-3 bg-muted rounded-md">
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="text-sm truncate flex-1">{item.fileName}</span>
+                  {/* Show uploaded file info if exists */}
+                  {item.type === "file" && item.fileName && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <span className="truncate flex-1">{item.fileName}</span>
                       <a 
                         href={item.evidence} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-primary hover:text-primary/80"
+                        title="Open file"
                       >
                         <ExternalLink className="h-4 w-4" />
                       </a>
                     </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Input
-                        value={item.evidence}
-                        onChange={(e) => updateItem(index, "evidence", e.target.value)}
-                        placeholder="Paste link here..."
-                        disabled={isDisabled || uploadingIndex === index}
-                        className={cn(
-                          "h-9 flex-1",
-                          showWarning && !item.evidence.trim() && "border-evidence-alert"
-                        )}
-                      />
-                      <input
-                        type="file"
-                        ref={(el) => { fileInputRefs.current[index] = el; }}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileUpload(index, file);
-                        }}
-                        className="hidden"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => triggerFileInput(index)}
-                        disabled={isDisabled || uploadingIndex === index}
-                        className="h-9 w-9 shrink-0"
-                        title="Upload file"
-                      >
-                        {uploadingIndex === index ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Upload className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
                   )}
                   
-                  {/* Option to switch back to link if file was uploaded */}
-                  {item.type === "file" && item.fileName && (
+                  {/* Always show link input and upload button */}
+                  <div className="flex gap-2">
+                    <Input
+                      value={item.type === "file" ? "" : item.evidence}
+                      onChange={(e) => {
+                        const newItems = [...items];
+                        newItems[index] = { 
+                          ...newItems[index], 
+                          evidence: e.target.value,
+                          type: "link",
+                          fileName: undefined
+                        };
+                        onChange(newItems);
+                      }}
+                      placeholder={item.type === "file" ? "Or paste a different link..." : "Paste link here..."}
+                      disabled={isDisabled || uploadingIndex === index}
+                      className={cn(
+                        "h-9 flex-1",
+                        showWarning && !item.evidence.trim() && "border-evidence-alert"
+                      )}
+                    />
+                    <input
+                      type="file"
+                      ref={(el) => { fileInputRefs.current[index] = el; }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(index, file);
+                        e.target.value = '';
+                      }}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt"
+                    />
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => updateItem(index, "evidence", "")}
-                      disabled={isDisabled}
-                      className="h-6 text-xs text-muted-foreground"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => triggerFileInput(index)}
+                      disabled={isDisabled || uploadingIndex === index}
+                      className="h-9 w-9 shrink-0"
+                      title={item.type === "file" ? "Replace file" : "Upload file"}
                     >
-                      <Link className="h-3 w-3 mr-1" />
-                      Use link instead
+                      {uploadingIndex === index ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
                     </Button>
-                  )}
+                  </div>
                 </div>
                 
                 <Textarea
