@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      assessment_questions: {
+        Row: {
+          asked_by: string
+          assessment_id: string
+          created_at: string
+          id: string
+          indicator_id: string | null
+          question: string
+          responded_at: string | null
+          responded_by: string | null
+          response: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          asked_by: string
+          assessment_id: string
+          created_at?: string
+          id?: string
+          indicator_id?: string | null
+          question: string
+          responded_at?: string | null
+          responded_by?: string | null
+          response?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          asked_by?: string
+          assessment_id?: string
+          created_at?: string
+          id?: string
+          indicator_id?: string | null
+          question?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          response?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_questions_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_questions_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "rubric_indicators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessments: {
         Row: {
           created_at: string

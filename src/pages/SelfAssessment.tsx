@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { AssessmentSection, WeightedScoreDisplay, ReviewComparisonSection, ReviewSectionData } from "@/components/assessment";
+import { RaiseQuestionModal } from "@/components/assessment/RaiseQuestionModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,7 @@ export default function SelfAssessment() {
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [creating, setCreating] = useState(false);
+  const [questionModalOpen, setQuestionModalOpen] = useState(false);
 
   // Auto-detect review period based on current date
   // May-August: Semester 2 of previousYear - currentYear academic year
@@ -119,10 +121,7 @@ export default function SelfAssessment() {
   };
 
   const handleRaiseQuestion = () => {
-    toast({
-      title: "Raise Question",
-      description: "Question/feedback workflow is not enabled yet.",
-    });
+    setQuestionModalOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -480,6 +479,20 @@ export default function SelfAssessment() {
           </div>
         </div>
       </main>
+
+      {/* Raise Question Modal */}
+      {assessment && (
+        <RaiseQuestionModal
+          open={questionModalOpen}
+          onOpenChange={setQuestionModalOpen}
+          assessmentId={assessment.id}
+          sections={sections.map(s => ({
+            id: s.id,
+            name: s.name,
+            indicators: s.indicators.map(i => ({ id: i.id, name: i.name }))
+          }))}
+        />
+      )}
     </div>
   );
 }
