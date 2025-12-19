@@ -4,12 +4,19 @@ import { ScoreSelector } from "./ScoreSelector";
 import { EvidenceInput, EvidenceItem } from "./EvidenceInput";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
+interface ScoreOption {
+  score: number;
+  label: string;
+  enabled: boolean;
+}
+
 export interface IndicatorData {
   id: string;
   name: string;
   description: string;
   score: number | null;
   evidence: string | EvidenceItem[];
+  score_options?: ScoreOption[];
 }
 
 interface AssessmentIndicatorProps {
@@ -82,6 +89,7 @@ export function AssessmentIndicator({ indicator, onChange, index, readonly = fal
               value={indicator.score}
               onChange={(score) => onChange({ score })}
               disabled={readonly}
+              scoreOptions={indicator.score_options}
             />
           </div>
           
