@@ -512,16 +512,18 @@ export default function ManagerReview() {
           </CardContent>
         </Card>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3 mt-8 p-4 bg-card border rounded-xl">
-          <Button variant="outline" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Progress"}
-          </Button>
-          <Button onClick={handleSubmitReview} disabled={saving}>
-            <Send className="h-4 w-4 mr-2" />
-            Submit Review
-          </Button>
-        </div>
+        {/* Actions - only show if not yet submitted by manager */}
+        {reviewData.assessment.status === 'self_submitted' && (
+          <div className="flex justify-end gap-3 mt-8 p-4 bg-card border rounded-xl">
+            <Button variant="outline" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Progress"}
+            </Button>
+            <Button onClick={handleSubmitReview} disabled={saving}>
+              <Send className="h-4 w-4 mr-2" />
+              Submit Review
+            </Button>
+          </div>
+        )}
       </main>
     </div>
   );
