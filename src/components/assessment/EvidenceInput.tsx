@@ -21,6 +21,7 @@ interface EvidenceInputProps {
   value: string | EvidenceItem[];
   onChange: (value: EvidenceItem[]) => void;
   disabled?: boolean;
+  evidenceGuidance?: string;
 }
 
 // Parse legacy string value or return array as-is
@@ -51,7 +52,7 @@ function hasMinimumEvidence(items: EvidenceItem[]): boolean {
   return items.some(item => item.evidence.trim().length > 0);
 }
 
-export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInputProps) {
+export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidance }: EvidenceInputProps) {
   const { user } = useAuth();
   const items = parseEvidenceValue(value);
   const required = isEvidenceRequired(score);
@@ -171,9 +172,12 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
         {score !== null && score !== 0 && (
           <div className="flex items-start gap-2 p-2 bg-muted/50 rounded-md text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>
-              Provide links to documents, reports, or upload files (PDF, Word, Excel, images) that support your score.
-            </span>
+            <div className="space-y-1">
+              {evidenceGuidance && (
+                <p className="font-medium text-foreground">{evidenceGuidance}</p>
+              )}
+              <p>Provide links to documents, reports, or upload files (PDF, Word, Excel, images) that support your score.</p>
+            </div>
           </div>
         )}
 

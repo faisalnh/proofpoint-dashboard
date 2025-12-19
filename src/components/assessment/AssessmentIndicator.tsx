@@ -17,6 +17,7 @@ export interface IndicatorData {
   score: number | null;
   evidence: string | EvidenceItem[];
   score_options?: ScoreOption[];
+  evidence_guidance?: string;
 }
 
 interface AssessmentIndicatorProps {
@@ -98,6 +99,7 @@ export function AssessmentIndicator({ indicator, onChange, index, readonly = fal
             value={indicator.evidence}
             onChange={(evidence) => onChange({ evidence })}
             disabled={readonly}
+            evidenceGuidance={indicator.evidence_guidance}
           />
         </div>
       )}
