@@ -118,6 +118,13 @@ export default function SelfAssessment() {
     }
   };
 
+  const handleRaiseQuestion = () => {
+    toast({
+      title: "Raise Question",
+      description: "Question/feedback workflow is not enabled yet.",
+    });
+  };
+
   const handleSubmit = async () => {
     if (!validation.valid) {
       toast({
@@ -325,7 +332,7 @@ export default function SelfAssessment() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={handleRaiseQuestion}>
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Raise Question
                   </Button>
