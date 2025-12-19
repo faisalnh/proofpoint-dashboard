@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTeamAssessments, calculateWeightedScore, getGradeFromScore, SectionData, ScoreOption, EvidenceItem } from "@/hooks/useAssessment";
 import { supabase } from "@/integrations/supabase/client";
 import { ScoreSelector } from "@/components/assessment/ScoreSelector";
+import { QuestionsPanel } from "@/components/assessment/QuestionsPanel";
 
 // Helper to render evidence
 function renderEvidence(evidence: string | EvidenceItem[]): React.ReactNode {
@@ -400,6 +401,16 @@ export default function ManagerReview() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Staff Questions */}
+        <div className="mt-8">
+          <QuestionsPanel
+            assessmentId={assessmentId}
+            indicators={reviewData.sections.flatMap(s => 
+              s.indicators.map(i => ({ id: i.id, name: i.name }))
+            )}
+          />
         </div>
 
         {/* Actions */}
