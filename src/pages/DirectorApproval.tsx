@@ -4,8 +4,9 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Building, CheckCircle, XCircle, User, FileText } from "lucide-react";
+import { ArrowLeft, Building, CheckCircle, XCircle, User, FileText, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateWeightedScore, getGradeFromScore, SectionData, ScoreOption } from "@/hooks/useAssessment";
@@ -42,6 +43,7 @@ export default function DirectorApproval() {
   const [currentAssessment, setCurrentAssessment] = useState<AssessmentWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [directorComments, setDirectorComments] = useState('');
 
   useEffect(() => {
     async function fetchAssessments() {
@@ -171,6 +173,7 @@ export default function DirectorApproval() {
         status: 'approved',
         director_id: user?.id,
         director_approved_at: new Date().toISOString(),
+        director_comments: directorComments || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', currentAssessment.id);
@@ -178,7 +181,8 @@ export default function DirectorApproval() {
     setProcessing(false);
 
     if (error) {
-      toast({ title: "Error", description: "Failed to approve", variant: "destructive" });
+      console.error('Approve error:', error);
+      toast({ title: "Error", description: "Failed to approve: " + error.message, variant: "destructive" });
     } else {
       toast({ title: "Approved", description: "Assessment has been approved" });
       navigate('/director');
@@ -187,6 +191,11 @@ export default function DirectorApproval() {
 
   const handleReject = async () => {
     if (!currentAssessment) return;
+    
+    if (!directorComments.trim()) {
+      toast({ title: "Required", description: "Please provide comments when rejecting", variant: "destructive" });
+      return;
+    }
 
     setProcessing(true);
     const { error } = await supabase
@@ -194,6 +203,7 @@ export default function DirectorApproval() {
       .update({
         status: 'rejected',
         director_id: user?.id,
+        director_comments: directorComments,
         updated_at: new Date().toISOString(),
       })
       .eq('id', currentAssessment.id);
@@ -201,7 +211,8 @@ export default function DirectorApproval() {
     setProcessing(false);
 
     if (error) {
-      toast({ title: "Error", description: "Failed to reject", variant: "destructive" });
+      console.error('Reject error:', error);
+      toast({ title: "Error", description: "Failed to reject: " + error.message, variant: "destructive" });
     } else {
       toast({ title: "Rejected", description: "Assessment has been sent back for revision" });
       navigate('/director');
@@ -414,18 +425,35 @@ export default function DirectorApproval() {
           ))}
         </div>
 
-        {/* Actions */}
+        {/* Director Comments and Actions */}
         {canApprove && (
-          <div className="flex justify-end gap-3 mt-8 p-4 bg-card border rounded-xl">
-            <Button variant="destructive" onClick={handleReject} disabled={processing}>
-              <XCircle className="h-4 w-4 mr-2" />
-              Reject
-            </Button>
-            <Button onClick={handleApprove} disabled={processing}>
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Approve
-            </Button>
-          </div>
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Director Comments
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Textarea
+                placeholder="Add your comments here (required for rejection)..."
+                value={directorComments}
+                onChange={(e) => setDirectorComments(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <div className="flex justify-end gap-3">
+                <Button variant="destructive" onClick={handleReject} disabled={processing}>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {processing ? "Processing..." : "Reject"}
+                </Button>
+                <Button onClick={handleApprove} disabled={processing}>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {processing ? "Processing..." : "Approve"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {currentAssessment.status === 'approved' && (
