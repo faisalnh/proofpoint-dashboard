@@ -13,6 +13,8 @@ import { useTeamAssessments, calculateWeightedScore, getGradeFromScore, SectionD
 import { supabase } from "@/integrations/supabase/client";
 import { ScoreSelector } from "@/components/assessment/ScoreSelector";
 import { QuestionsPanel } from "@/components/assessment/QuestionsPanel";
+import { AssessmentProgress } from "@/components/assessment/AssessmentProgress";
+import { getStatusLabel } from "@/lib/assessmentStatus";
 
 // Helper to render evidence
 function renderEvidence(evidence: string | EvidenceItem[]): React.ReactNode {
@@ -265,7 +267,7 @@ export default function ManagerReview() {
                         </div>
                       </div>
                       <Badge variant={a.status === 'self_submitted' ? 'secondary' : 'default'}>
-                        {a.status === 'self_submitted' ? 'Awaiting Review' : 'Reviewed'}
+                        {getStatusLabel(a.status)}
                       </Badge>
                     </div>
                   ))}
@@ -313,6 +315,13 @@ export default function ManagerReview() {
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Manager Review</h1>
           <p className="text-muted-foreground mt-1">Compare staff self-assessment with your evaluation</p>
         </div>
+
+        {/* Progress Indicator */}
+        <Card className="mb-6">
+          <CardContent className="py-4">
+            <AssessmentProgress status={reviewData.assessment.status} />
+          </CardContent>
+        </Card>
 
         {/* Score Summary */}
         <div className="grid grid-cols-2 gap-4 mb-8">
