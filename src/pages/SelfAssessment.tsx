@@ -44,8 +44,29 @@ export default function SelfAssessment() {
   const { assessment, sections, loading: assessmentLoading, saving, saveDraft, submitAssessment, updateIndicator } = useAssessment(assessmentId || undefined);
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
-  const [period, setPeriod] = useState(`Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`);
   const [creating, setCreating] = useState(false);
+
+  // Auto-detect review period based on current date
+  // May-August: Semester 1 of currentYear - nextYear academic year
+  // September-April: Semester 2 of previousYear - currentYear academic year
+  const getDefaultPeriod = () => {
+    const now = new Date();
+    const month = now.getMonth() + 1; // 1-12
+    const year = now.getFullYear();
+    
+    if (month >= 5 && month <= 8) {
+      // May-August: Semester 1
+      return `Semester 1, ${year}-${year + 1} Academic Year`;
+    } else if (month >= 9) {
+      // September-December: Semester 2 of current-next year
+      return `Semester 2, ${year}-${year + 1} Academic Year`;
+    } else {
+      // January-April: Semester 2 of previous-current year
+      return `Semester 2, ${year - 1}-${year} Academic Year`;
+    }
+  };
+  
+  const [period, setPeriod] = useState(getDefaultPeriod);
 
   const validation = useMemo(() => validateSections(sections), [sections]);
 
