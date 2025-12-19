@@ -11,12 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare, User, UserCheck, Clock } from "lucide-react";
+import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare, User, UserCheck, Clock, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAssessment, useMyAssessments, useRubricTemplates, SectionData, IndicatorData, hasValidEvidence, getGradeFromScore } from "@/hooks/useAssessment";
 import { supabase } from "@/integrations/supabase/client";
 import { getStatusLabel } from "@/lib/assessmentStatus";
+import { generateAppraisalPdf } from "@/lib/generateAppraisalPdf";
 
 function validateSections(sections: SectionData[]): { valid: boolean; missing: number } {
   let missing = 0;
@@ -156,8 +157,65 @@ export default function SelfAssessment() {
     } else {
       updateAssessmentStatus('acknowledged');
       toast({ title: "Acknowledged", description: "Assessment acknowledged successfully" });
-      navigate('/dashboard');
+      // Generate PDF after acknowledgement
+      handleGeneratePdf();
     }
+  };
+
+  const handleGeneratePdf = async () => {
+    if (!assessment) return;
+
+    // Fetch manager and director names
+    const { data: assessmentData } = await supabase
+      .from('assessments')
+      .select('manager_id, director_id')
+      .eq('id', assessment.id)
+      .single();
+
+    let managerName = 'Manager';
+    let directorName = 'Director';
+
+    if (assessmentData) {
+      const userIds = [assessmentData.manager_id, assessmentData.director_id].filter(Boolean);
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+
+        if (profiles) {
+          const managerProfile = profiles.find(p => p.user_id === assessmentData.manager_id);
+          const directorProfile = profiles.find(p => p.user_id === assessmentData.director_id);
+          if (managerProfile?.full_name) managerName = managerProfile.full_name;
+          if (directorProfile?.full_name) directorName = directorProfile.full_name;
+        }
+      }
+    }
+
+    // Calculate final score from manager scores
+    const managerScore = sections.reduce((acc, s) => {
+      const scored = s.indicators.filter(i => i.managerScore !== null);
+      if (scored.length === 0) return acc;
+      return acc + scored.reduce((sum, i) => sum + (i.managerScore || 0), 0) / scored.length * s.weight / 100;
+    }, 0);
+
+    generateAppraisalPdf({
+      staffName: profile?.full_name || 'Staff Member',
+      managerName,
+      directorName,
+      department: '', // Could fetch from profile if needed
+      period: assessment.period,
+      sections: sections.map(s => ({
+        name: s.name,
+        weight: s.weight,
+        indicators: s.indicators.map(i => ({
+          name: i.name,
+          score: i.managerScore ?? null,
+        })),
+      })),
+      totalScore: managerScore,
+      grade: getGradeFromScore(managerScore),
+    });
   };
 
   // Loading state
@@ -373,12 +431,18 @@ export default function SelfAssessment() {
         {assessment.status === 'acknowledged' && (
           <Card className="mb-6 border-evidence-success bg-evidence-success-bg">
             <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-5 w-5 text-evidence-success" />
-                <div>
-                  <p className="font-medium text-evidence-success">Assessment Complete</p>
-                  <p className="text-sm text-muted-foreground">You have acknowledged this assessment</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-evidence-success" />
+                  <div>
+                    <p className="font-medium text-evidence-success">Assessment Complete</p>
+                    <p className="text-sm text-muted-foreground">You have acknowledged this assessment</p>
+                  </div>
                 </div>
+                <Button variant="outline" size="sm" onClick={handleGeneratePdf}>
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Download Report
+                </Button>
               </div>
             </CardContent>
           </Card>

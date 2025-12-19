@@ -41,8 +41,9 @@ export function AssessmentProgress({ status, hasQuestions = false, className }: 
         
         {STEPS.map((step, index) => {
           const stepNumber = index + 1;
-          const isComplete = currentStep > stepNumber;
-          const isCurrent = currentStep === stepNumber;
+          // For acknowledged status (step 4), mark all steps including step 4 as complete
+          const isComplete = currentStep > stepNumber || (status === 'acknowledged' && stepNumber <= 4);
+          const isCurrent = currentStep === stepNumber && status !== 'acknowledged';
           const Icon = step.icon;
           
           // Check if this is step 3 and there are questions
