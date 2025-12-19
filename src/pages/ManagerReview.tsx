@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Users, CheckCircle, Send, User, Link, FileText } from "lucide-react";
+import { ArrowLeft, Users, CheckCircle, Send, User, Link, FileText, Download } from "lucide-react";
+import { generateAppraisalPdf } from "@/lib/generateAppraisalPdf";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeamAssessments, calculateWeightedScore, getGradeFromScore, SectionData, ScoreOption, EvidenceItem } from "@/hooks/useAssessment";
@@ -61,6 +62,8 @@ export default function ManagerReview() {
   const [reviewData, setReviewData] = useState<ManagerReviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [staffProfile, setStaffProfile] = useState<{ full_name: string; department_name: string } | null>(null);
+  const [managerProfile, setManagerProfile] = useState<{ full_name: string } | null>(null);
 
   useEffect(() => {
     if (!assessmentId) {
@@ -135,6 +138,72 @@ export default function ManagerReview() {
 
     fetchAssessment();
   }, [assessmentId]);
+
+  // Fetch staff and manager profiles for PDF
+  useEffect(() => {
+    if (!reviewData?.assessment) return;
+    
+    async function fetchProfiles() {
+      const staffId = reviewData.assessment.staff_id;
+      const managerId = reviewData.assessment.manager_id || user?.id;
+      
+      // Fetch staff profile with department
+      const { data: staffData } = await supabase
+        .from('profiles')
+        .select('full_name, departments(name)')
+        .eq('user_id', staffId)
+        .single();
+      
+      if (staffData) {
+        setStaffProfile({
+          full_name: staffData.full_name || 'Staff Member',
+          department_name: (staffData.departments as any)?.name || 'N/A'
+        });
+      }
+      
+      // Fetch manager profile
+      if (managerId) {
+        const { data: managerData } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', managerId)
+          .single();
+        
+        if (managerData) {
+          setManagerProfile({ full_name: managerData.full_name || 'Manager' });
+        }
+      }
+    }
+    
+    fetchProfiles();
+  }, [reviewData?.assessment, user?.id]);
+
+  const handleDownloadReport = () => {
+    if (!reviewData || !managerScore) {
+      toast({ title: "Cannot generate report", description: "Manager score is incomplete", variant: "destructive" });
+      return;
+    }
+    
+    const pdfData = {
+      staffName: staffProfile?.full_name || 'Staff Member',
+      managerName: managerProfile?.full_name || user?.email || 'Manager',
+      directorName: 'Director',
+      department: staffProfile?.department_name || 'N/A',
+      period: reviewData.assessment.period,
+      sections: managerSections.map(s => ({
+        name: s.name,
+        weight: s.weight,
+        indicators: s.indicators.map(i => ({
+          name: i.name,
+          score: i.score
+        }))
+      })),
+      totalScore: managerScore,
+      grade: getGradeFromScore(managerScore)
+    };
+    
+    generateAppraisalPdf(pdfData);
+  };
 
   const handleScoreChange = (indicatorId: string, score: number) => {
     if (!reviewData) return;
@@ -527,6 +596,16 @@ export default function ManagerReview() {
             <Button onClick={handleSubmitReview} disabled={saving}>
               <Send className="h-4 w-4 mr-2" />
               Submit Review
+            </Button>
+          </div>
+        )}
+
+        {/* Download Report - show after manager has submitted */}
+        {isReadOnly && managerScore && (
+          <div className="flex justify-end gap-3 mt-8 p-4 bg-card border rounded-xl">
+            <Button variant="outline" onClick={handleDownloadReport}>
+              <Download className="h-4 w-4 mr-2" />
+              Download Report
             </Button>
           </div>
         )}
