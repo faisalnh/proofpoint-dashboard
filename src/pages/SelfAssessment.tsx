@@ -43,7 +43,7 @@ export default function SelfAssessment() {
   
   const { templates, loading: templatesLoading } = useRubricTemplates(profile?.department_id || undefined);
   const { assessments, loading: assessmentsLoading, createAssessment } = useMyAssessments();
-  const { assessment, sections, loading: assessmentLoading, saving, saveDraft, submitAssessment, updateIndicator } = useAssessment(assessmentId || undefined);
+  const { assessment, sections, loading: assessmentLoading, saving, saveDraft, submitAssessment, updateIndicator, updateAssessmentStatus } = useAssessment(assessmentId || undefined);
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [creating, setCreating] = useState(false);
@@ -152,6 +152,7 @@ export default function SelfAssessment() {
     if (error) {
       toast({ title: "Error", description: "Failed to acknowledge", variant: "destructive" });
     } else {
+      updateAssessmentStatus('acknowledged');
       toast({ title: "Acknowledged", description: "Assessment acknowledged successfully" });
       navigate('/dashboard');
     }
