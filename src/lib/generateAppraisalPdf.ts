@@ -144,23 +144,24 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     .indicators-grid {
-      display: flex;
-      flex-wrap: wrap;
       border: 1px solid #e5e7eb;
       border-top: none;
       background: #fff;
-      padding: 3px 6px;
-      gap: 2px 12px;
+      padding: 2px 6px;
     }
     
     .indicator {
-      display: inline-flex;
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 3px;
-      padding: 1px 0;
+      padding: 1px 4px;
       font-size: 7pt;
       color: #1a1a2e;
-      white-space: nowrap;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .indicator:last-child {
+      border-bottom: none;
     }
     
     .indicator-name {
@@ -275,8 +276,8 @@ export function generateAppraisalPdf(data: AppraisalData): void {
       <div class="indicators-grid">
         ${section.indicators.map(indicator => `
           <div class="indicator">
-            <span class="indicator-name">${indicator.name}</span>
-            <span class="indicator-score">(${indicator.score !== null ? indicator.score : '-'})</span>
+            <span class="indicator-name">• ${indicator.name}</span>
+            <span class="indicator-score">${indicator.score !== null ? indicator.score : '-'}</span>
           </div>
         `).join('')}
       </div>
