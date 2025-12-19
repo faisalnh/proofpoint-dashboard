@@ -317,6 +317,10 @@ export function useAssessment(assessmentId?: string) {
     }));
   };
 
+  const updateAssessmentStatus = (status: string) => {
+    setAssessment(prev => prev ? { ...prev, status } : null);
+  };
+
   return {
     assessment,
     sections,
@@ -325,6 +329,7 @@ export function useAssessment(assessmentId?: string) {
     saveDraft,
     submitAssessment,
     updateIndicator,
+    updateAssessmentStatus,
   };
 }
 
