@@ -11,8 +11,8 @@ interface Step {
 const STEPS: Step[] = [
   { label: "Staff Assessment", icon: FileText, description: "Self-evaluation" },
   { label: "Manager Appraisal", icon: UserCheck, description: "Review & scoring" },
-  { label: "Staff Acknowledged", icon: User, description: "Accept or raise questions" },
   { label: "Director Approval", icon: Building, description: "Final sign-off" },
+  { label: "Staff Acknowledged", icon: User, description: "Accept or raise questions" },
 ];
 
 interface AssessmentProgressProps {

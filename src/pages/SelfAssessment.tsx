@@ -281,8 +281,8 @@ export default function SelfAssessment() {
   }
 
   const isEditable = assessment.status === 'draft';
-  const showAcknowledge = assessment.status === 'manager_reviewed' || assessment.status === 'director_approved';
-  const isReviewed = ['manager_reviewed', 'director_approved', 'acknowledged'].includes(assessment.status);
+  const showAcknowledge = assessment.status === 'approved'; // Only after director approval
+  const isReviewed = ['manager_reviewed', 'approved', 'acknowledged'].includes(assessment.status);
 
   return (
     <div className="min-h-screen bg-background">
@@ -331,13 +331,27 @@ export default function SelfAssessment() {
 
         {/* Status-specific Notice */}
         {assessment.status === 'manager_reviewed' && (
+          <Card className="mb-6 border-amber-500 bg-amber-500/5">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <Clock className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="font-medium">Waiting for Director Approval</p>
+                  <p className="text-sm text-muted-foreground">Manager has completed the review. Pending director approval.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {assessment.status === 'approved' && (
           <Card className="mb-6 border-primary">
             <CardContent className="py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">Manager Review Complete</p>
+                    <p className="font-medium">Director Approved</p>
                     <p className="text-sm text-muted-foreground">Review the scores below and acknowledge or raise questions</p>
                   </div>
                 </div>
@@ -357,27 +371,13 @@ export default function SelfAssessment() {
         )}
         
         {assessment.status === 'acknowledged' && (
-          <Card className="mb-6 border-amber-500 bg-amber-500/5">
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-amber-600" />
-                <div>
-                  <p className="font-medium">Pending Director Approval</p>
-                  <p className="text-sm text-muted-foreground">Waiting for final sign-off from director</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {assessment.status === 'approved' && (
           <Card className="mb-6 border-evidence-success bg-evidence-success-bg">
             <CardContent className="py-4">
               <div className="flex items-center gap-3">
                 <CheckCircle className="h-5 w-5 text-evidence-success" />
                 <div>
-                  <p className="font-medium text-evidence-success">Assessment Approved</p>
-                  <p className="text-sm text-muted-foreground">This assessment has been approved by the director</p>
+                  <p className="font-medium text-evidence-success">Assessment Complete</p>
+                  <p className="text-sm text-muted-foreground">You have acknowledged this assessment</p>
                 </div>
               </div>
             </CardContent>
