@@ -47,22 +47,31 @@ export default function SelfAssessment() {
   const [creating, setCreating] = useState(false);
 
   // Auto-detect review period based on current date
-  // May-August: Semester 1 of currentYear - nextYear academic year
-  // September-April: Semester 2 of previousYear - currentYear academic year
+  // May-August: Semester 2 of previousYear - currentYear academic year
+  // Nov-Feb: Semester 1 of currentYear - nextYear academic year
   const getDefaultPeriod = () => {
     const now = new Date();
     const month = now.getMonth() + 1; // 1-12
     const year = now.getFullYear();
     
     if (month >= 5 && month <= 8) {
-      // May-August: Semester 1
-      return `Semester 1, ${year}-${year + 1} Academic Year`;
-    } else if (month >= 9) {
-      // September-December: Semester 2 of current-next year
-      return `Semester 2, ${year}-${year + 1} Academic Year`;
-    } else {
-      // January-April: Semester 2 of previous-current year
+      // May-August: Semester 2 of previous-current academic year
       return `Semester 2, ${year - 1}-${year} Academic Year`;
+    } else if (month >= 11 || month <= 2) {
+      // Nov-Feb: Semester 1
+      if (month >= 11) {
+        return `Semester 1, ${year}-${year + 1} Academic Year`;
+      } else {
+        // Jan-Feb belongs to academic year that started previous year
+        return `Semester 1, ${year - 1}-${year} Academic Year`;
+      }
+    } else {
+      // March-April, Sep-Oct: default to nearest semester
+      if (month >= 9) {
+        return `Semester 1, ${year}-${year + 1} Academic Year`;
+      } else {
+        return `Semester 2, ${year - 1}-${year} Academic Year`;
+      }
     }
   };
   
