@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ScoreSelector } from "./ScoreSelector";
-import { EvidenceInput } from "./EvidenceInput";
+import { EvidenceInput, EvidenceItem } from "./EvidenceInput";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 export interface IndicatorData {
@@ -9,7 +9,7 @@ export interface IndicatorData {
   name: string;
   description: string;
   score: number | null;
-  evidence: string;
+  evidence: string | EvidenceItem[];
 }
 
 interface AssessmentIndicatorProps {
@@ -22,8 +22,12 @@ interface AssessmentIndicatorProps {
 export function AssessmentIndicator({ indicator, onChange, index, readonly = false }: AssessmentIndicatorProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   
+  const hasEvidence = Array.isArray(indicator.evidence) 
+    ? indicator.evidence.some(e => e.evidence.trim().length > 0)
+    : typeof indicator.evidence === 'string' && indicator.evidence.trim().length > 0;
+  
   const isComplete = indicator.score !== null && (
-    indicator.score === 2 || indicator.evidence.trim().length > 0
+    indicator.score === 0 || hasEvidence
   );
 
   return (
