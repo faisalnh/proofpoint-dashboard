@@ -79,6 +79,26 @@ export default function SelfAssessment() {
 
   const validation = useMemo(() => validateSections(sections), [sections]);
 
+  // Convert sections to review format for comparison view - must be before early returns
+  const reviewSections: ReviewSectionData[] = useMemo(() => {
+    return sections.map(section => ({
+      id: section.id,
+      name: section.name,
+      weight: section.weight,
+      indicators: section.indicators.map(indicator => ({
+        id: indicator.id,
+        name: indicator.name,
+        description: indicator.description,
+        score_options: indicator.score_options,
+        evidence_guidance: indicator.evidence_guidance || undefined,
+        staffScore: indicator.score,
+        staffEvidence: indicator.evidence,
+        managerScore: indicator.managerScore ?? null,
+        managerEvidence: indicator.managerEvidence ?? '',
+      }))
+    }));
+  }, [sections]);
+
   const handleIndicatorChange = (sectionId: string, indicatorId: string, updates: Partial<IndicatorData>) => {
     updateIndicator(sectionId, indicatorId, updates);
   };
@@ -253,26 +273,6 @@ export default function SelfAssessment() {
   const isEditable = assessment.status === 'draft';
   const showAcknowledge = assessment.status === 'manager_reviewed' || assessment.status === 'director_approved';
   const isReviewed = ['manager_reviewed', 'director_approved', 'acknowledged'].includes(assessment.status);
-
-  // Convert sections to review format for comparison view
-  const reviewSections: ReviewSectionData[] = useMemo(() => {
-    return sections.map(section => ({
-      id: section.id,
-      name: section.name,
-      weight: section.weight,
-      indicators: section.indicators.map(indicator => ({
-        id: indicator.id,
-        name: indicator.name,
-        description: indicator.description,
-        score_options: indicator.score_options,
-        evidence_guidance: indicator.evidence_guidance || undefined,
-        staffScore: indicator.score,
-        staffEvidence: indicator.evidence,
-        managerScore: indicator.managerScore ?? null,
-        managerEvidence: indicator.managerEvidence ?? '',
-      }))
-    }));
-  }, [sections]);
 
   return (
     <div className="min-h-screen bg-background">
