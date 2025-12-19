@@ -371,6 +371,9 @@ export default function ManagerReview() {
     }))
   }));
   const managerScore = calculateWeightedScore(managerSections);
+  
+  // Read-only if manager has already submitted their review
+  const isReadOnly = reviewData.assessment.status !== 'self_submitted';
 
   return (
     <div className="min-h-screen bg-background">
@@ -466,12 +469,14 @@ export default function ManagerReview() {
                             value={reviewData.managerScores[indicator.id] ?? null}
                             onChange={(score) => handleScoreChange(indicator.id, score)}
                             scoreOptions={indicator.score_options}
+                            disabled={isReadOnly}
                           />
                           <Textarea
                             placeholder="Add notes or justification..."
                             value={reviewData.managerEvidence[indicator.id] || ''}
                             onChange={(e) => handleEvidenceChange(indicator.id, e.target.value)}
                             className="min-h-[80px]"
+                            disabled={isReadOnly}
                           />
                         </div>
                       </div>
@@ -508,6 +513,7 @@ export default function ManagerReview() {
               onChange={(e) => handleManagerNotesChange(e.target.value)}
               rows={4}
               className="resize-none"
+              disabled={isReadOnly}
             />
           </CardContent>
         </Card>
