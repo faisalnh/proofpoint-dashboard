@@ -75,6 +75,7 @@ export type Database = {
         Row: {
           created_at: string
           director_approved_at: string | null
+          director_comments: string | null
           director_id: string | null
           final_grade: string | null
           final_score: number | null
@@ -95,6 +96,7 @@ export type Database = {
         Insert: {
           created_at?: string
           director_approved_at?: string | null
+          director_comments?: string | null
           director_id?: string | null
           final_grade?: string | null
           final_score?: number | null
@@ -115,6 +117,7 @@ export type Database = {
         Update: {
           created_at?: string
           director_approved_at?: string | null
+          director_comments?: string | null
           director_id?: string | null
           final_grade?: string | null
           final_score?: number | null
