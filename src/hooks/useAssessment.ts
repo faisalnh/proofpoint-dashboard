@@ -22,6 +22,9 @@ export interface IndicatorData {
   score_options: ScoreOption[];
   score: number | null;
   evidence: string | EvidenceItem[];
+  // Manager data for review comparison
+  managerScore?: number | null;
+  managerEvidence?: string | EvidenceItem[];
 }
 
 export interface SectionData {
@@ -191,7 +194,9 @@ export function useAssessment(assessmentId?: string) {
 
         if (templateData) {
           const staffScores = (data.staff_scores || {}) as Record<string, number>;
-          const staffEvidence = (data.staff_evidence || {}) as Record<string, string>;
+          const staffEvidence = (data.staff_evidence || {}) as Record<string, string | EvidenceItem[]>;
+          const managerScores = (data.manager_scores || {}) as Record<string, number>;
+          const managerEvidence = (data.manager_evidence || {}) as Record<string, string | EvidenceItem[]>;
 
           const formattedSections = (templateData.rubric_sections || [])
             .sort((a: any, b: any) => a.sort_order - b.sort_order)
@@ -209,6 +214,8 @@ export function useAssessment(assessmentId?: string) {
                   score_options: i.score_options as ScoreOption[],
                   score: staffScores[i.id] ?? null,
                   evidence: staffEvidence[i.id] || '',
+                  managerScore: managerScores[i.id] ?? null,
+                  managerEvidence: managerEvidence[i.id] || '',
                 }))
             }));
 
