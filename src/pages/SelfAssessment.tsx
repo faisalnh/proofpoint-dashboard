@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
-import { AssessmentSection, WeightedScoreDisplay } from "@/components/assessment";
+import { AssessmentSection, WeightedScoreDisplay, ReviewComparisonSection, ReviewSectionData } from "@/components/assessment";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare } from "lucide-react";
+import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare, User, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAssessment, useMyAssessments, useRubricTemplates, SectionData, IndicatorData, hasValidEvidence } from "@/hooks/useAssessment";
@@ -251,7 +251,28 @@ export default function SelfAssessment() {
   }
 
   const isEditable = assessment.status === 'draft';
-  const showAcknowledge = assessment.status === 'manager_reviewed';
+  const showAcknowledge = assessment.status === 'manager_reviewed' || assessment.status === 'director_approved';
+  const isReviewed = ['manager_reviewed', 'director_approved', 'acknowledged'].includes(assessment.status);
+
+  // Convert sections to review format for comparison view
+  const reviewSections: ReviewSectionData[] = useMemo(() => {
+    return sections.map(section => ({
+      id: section.id,
+      name: section.name,
+      weight: section.weight,
+      indicators: section.indicators.map(indicator => ({
+        id: indicator.id,
+        name: indicator.name,
+        description: indicator.description,
+        score_options: indicator.score_options,
+        evidence_guidance: indicator.evidence_guidance || undefined,
+        staffScore: indicator.score,
+        staffEvidence: indicator.evidence,
+        managerScore: indicator.managerScore ?? null,
+        managerEvidence: indicator.managerEvidence ?? '',
+      }))
+    }));
+  }, [sections]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -320,18 +341,65 @@ export default function SelfAssessment() {
         
         {/* Main Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Assessment Form */}
+          {/* Assessment Form / Review Comparison */}
           <div className="lg:col-span-8 space-y-6">
-            {sections.map(section => (
-              <AssessmentSection
-                key={section.id}
-                section={section}
-                onIndicatorChange={(indicatorId, updates) => 
-                  handleIndicatorChange(section.id, indicatorId, updates)
-                }
-                readonly={!isEditable}
-              />
-            ))}
+            {isReviewed ? (
+              // Show comparison view when reviewed
+              <>
+                {/* Score Summary Cards */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <Card className="bg-muted/30">
+                    <CardContent className="py-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Self Assessment</span>
+                      </div>
+                      <div className="text-2xl font-bold font-mono">
+                        {sections.reduce((acc, s) => {
+                          const scored = s.indicators.filter(i => i.score !== null);
+                          if (scored.length === 0) return acc;
+                          return acc + scored.reduce((sum, i) => sum + (i.score || 0), 0) / scored.length * s.weight / 100;
+                        }, 0).toFixed(2)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-primary/5 border-primary/20">
+                    <CardContent className="py-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <UserCheck className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-primary">Manager Review</span>
+                      </div>
+                      <div className="text-2xl font-bold font-mono text-primary">
+                        {sections.reduce((acc, s) => {
+                          const scored = s.indicators.filter(i => i.managerScore !== null);
+                          if (scored.length === 0) return acc;
+                          return acc + scored.reduce((sum, i) => sum + (i.managerScore || 0), 0) / scored.length * s.weight / 100;
+                        }, 0).toFixed(2)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {reviewSections.map(section => (
+                  <ReviewComparisonSection
+                    key={section.id}
+                    section={section}
+                  />
+                ))}
+              </>
+            ) : (
+              // Show editable form for draft/submitted
+              sections.map(section => (
+                <AssessmentSection
+                  key={section.id}
+                  section={section}
+                  onIndicatorChange={(indicatorId, updates) => 
+                    handleIndicatorChange(section.id, indicatorId, updates)
+                  }
+                  readonly={!isEditable}
+                />
+              ))
+            )}
             
             {/* Submit Section */}
             {isEditable && (
@@ -376,8 +444,31 @@ export default function SelfAssessment() {
           {/* Score Panel */}
           <div className="lg:col-span-4">
             <div className="sticky top-24">
-              <WeightedScoreDisplay sections={sections} />
+              {!isReviewed && <WeightedScoreDisplay sections={sections} />}
               
+              {/* Legend for Review */}
+              {isReviewed && (
+                <Card>
+                  <CardContent className="py-4">
+                    <h4 className="font-medium mb-3">Score Legend</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span>Self Assessment Score</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-primary" />
+                        <span>Manager Review Score</span>
+                      </div>
+                      <hr className="my-3" />
+                      <p className="text-muted-foreground text-xs">
+                        Compare your self-assessment with your manager's review. 
+                        Green indicates higher scores, red indicates lower.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>
