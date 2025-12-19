@@ -223,8 +223,8 @@ export default function DirectorApproval() {
 
   // List view
   if (!assessmentId) {
-    const pendingApproval = assessments.filter(a => a.status === 'acknowledged');
-    const reviewed = assessments.filter(a => a.status === 'approved' || a.status === 'rejected');
+    const pendingApproval = assessments.filter(a => a.status === 'manager_reviewed');
+    const reviewed = assessments.filter(a => a.status === 'approved' || a.status === 'rejected' || a.status === 'acknowledged');
 
     return (
       <div className="min-h-screen bg-background">
@@ -333,7 +333,7 @@ export default function DirectorApproval() {
     );
   }
 
-  const canApprove = currentAssessment.status === 'acknowledged';
+  const canApprove = currentAssessment.status === 'manager_reviewed';
 
   return (
     <div className="min-h-screen bg-background">
