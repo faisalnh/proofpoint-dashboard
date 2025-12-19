@@ -13,6 +13,7 @@ export interface EvidenceItem {
   notes: string;
   type?: "link" | "file";
   fileName?: string;
+  inputMode?: "initial" | "link" | "file";
 }
 
 interface EvidenceInputProps {
@@ -25,13 +26,20 @@ interface EvidenceInputProps {
 // Parse legacy string value or return array as-is
 function parseEvidenceValue(value: string | EvidenceItem[]): EvidenceItem[] {
   if (Array.isArray(value)) {
-    return value.length > 0 ? value : [{ evidence: "", notes: "", type: "link" }];
+    if (value.length === 0) {
+      return [{ evidence: "", notes: "", inputMode: "initial" }];
+    }
+    // Ensure existing items with evidence show the correct input mode
+    return value.map(item => ({
+      ...item,
+      inputMode: item.evidence.trim() ? (item.type === "file" ? "file" : "link") : (item.inputMode || "initial")
+    }));
   }
   // Legacy string format - convert to new format
   if (typeof value === "string" && value.trim()) {
-    return [{ evidence: value, notes: "", type: "link" }];
+    return [{ evidence: value, notes: "", type: "link", inputMode: "link" }];
   }
-  return [{ evidence: "", notes: "", type: "link" }];
+  return [{ evidence: "", notes: "", inputMode: "initial" }];
 }
 
 function isEvidenceRequired(score: number | null): boolean {
@@ -62,7 +70,13 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
   };
 
   const addItem = () => {
-    onChange([...items, { evidence: "", notes: "", type: "link" }]);
+    onChange([...items, { evidence: "", notes: "", inputMode: "initial" }]);
+  };
+
+  const setInputMode = (index: number, mode: "initial" | "link" | "file") => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], inputMode: mode };
+    onChange(newItems);
   };
 
   const removeItem = (index: number) => {
@@ -183,7 +197,7 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
                   {index + 1}
                 </span>
                 
-                {/* Evidence Input with File Upload */}
+                {/* Evidence Input */}
                 <div className="space-y-2">
                   {/* Show uploaded file info if exists */}
                   {item.type === "file" && item.fileName && (
@@ -201,55 +215,198 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
                       </a>
                     </div>
                   )}
+
+                  {/* Show link evidence if exists */}
+                  {item.type === "link" && item.evidence.trim() && item.inputMode !== "link" && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm">
+                      <Link className="h-4 w-4 text-primary shrink-0" />
+                      <span className="truncate flex-1">{item.evidence}</span>
+                      <a 
+                        href={item.evidence} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary/80"
+                        title="Open link"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
+                  )}
                   
-                  {/* Always show link input and upload button */}
-                  <div className="flex gap-2">
-                    <Input
-                      value={item.type === "file" ? "" : item.evidence}
-                      onChange={(e) => {
-                        const newItems = [...items];
-                        newItems[index] = { 
-                          ...newItems[index], 
-                          evidence: e.target.value,
-                          type: "link",
-                          fileName: undefined
-                        };
-                        onChange(newItems);
-                      }}
-                      placeholder={item.type === "file" ? "Or paste a different link..." : "Paste link here..."}
-                      disabled={isDisabled || uploadingIndex === index}
-                      className={cn(
-                        "h-9 flex-1",
-                        showWarning && !item.evidence.trim() && "border-evidence-alert"
-                      )}
-                    />
-                    <input
-                      type="file"
-                      ref={(el) => { fileInputRefs.current[index] = el; }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFileUpload(index, file);
-                        e.target.value = '';
-                      }}
-                      className="hidden"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => triggerFileInput(index)}
-                      disabled={isDisabled || uploadingIndex === index}
-                      className="h-9 w-9 shrink-0"
-                      title={item.type === "file" ? "Replace file" : "Upload file"}
-                    >
-                      {uploadingIndex === index ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
+                  {/* Initial state: Two icon buttons */}
+                  {item.inputMode === "initial" && !item.evidence.trim() && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setInputMode(index, "link")}
+                        disabled={isDisabled}
+                        className={cn(
+                          "h-9 flex-1",
+                          showWarning && "border-evidence-alert"
+                        )}
+                      >
+                        <Link className="h-4 w-4 mr-1.5" />
+                        Link
+                      </Button>
+                      <span className="text-muted-foreground text-sm px-1">/</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => triggerFileInput(index)}
+                        disabled={isDisabled || uploadingIndex === index}
+                        className={cn(
+                          "h-9 flex-1",
+                          showWarning && "border-evidence-alert"
+                        )}
+                      >
+                        {uploadingIndex === index ? (
+                          <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-1.5" />
+                        )}
+                        Upload
+                      </Button>
+                      <input
+                        type="file"
+                        ref={(el) => { fileInputRefs.current[index] = el; }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(index, file);
+                          e.target.value = '';
+                        }}
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt"
+                      />
+                    </div>
+                  )}
+
+                  {/* Link input mode */}
+                  {item.inputMode === "link" && (
+                    <div className="flex gap-2">
+                      <Input
+                        value={item.evidence}
+                        onChange={(e) => {
+                          const newItems = [...items];
+                          newItems[index] = { 
+                            ...newItems[index], 
+                            evidence: e.target.value,
+                            type: "link",
+                            fileName: undefined
+                          };
+                          onChange(newItems);
+                        }}
+                        placeholder="Paste link here..."
+                        disabled={isDisabled}
+                        autoFocus
+                        className={cn(
+                          "h-9 flex-1",
+                          showWarning && !item.evidence.trim() && "border-evidence-alert"
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setInputMode(index, "initial")}
+                        disabled={isDisabled}
+                        className="h-9 px-2 text-muted-foreground"
+                        title="Back to options"
+                      >
                         <Upload className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* File mode - show option to change */}
+                  {(item.inputMode === "file" || (item.type === "file" && item.fileName)) && (
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setInputMode(index, "link")}
+                        disabled={isDisabled}
+                        className="h-7 text-xs text-muted-foreground"
+                      >
+                        <Link className="h-3 w-3 mr-1" />
+                        Use link
+                      </Button>
+                      <span className="text-muted-foreground text-xs px-0.5 leading-7">/</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => triggerFileInput(index)}
+                        disabled={isDisabled || uploadingIndex === index}
+                        className="h-7 text-xs text-muted-foreground"
+                      >
+                        {uploadingIndex === index ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Upload className="h-3 w-3 mr-1" />
+                        )}
+                        Replace file
+                      </Button>
+                      <input
+                        type="file"
+                        ref={(el) => { fileInputRefs.current[index] = el; }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(index, file);
+                          e.target.value = '';
+                        }}
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt"
+                      />
+                    </div>
+                  )}
+
+                  {/* Link mode with existing evidence - show option to change */}
+                  {item.inputMode !== "link" && item.type === "link" && item.evidence.trim() && (
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setInputMode(index, "link")}
+                        disabled={isDisabled}
+                        className="h-7 text-xs text-muted-foreground"
+                      >
+                        <Link className="h-3 w-3 mr-1" />
+                        Edit link
+                      </Button>
+                      <span className="text-muted-foreground text-xs px-0.5 leading-7">/</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => triggerFileInput(index)}
+                        disabled={isDisabled || uploadingIndex === index}
+                        className="h-7 text-xs text-muted-foreground"
+                      >
+                        {uploadingIndex === index ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Upload className="h-3 w-3 mr-1" />
+                        )}
+                        Upload file
+                      </Button>
+                      <input
+                        type="file"
+                        ref={(el) => { fileInputRefs.current[index] = el; }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(index, file);
+                          e.target.value = '';
+                        }}
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt"
+                      />
+                    </div>
+                  )}
                 </div>
                 
                 <Textarea
