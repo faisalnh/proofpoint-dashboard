@@ -26,6 +26,7 @@ interface AssessmentWithDetails {
   final_grade: string | null;
   staff_submitted_at: string | null;
   manager_reviewed_at: string | null;
+  manager_notes?: string;
   sections: SectionData[];
   staffScores: Record<string, number>;
   staffEvidence: Record<string, string>;
@@ -84,6 +85,7 @@ export default function DirectorApproval() {
         final_grade: a.final_grade,
         staff_submitted_at: a.staff_submitted_at,
         manager_reviewed_at: a.manager_reviewed_at,
+        manager_notes: (a as any).manager_notes || '',
         sections: [],
         staffScores: (a.staff_scores || {}) as Record<string, number>,
         staffEvidence: (a.staff_evidence || {}) as Record<string, string>,
@@ -545,6 +547,21 @@ export default function DirectorApproval() {
             </Card>
           ))}
         </div>
+
+        {/* Manager Overall Notes */}
+        {currentAssessment.manager_notes && (
+          <Card className="mt-8 border-primary/20">
+            <CardHeader className="bg-primary/5">
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <FileText className="h-5 w-5" />
+                Manager Overall Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <p className="text-muted-foreground whitespace-pre-wrap">{currentAssessment.manager_notes}</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Director Comments and Actions */}
         {canApprove && (
