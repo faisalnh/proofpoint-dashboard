@@ -144,24 +144,23 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     .indicators-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-wrap: wrap;
       border: 1px solid #e5e7eb;
       border-top: none;
       background: #fff;
+      padding: 3px 6px;
+      gap: 2px 12px;
     }
     
     .indicator {
-      display: flex;
-      justify-content: space-between;
-      padding: 3px 8px;
-      border-bottom: 1px solid #f3f4f6;
-      font-size: 8pt;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 0;
+      font-size: 7pt;
       color: #1a1a2e;
-    }
-    
-    .indicator:nth-child(odd) {
-      border-right: 1px solid #f3f4f6;
+      white-space: nowrap;
     }
     
     .indicator-name {
@@ -170,8 +169,6 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     
     .indicator-score {
       font-weight: bold;
-      min-width: 30px;
-      text-align: right;
       color: #7c3aed;
     }
     
@@ -278,8 +275,8 @@ export function generateAppraisalPdf(data: AppraisalData): void {
       <div class="indicators-grid">
         ${section.indicators.map(indicator => `
           <div class="indicator">
-            <span class="indicator-name">• ${indicator.name}</span>
-            <span class="indicator-score">${indicator.score !== null ? indicator.score : '-'}</span>
+            <span class="indicator-name">${indicator.name}</span>
+            <span class="indicator-score">(${indicator.score !== null ? indicator.score : '-'})</span>
           </div>
         `).join('')}
       </div>
