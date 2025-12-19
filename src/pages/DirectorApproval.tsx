@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateWeightedScore, getGradeFromScore, SectionData, ScoreOption } from "@/hooks/useAssessment";
 import { supabase } from "@/integrations/supabase/client";
+import { AssessmentProgress } from "@/components/assessment/AssessmentProgress";
+import { getStatusLabel } from "@/lib/assessmentStatus";
 
 interface AssessmentWithDetails {
   id: string;
@@ -306,7 +308,7 @@ export default function DirectorApproval() {
                           </div>
                         </div>
                         <Badge variant={a.status === 'approved' ? 'default' : 'destructive'}>
-                          {a.status}
+                          {getStatusLabel(a.status)}
                         </Badge>
                       </div>
                     ))}
@@ -359,7 +361,12 @@ export default function DirectorApproval() {
           </div>
         </div>
 
-        {/* Sections Comparison */}
+        {/* Progress Indicator */}
+        <Card className="mb-6">
+          <CardContent className="py-4">
+            <AssessmentProgress status={currentAssessment.status} />
+          </CardContent>
+        </Card>
         <div className="space-y-6">
           {currentAssessment.sections.map(section => (
             <Card key={section.id}>

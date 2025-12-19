@@ -4,17 +4,19 @@ import { Header } from "@/components/layout/Header";
 import { AssessmentSection, WeightedScoreDisplay, ReviewComparisonSection, ReviewSectionData } from "@/components/assessment";
 import { RaiseQuestionModal } from "@/components/assessment/RaiseQuestionModal";
 import { MyQuestionsPanel } from "@/components/assessment/MyQuestionsPanel";
+import { AssessmentProgress } from "@/components/assessment/AssessmentProgress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare, User, UserCheck } from "lucide-react";
+import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare, User, UserCheck, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAssessment, useMyAssessments, useRubricTemplates, SectionData, IndicatorData, hasValidEvidence } from "@/hooks/useAssessment";
 import { supabase } from "@/integrations/supabase/client";
+import { getStatusLabel } from "@/lib/assessmentStatus";
 
 function validateSections(sections: SectionData[]): { valid: boolean; missing: number } {
   let missing = 0;
@@ -240,7 +242,7 @@ export default function SelfAssessment() {
                         <div className="text-sm text-muted-foreground">Created {new Date(a.created_at).toLocaleDateString()}</div>
                       </div>
                       <Badge variant={a.status === 'draft' ? 'outline' : a.status === 'approved' ? 'default' : 'secondary'}>
-                        {a.status.replace('_', ' ')}
+                        {getStatusLabel(a.status)}
                       </Badge>
                     </div>
                   ))}
@@ -314,14 +316,21 @@ export default function SelfAssessment() {
             <div className="flex items-center gap-2">
               <Badge variant={isEditable ? 'outline' : 'secondary'} className="gap-1.5 py-1.5">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                {assessment.status.replace('_', ' ')}
+                {getStatusLabel(assessment.status)}
               </Badge>
             </div>
           </div>
+          
+          {/* Progress Indicator */}
+          <Card className="mb-6">
+            <CardContent className="py-4">
+              <AssessmentProgress status={assessment.status} />
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Manager Review Notice */}
-        {showAcknowledge && (
+        {/* Status-specific Notice */}
+        {assessment.status === 'manager_reviewed' && (
           <Card className="mb-6 border-primary">
             <CardContent className="py-4">
               <div className="flex items-center justify-between">
@@ -329,7 +338,7 @@ export default function SelfAssessment() {
                   <CheckCircle className="h-5 w-5 text-primary" />
                   <div>
                     <p className="font-medium">Manager Review Complete</p>
-                    <p className="text-sm text-muted-foreground">Review the scores below and acknowledge the assessment</p>
+                    <p className="text-sm text-muted-foreground">Review the scores below and acknowledge or raise questions</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -341,6 +350,34 @@ export default function SelfAssessment() {
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Acknowledge
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {assessment.status === 'acknowledged' && (
+          <Card className="mb-6 border-amber-500 bg-amber-500/5">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <Clock className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="font-medium">Pending Director Approval</p>
+                  <p className="text-sm text-muted-foreground">Waiting for final sign-off from director</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {assessment.status === 'approved' && (
+          <Card className="mb-6 border-evidence-success bg-evidence-success-bg">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-evidence-success" />
+                <div>
+                  <p className="font-medium text-evidence-success">Assessment Approved</p>
+                  <p className="text-sm text-muted-foreground">This assessment has been approved by the director</p>
                 </div>
               </div>
             </CardContent>
