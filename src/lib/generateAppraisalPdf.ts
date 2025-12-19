@@ -111,6 +111,7 @@ export function generateAppraisalPdf(data: AppraisalData): void {
       display: flex;
       gap: 30px;
       font-size: 9pt;
+      color: #1a1a2e;
     }
     
     .staff-info div {
@@ -121,6 +122,10 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     .staff-info strong {
       min-width: 70px;
       color: #5b21b6;
+    }
+    
+    .staff-info span {
+      color: #1a1a2e;
     }
     
     .section {
@@ -152,10 +157,15 @@ export function generateAppraisalPdf(data: AppraisalData): void {
       padding: 3px 8px;
       border-bottom: 1px solid #f3f4f6;
       font-size: 8pt;
+      color: #1a1a2e;
     }
     
     .indicator:nth-child(odd) {
       border-right: 1px solid #f3f4f6;
+    }
+    
+    .indicator-name {
+      color: #1a1a2e;
     }
     
     .indicator-score {
@@ -254,9 +264,9 @@ export function generateAppraisalPdf(data: AppraisalData): void {
   </div>
   
   <div class="staff-info">
-    <div><strong>Staff Name:</strong> ${data.staffName}</div>
-    <div><strong>Manager:</strong> ${data.managerName}</div>
-    <div><strong>Department:</strong> ${data.department || 'N/A'}</div>
+    <div><strong>Staff Name:</strong> <span>${data.staffName}</span></div>
+    <div><strong>Manager:</strong> <span>${data.managerName}</span></div>
+    <div><strong>Department:</strong> <span>${data.department || 'N/A'}</span></div>
   </div>
   
   ${data.sections.map((section, sIdx) => `
@@ -268,7 +278,7 @@ export function generateAppraisalPdf(data: AppraisalData): void {
       <div class="indicators-grid">
         ${section.indicators.map(indicator => `
           <div class="indicator">
-            <span>• ${indicator.name}</span>
+            <span class="indicator-name">• ${indicator.name}</span>
             <span class="indicator-score">${indicator.score !== null ? indicator.score : '-'}</span>
           </div>
         `).join('')}
