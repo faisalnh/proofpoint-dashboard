@@ -400,21 +400,31 @@ export function useTeamAssessments() {
     }
 
     async function fetchTeamAssessments() {
-      // Get assessments where user is manager or all if admin
-      const { data, error } = await supabase
+      // Get assessments where user is manager (any status) or pending review (self_submitted)
+      const { data: managerData } = await supabase
         .from('assessments')
         .select('*')
-        .or(`manager_id.eq.${user.id},status.eq.self_submitted`)
+        .eq('manager_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching team assessments:', error);
+      const { data: pendingData } = await supabase
+        .from('assessments')
+        .select('*')
+        .eq('status', 'self_submitted')
+        .order('created_at', { ascending: false });
+
+      // Combine and dedupe
+      const allData = [...(managerData || []), ...(pendingData || [])];
+      const uniqueData = allData.filter((a, idx, arr) => arr.findIndex(b => b.id === a.id) === idx);
+      
+      if (uniqueData.length === 0) {
+        setAssessments([]);
         setLoading(false);
         return;
       }
 
       // Fetch staff profiles
-      const staffIds = [...new Set((data || []).map(a => a.staff_id))];
+      const staffIds = [...new Set(uniqueData.map(a => a.staff_id))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, full_name, email')
@@ -422,7 +432,7 @@ export function useTeamAssessments() {
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
 
-      const enriched = (data || []).map(a => ({
+      const enriched = uniqueData.map(a => ({
         ...a as Assessment,
         staff_name: profileMap.get(a.staff_id)?.full_name || 'Unknown',
         staff_email: profileMap.get(a.staff_id)?.email || '',
