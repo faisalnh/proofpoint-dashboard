@@ -165,29 +165,44 @@ export default function SelfAssessment() {
   const handleGeneratePdf = async () => {
     if (!assessment) return;
 
-    // Fetch manager and director names
+    // Fetch assessment with staff_id, manager_id, director_id
     const { data: assessmentData } = await supabase
       .from('assessments')
-      .select('manager_id, director_id')
+      .select('staff_id, manager_id, director_id')
       .eq('id', assessment.id)
       .single();
 
+    let staffName = 'Staff Member';
     let managerName = 'Manager';
     let directorName = 'Director';
+    let departmentName = '';
 
     if (assessmentData) {
-      const userIds = [assessmentData.manager_id, assessmentData.director_id].filter(Boolean);
+      const userIds = [assessmentData.staff_id, assessmentData.manager_id, assessmentData.director_id].filter(Boolean);
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('user_id, full_name')
+          .select('user_id, full_name, department_id')
           .in('user_id', userIds);
 
         if (profiles) {
+          const staffProfile = profiles.find(p => p.user_id === assessmentData.staff_id);
           const managerProfile = profiles.find(p => p.user_id === assessmentData.manager_id);
           const directorProfile = profiles.find(p => p.user_id === assessmentData.director_id);
+          
+          if (staffProfile?.full_name) staffName = staffProfile.full_name;
           if (managerProfile?.full_name) managerName = managerProfile.full_name;
           if (directorProfile?.full_name) directorName = directorProfile.full_name;
+
+          // Fetch department name if staff has department_id
+          if (staffProfile?.department_id) {
+            const { data: dept } = await supabase
+              .from('departments')
+              .select('name')
+              .eq('id', staffProfile.department_id)
+              .single();
+            if (dept?.name) departmentName = dept.name;
+          }
         }
       }
     }
@@ -200,10 +215,10 @@ export default function SelfAssessment() {
     }, 0);
 
     generateAppraisalPdf({
-      staffName: profile?.full_name || 'Staff Member',
+      staffName,
       managerName,
       directorName,
-      department: '', // Could fetch from profile if needed
+      department: departmentName,
       period: assessment.period,
       sections: sections.map(s => ({
         name: s.name,

@@ -46,18 +46,39 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     body {
-      font-family: 'Arial', sans-serif;
+      font-family: 'Inter', 'Arial', sans-serif;
       font-size: 9pt;
       line-height: 1.3;
-      color: #000;
+      color: #1a1a2e;
       background: #fff;
       padding: 10px;
+    }
+    
+    .no-print {
+      background: #7c3aed;
+      padding: 12px;
+      text-align: center;
+    }
+    
+    .no-print button {
+      background: #fff;
+      color: #7c3aed;
+      border: none;
+      padding: 10px 24px;
+      font-size: 12pt;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    
+    .no-print button:hover {
+      background: #f3f4f6;
     }
     
     .header {
       text-align: center;
       margin-bottom: 12px;
-      border-bottom: 2px solid #333;
+      border-bottom: 2px solid #7c3aed;
       padding-bottom: 8px;
     }
     
@@ -66,25 +87,27 @@ export function generateAppraisalPdf(data: AppraisalData): void {
       font-weight: bold;
       margin-bottom: 2px;
       text-transform: uppercase;
+      color: #1a1a2e;
     }
     
     .header h2 {
       font-size: 12pt;
       font-weight: normal;
-      color: #333;
+      color: #4b5563;
     }
     
     .header h3 {
       font-size: 10pt;
       font-weight: normal;
-      color: #555;
+      color: #6b7280;
     }
     
     .staff-info {
       margin: 10px 0;
-      padding: 8px;
-      background: #f5f5f5;
-      border: 1px solid #ddd;
+      padding: 8px 12px;
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      border-radius: 4px;
       display: flex;
       gap: 30px;
       font-size: 9pt;
@@ -97,6 +120,7 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     
     .staff-info strong {
       min-width: 70px;
+      color: #5b21b6;
     }
     
     .section {
@@ -104,45 +128,49 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     .section-header {
-      background: #333;
+      background: #7c3aed;
       color: #fff;
       padding: 4px 8px;
       font-weight: bold;
       font-size: 9pt;
       display: flex;
       justify-content: space-between;
+      border-radius: 2px 2px 0 0;
     }
     
     .indicators-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      border: 1px solid #ddd;
+      border: 1px solid #e5e7eb;
       border-top: none;
+      background: #fff;
     }
     
     .indicator {
       display: flex;
       justify-content: space-between;
       padding: 3px 8px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid #f3f4f6;
       font-size: 8pt;
     }
     
     .indicator:nth-child(odd) {
-      border-right: 1px solid #eee;
+      border-right: 1px solid #f3f4f6;
     }
     
     .indicator-score {
       font-weight: bold;
       min-width: 30px;
       text-align: right;
+      color: #7c3aed;
     }
     
     .total-section {
       margin-top: 15px;
       padding: 10px;
-      background: #f0f0f0;
-      border: 2px solid #333;
+      background: #f5f3ff;
+      border: 2px solid #7c3aed;
+      border-radius: 6px;
       text-align: center;
       display: flex;
       justify-content: center;
@@ -153,19 +181,22 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     .total-label {
       font-size: 10pt;
       font-weight: bold;
+      color: #5b21b6;
     }
     
     .total-score {
       font-size: 24pt;
       font-weight: bold;
+      color: #1a1a2e;
     }
     
     .grade {
       font-size: 20pt;
       font-weight: bold;
-      background: #333;
+      background: #7c3aed;
       color: #fff;
       padding: 2px 15px;
+      border-radius: 4px;
     }
     
     .signatures {
@@ -180,7 +211,7 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     .signature-line {
-      border-top: 1px solid #333;
+      border-top: 2px solid #7c3aed;
       margin-top: 40px;
       padding-top: 5px;
     }
@@ -188,18 +219,19 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     .signature-name {
       font-weight: bold;
       font-size: 9pt;
+      color: #1a1a2e;
     }
     
     .signature-title {
       font-size: 8pt;
-      color: #555;
+      color: #6b7280;
     }
     
     .footer {
       margin-top: 10px;
       text-align: center;
       font-size: 7pt;
-      color: #888;
+      color: #9ca3af;
     }
     
     @media print {
@@ -209,8 +241,8 @@ export function generateAppraisalPdf(data: AppraisalData): void {
   </style>
 </head>
 <body>
-  <div class="no-print" style="text-align: center; margin-bottom: 10px; padding: 8px; background: #eef;">
-    <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; cursor: pointer;">
+  <div class="no-print">
+    <button onclick="window.print()">
       Print / Save as PDF
     </button>
   </div>
