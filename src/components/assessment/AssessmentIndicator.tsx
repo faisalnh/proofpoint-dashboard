@@ -53,9 +53,9 @@ export function AssessmentIndicator({ indicator, onChange, index, readonly = fal
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-mono">
             {index + 1}
           </span>
-          <div className="text-left">
+          <div className="text-left flex-1 min-w-0">
             <h4 className="font-medium text-foreground">{indicator.name}</h4>
-            <p className="text-sm text-muted-foreground line-clamp-1">{indicator.description}</p>
+            <p className="text-sm text-muted-foreground whitespace-normal">{indicator.description}</p>
           </div>
         </div>
         

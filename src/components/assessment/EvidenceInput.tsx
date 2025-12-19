@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Plus, Trash2, Link, FileText, Upload, Loader2, ExternalLink } from "lucide-react";
+import { AlertCircle, Plus, Trash2, Link, FileText, Upload, Loader2, ExternalLink, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -167,6 +167,16 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
       
       {/* Evidence Items */}
       <div className="p-3 space-y-3">
+        {/* Evidence guidance */}
+        {score !== null && score !== 0 && (
+          <div className="flex items-start gap-2 p-2 bg-muted/50 rounded-md text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              Provide links to documents, reports, or upload files (PDF, Word, Excel, images) that support your score.
+            </span>
+          </div>
+        )}
+
         {score === 0 ? (
           <p className="text-sm text-muted-foreground italic py-2">
             Evidence not required for score 0 (Critical Failure)
