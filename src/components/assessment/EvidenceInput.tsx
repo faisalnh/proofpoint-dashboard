@@ -1,12 +1,18 @@
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Plus, Trash2, Link, FileText } from "lucide-react";
+import { AlertCircle, Plus, Trash2, Link, FileText, Upload, Loader2, ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 
 export interface EvidenceItem {
   evidence: string;
   notes: string;
+  type?: "link" | "file";
+  fileName?: string;
 }
 
 interface EvidenceInputProps {
@@ -19,13 +25,13 @@ interface EvidenceInputProps {
 // Parse legacy string value or return array as-is
 function parseEvidenceValue(value: string | EvidenceItem[]): EvidenceItem[] {
   if (Array.isArray(value)) {
-    return value.length > 0 ? value : [{ evidence: "", notes: "" }];
+    return value.length > 0 ? value : [{ evidence: "", notes: "", type: "link" }];
   }
   // Legacy string format - convert to new format
   if (typeof value === "string" && value.trim()) {
-    return [{ evidence: value, notes: "" }];
+    return [{ evidence: value, notes: "", type: "link" }];
   }
-  return [{ evidence: "", notes: "" }];
+  return [{ evidence: "", notes: "", type: "link" }];
 }
 
 function isEvidenceRequired(score: number | null): boolean {
@@ -38,19 +44,25 @@ function hasMinimumEvidence(items: EvidenceItem[]): boolean {
 }
 
 export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInputProps) {
+  const { user } = useAuth();
   const items = parseEvidenceValue(value);
   const required = isEvidenceRequired(score);
   const hasEvidence = hasMinimumEvidence(items);
   const showWarning = required && !hasEvidence && score !== null;
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const updateItem = (index: number, field: keyof EvidenceItem, val: string) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: val };
+    if (field === "evidence" && !newItems[index].type) {
+      newItems[index].type = "link";
+    }
     onChange(newItems);
   };
 
   const addItem = () => {
-    onChange([...items, { evidence: "", notes: "" }]);
+    onChange([...items, { evidence: "", notes: "", type: "link" }]);
   };
 
   const removeItem = (index: number) => {
@@ -58,6 +70,51 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
       const newItems = items.filter((_, i) => i !== index);
       onChange(newItems);
     }
+  };
+
+  const handleFileUpload = async (index: number, file: File) => {
+    if (!user) {
+      toast({ title: "Error", description: "You must be logged in to upload files", variant: "destructive" });
+      return;
+    }
+
+    setUploadingIndex(index);
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${file.name}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('evidence')
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('evidence')
+        .getPublicUrl(filePath);
+
+      const newItems = [...items];
+      newItems[index] = {
+        ...newItems[index],
+        evidence: urlData.publicUrl,
+        type: "file",
+        fileName: file.name
+      };
+      onChange(newItems);
+      
+      toast({ title: "Success", description: "File uploaded successfully" });
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setUploadingIndex(null);
+    }
+  };
+
+  const triggerFileInput = (index: number) => {
+    fileInputRefs.current[index]?.click();
   };
 
   const isDisabled = disabled || score === null || score === 0;
@@ -110,7 +167,7 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
             <div className="grid grid-cols-[40px_1fr_1fr_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
               <span>#</span>
               <span className="flex items-center gap-1">
-                <Link className="h-3 w-3" /> Evidence (Link or File)
+                Evidence (Link or File)
               </span>
               <span>Notes</span>
               <span></span>
@@ -125,16 +182,78 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
                 <span className="flex items-center justify-center h-9 text-sm font-mono text-muted-foreground">
                   {index + 1}
                 </span>
-                <Input
-                  value={item.evidence}
-                  onChange={(e) => updateItem(index, "evidence", e.target.value)}
-                  placeholder="Paste link or describe file..."
-                  disabled={isDisabled}
-                  className={cn(
-                    "h-9",
-                    showWarning && !item.evidence.trim() && "border-evidence-alert"
+                
+                {/* Evidence Input with File Upload */}
+                <div className="space-y-2">
+                  {item.type === "file" && item.fileName ? (
+                    <div className="flex items-center gap-2 h-9 px-3 bg-muted rounded-md">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm truncate flex-1">{item.fileName}</span>
+                      <a 
+                        href={item.evidence} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary/80"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        value={item.evidence}
+                        onChange={(e) => updateItem(index, "evidence", e.target.value)}
+                        placeholder="Paste link here..."
+                        disabled={isDisabled || uploadingIndex === index}
+                        className={cn(
+                          "h-9 flex-1",
+                          showWarning && !item.evidence.trim() && "border-evidence-alert"
+                        )}
+                      />
+                      <input
+                        type="file"
+                        ref={(el) => { fileInputRefs.current[index] = el; }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(index, file);
+                        }}
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => triggerFileInput(index)}
+                        disabled={isDisabled || uploadingIndex === index}
+                        className="h-9 w-9 shrink-0"
+                        title="Upload file"
+                      >
+                        {uploadingIndex === index ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   )}
-                />
+                  
+                  {/* Option to switch back to link if file was uploaded */}
+                  {item.type === "file" && item.fileName && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => updateItem(index, "evidence", "")}
+                      disabled={isDisabled}
+                      className="h-6 text-xs text-muted-foreground"
+                    >
+                      <Link className="h-3 w-3 mr-1" />
+                      Use link instead
+                    </Button>
+                  )}
+                </div>
+                
                 <Textarea
                   value={item.notes}
                   onChange={(e) => updateItem(index, "notes", e.target.value)}
@@ -175,7 +294,7 @@ export function EvidenceInput({ score, value, onChange, disabled }: EvidenceInpu
       {/* Footer warning */}
       {showWarning && (
         <div className="px-3 py-2 text-xs border-t border-evidence-alert-border text-evidence-alert">
-          <span className="font-medium">At least 1 evidence required.</span> Add a link or file reference to submit.
+          <span className="font-medium">At least 1 evidence required.</span> Paste a link or upload a file to submit.
         </div>
       )}
     </div>
