@@ -1,9 +1,17 @@
 import { cn } from "@/lib/utils";
 import { SectionData } from "./AssessmentSection";
+import { EvidenceItem } from "./EvidenceInput";
 import { TrendingUp, Award, AlertTriangle } from "lucide-react";
 
 interface WeightedScoreDisplayProps {
   sections: SectionData[];
+}
+
+function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
+  if (Array.isArray(evidence)) {
+    return evidence.some(e => e.evidence.trim().length > 0);
+  }
+  return typeof evidence === 'string' && evidence.trim().length > 0;
 }
 
 function calculateWeightedScore(sections: SectionData[]): number | null {
@@ -45,7 +53,7 @@ export function WeightedScoreDisplay({ sections }: WeightedScoreDisplayProps) {
   const totalIndicators = sections.reduce((acc, s) => acc + s.indicators.length, 0);
   const completedIndicators = sections.reduce(
     (acc, s) => acc + s.indicators.filter(i => 
-      i.score !== null && (i.score === 2 || i.evidence.trim().length > 0)
+      i.score !== null && (i.score === 0 || hasValidEvidence(i.evidence))
     ).length,
     0
   );

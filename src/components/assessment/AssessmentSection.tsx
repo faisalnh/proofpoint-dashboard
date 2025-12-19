@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { AssessmentIndicator, IndicatorData } from "./AssessmentIndicator";
+import { EvidenceItem } from "./EvidenceInput";
 import { Percent } from "lucide-react";
 
 export interface SectionData {
@@ -7,6 +8,13 @@ export interface SectionData {
   name: string;
   weight: number;
   indicators: IndicatorData[];
+}
+
+function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
+  if (Array.isArray(evidence)) {
+    return evidence.some(e => e.evidence.trim().length > 0);
+  }
+  return typeof evidence === 'string' && evidence.trim().length > 0;
 }
 
 interface AssessmentSectionProps {
@@ -26,7 +34,7 @@ function calculateSectionScore(indicators: IndicatorData[]): number | null {
 export function AssessmentSection({ section, onIndicatorChange, readonly = false }: AssessmentSectionProps) {
   const sectionScore = calculateSectionScore(section.indicators);
   const completedCount = section.indicators.filter(i => 
-    i.score !== null && (i.score === 2 || i.evidence.trim().length > 0)
+    i.score !== null && (i.score === 0 || hasValidEvidence(i.evidence))
   ).length;
   
   return (

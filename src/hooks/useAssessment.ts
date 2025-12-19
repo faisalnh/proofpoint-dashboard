@@ -9,6 +9,11 @@ export interface ScoreOption {
   enabled: boolean;
 }
 
+export interface EvidenceItem {
+  evidence: string;
+  notes: string;
+}
+
 export interface IndicatorData {
   id: string;
   name: string;
@@ -16,7 +21,7 @@ export interface IndicatorData {
   evidence_guidance: string | null;
   score_options: ScoreOption[];
   score: number | null;
-  evidence: string;
+  evidence: string | EvidenceItem[];
 }
 
 export interface SectionData {
@@ -24,6 +29,22 @@ export interface SectionData {
   name: string;
   weight: number;
   indicators: IndicatorData[];
+}
+
+// Helper to check if indicator has valid evidence
+export function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
+  if (Array.isArray(evidence)) {
+    return evidence.some(e => e.evidence.trim().length > 0);
+  }
+  return typeof evidence === 'string' && evidence.trim().length > 0;
+}
+
+// Helper to serialize evidence for storage
+function serializeEvidence(evidence: string | EvidenceItem[]): EvidenceItem[] | string {
+  if (Array.isArray(evidence)) {
+    return evidence;
+  }
+  return evidence;
 }
 
 export interface Assessment {
@@ -206,7 +227,7 @@ export function useAssessment(assessmentId?: string) {
 
     setSaving(true);
     const staffScores: Record<string, number> = {};
-    const staffEvidence: Record<string, string> = {};
+    const staffEvidence: Record<string, string | EvidenceItem[]> = {};
 
     sections.forEach(section => {
       section.indicators.forEach(indicator => {
@@ -222,8 +243,8 @@ export function useAssessment(assessmentId?: string) {
     const { error } = await supabase
       .from('assessments')
       .update({
-        staff_scores: staffScores,
-        staff_evidence: staffEvidence,
+        staff_scores: staffScores as never,
+        staff_evidence: staffEvidence as never,
         updated_at: new Date().toISOString(),
       })
       .eq('id', assessment.id);
@@ -242,7 +263,7 @@ export function useAssessment(assessmentId?: string) {
 
     setSaving(true);
     const staffScores: Record<string, number> = {};
-    const staffEvidence: Record<string, string> = {};
+    const staffEvidence: Record<string, string | EvidenceItem[]> = {};
 
     sections.forEach(section => {
       section.indicators.forEach(indicator => {
@@ -258,8 +279,8 @@ export function useAssessment(assessmentId?: string) {
     const { error } = await supabase
       .from('assessments')
       .update({
-        staff_scores: staffScores,
-        staff_evidence: staffEvidence,
+        staff_scores: staffScores as never,
+        staff_evidence: staffEvidence as never,
         status: 'self_submitted',
         staff_submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

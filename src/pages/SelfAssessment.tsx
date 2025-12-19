@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useAssessment, useMyAssessments, useRubricTemplates, SectionData, IndicatorData } from "@/hooks/useAssessment";
+import { useAssessment, useMyAssessments, useRubricTemplates, SectionData, IndicatorData, hasValidEvidence } from "@/hooks/useAssessment";
 import { supabase } from "@/integrations/supabase/client";
 
 function validateSections(sections: SectionData[]): { valid: boolean; missing: number } {
@@ -23,8 +23,8 @@ function validateSections(sections: SectionData[]): { valid: boolean; missing: n
         missing++;
         continue;
       }
-      // Score 0, 1, 3, 4 require evidence
-      if (indicator.score !== 2 && indicator.evidence.trim().length === 0) {
+      // Score 1-4 require evidence (score 0 does not)
+      if (indicator.score >= 1 && !hasValidEvidence(indicator.evidence)) {
         missing++;
       }
     }

@@ -6,12 +6,39 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Users, CheckCircle, Send, User } from "lucide-react";
+import { ArrowLeft, Users, CheckCircle, Send, User, Link, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useTeamAssessments, calculateWeightedScore, getGradeFromScore, SectionData, ScoreOption } from "@/hooks/useAssessment";
+import { useTeamAssessments, calculateWeightedScore, getGradeFromScore, SectionData, ScoreOption, EvidenceItem } from "@/hooks/useAssessment";
 import { supabase } from "@/integrations/supabase/client";
 import { ScoreSelector } from "@/components/assessment/ScoreSelector";
+
+// Helper to render evidence
+function renderEvidence(evidence: string | EvidenceItem[]): React.ReactNode {
+  if (Array.isArray(evidence)) {
+    const items = evidence.filter(e => e.evidence.trim().length > 0);
+    if (items.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        {items.map((item, idx) => (
+          <div key={idx} className="flex items-start gap-2 text-sm">
+            <span className="font-mono text-xs text-muted-foreground">{idx + 1}.</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-1">
+                <Link className="h-3 w-3 text-muted-foreground" />
+                <span>{item.evidence}</span>
+              </div>
+              {item.notes && (
+                <p className="text-muted-foreground text-xs mt-1">{item.notes}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return typeof evidence === 'string' && evidence.trim() ? evidence : null;
+}
 
 interface ManagerReviewData {
   assessment: any;
@@ -343,10 +370,10 @@ export default function ManagerReview() {
                               {indicator.score !== null ? indicator.score : '--'}/4
                             </Badge>
                           </div>
-                          {indicator.evidence && (
+                          {renderEvidence(indicator.evidence) && (
                             <div className="p-3 bg-muted rounded-lg text-sm">
                               <p className="text-xs text-muted-foreground mb-1">Evidence:</p>
-                              {indicator.evidence}
+                              {renderEvidence(indicator.evidence)}
                             </div>
                           )}
                         </div>
