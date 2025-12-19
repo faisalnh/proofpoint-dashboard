@@ -56,8 +56,9 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions }: Score
               </div>
               
               <div className={cn(
-                "absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 rounded text-xs",
-                "bg-foreground text-background opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-10"
+                "absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-xs text-center",
+                "bg-foreground text-background opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-10",
+                "w-max max-w-[200px]"
               )}>
                 {option.label}
               </div>
