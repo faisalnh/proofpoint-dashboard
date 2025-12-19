@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Building, CheckCircle, XCircle, User, FileText, MessageSquare } from "lucide-react";
+import { ArrowLeft, Building, CheckCircle, XCircle, User, FileText, MessageSquare, Link as LinkIcon, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateWeightedScore, getGradeFromScore, SectionData, ScoreOption } from "@/hooks/useAssessment";
@@ -394,18 +394,41 @@ export default function DirectorApproval() {
                   const staffEvRaw = currentAssessment.staffEvidence[indicator.id];
                   const managerEvRaw = currentAssessment.managerEvidence[indicator.id];
                   
-                  // Extract text from evidence (can be string or object with notes/evidence)
-                  const getEvidenceText = (ev: any): string => {
-                    if (!ev) return '';
-                    if (typeof ev === 'string') return ev;
-                    if (typeof ev === 'object') {
-                      return ev.notes || ev.evidence || '';
+                  // Extract evidence details (can be string, object, or array)
+                  const parseEvidence = (ev: any): { notes: string; links: string[] } => {
+                    if (!ev) return { notes: '', links: [] };
+                    
+                    // If it's an array of evidence items
+                    if (Array.isArray(ev)) {
+                      const notes = ev.map(e => e.notes || e.evidence || '').filter(Boolean).join('\n');
+                      const links = ev.flatMap(e => {
+                        const text = e.evidence || '';
+                        const urlRegex = /(https?:\/\/[^\s]+)/g;
+                        return text.match(urlRegex) || [];
+                      });
+                      return { notes, links };
                     }
-                    return '';
+                    
+                    // If it's an object with notes/evidence
+                    if (typeof ev === 'object') {
+                      const notes = ev.notes || ev.evidence || '';
+                      const urlRegex = /(https?:\/\/[^\s]+)/g;
+                      const links = (ev.evidence || '').match(urlRegex) || [];
+                      return { notes, links };
+                    }
+                    
+                    // If it's a string
+                    if (typeof ev === 'string') {
+                      const urlRegex = /(https?:\/\/[^\s]+)/g;
+                      const links = ev.match(urlRegex) || [];
+                      return { notes: ev, links };
+                    }
+                    
+                    return { notes: '', links: [] };
                   };
                   
-                  const staffEv = getEvidenceText(staffEvRaw);
-                  const managerEv = getEvidenceText(managerEvRaw);
+                  const staffEvidence = parseEvidence(staffEvRaw);
+                  const managerEvidence = parseEvidence(managerEvRaw);
                   
                   // Get score label from score_options
                   const getScoreLabel = (score: number | null | undefined, options: ScoreOption[] | undefined): string => {
@@ -421,7 +444,15 @@ export default function DirectorApproval() {
                     <div key={indicator.id} className={cn("border-b last:border-0 p-4", idx % 2 === 0 && "bg-muted/20")}>
                       <h4 className="font-medium mb-1">{indicator.name}</h4>
                       {indicator.description && (
-                        <p className="text-sm text-muted-foreground mb-3">{indicator.description}</p>
+                        <p className="text-sm text-muted-foreground mb-2">{indicator.description}</p>
+                      )}
+                      
+                      {/* Accepted Evidence Types */}
+                      {indicator.evidence_guidance && (
+                        <div className="mb-3 p-2 bg-muted/50 rounded text-xs">
+                          <span className="font-medium">Accepted Evidence: </span>
+                          <span className="text-muted-foreground">{indicator.evidence_guidance}</span>
+                        </div>
                       )}
                       
                       <div className="grid grid-cols-2 gap-6">
@@ -436,10 +467,32 @@ export default function DirectorApproval() {
                               <span className="text-sm font-medium">{staffScoreLabel}</span>
                             )}
                           </div>
-                          {staffEv && (
-                            <div className="mt-2 p-2 bg-muted/30 rounded text-sm">
-                              <p className="text-xs font-medium text-muted-foreground mb-1">Evidence:</p>
-                              <p className="text-muted-foreground">{staffEv}</p>
+                          
+                          {/* Staff Evidence */}
+                          {(staffEvidence.notes || staffEvidence.links.length > 0) && (
+                            <div className="mt-2 p-2 bg-muted/30 rounded text-sm space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                                <Paperclip className="h-3 w-3" /> Evidence Provided:
+                              </p>
+                              {staffEvidence.notes && (
+                                <p className="text-muted-foreground whitespace-pre-wrap">{staffEvidence.notes}</p>
+                              )}
+                              {staffEvidence.links.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {staffEvidence.links.map((link, i) => (
+                                    <a 
+                                      key={i}
+                                      href={link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                    >
+                                      <LinkIcon className="h-3 w-3" />
+                                      {link.length > 40 ? link.substring(0, 40) + '...' : link}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -455,10 +508,32 @@ export default function DirectorApproval() {
                               <span className="text-sm font-medium text-primary">{managerScoreLabel}</span>
                             )}
                           </div>
-                          {managerEv && (
-                            <div className="mt-2 p-2 bg-primary/5 rounded text-sm">
-                              <p className="text-xs font-medium text-primary mb-1">Comments:</p>
-                              <p className="text-muted-foreground">{managerEv}</p>
+                          
+                          {/* Manager Comments */}
+                          {(managerEvidence.notes || managerEvidence.links.length > 0) && (
+                            <div className="mt-2 p-2 bg-primary/5 rounded text-sm space-y-2">
+                              <p className="text-xs font-medium text-primary flex items-center gap-1">
+                                <MessageSquare className="h-3 w-3" /> Manager Comments:
+                              </p>
+                              {managerEvidence.notes && (
+                                <p className="text-muted-foreground whitespace-pre-wrap">{managerEvidence.notes}</p>
+                              )}
+                              {managerEvidence.links.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {managerEvidence.links.map((link, i) => (
+                                    <a 
+                                      key={i}
+                                      href={link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                    >
+                                      <LinkIcon className="h-3 w-3" />
+                                      {link.length > 40 ? link.substring(0, 40) + '...' : link}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
