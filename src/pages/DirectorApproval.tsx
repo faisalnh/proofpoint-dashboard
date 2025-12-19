@@ -391,8 +391,21 @@ export default function DirectorApproval() {
                 {section.indicators.map((indicator, idx) => {
                   const staffScore = currentAssessment.staffScores[indicator.id];
                   const managerScore = currentAssessment.managerScores[indicator.id];
-                  const staffEv = currentAssessment.staffEvidence[indicator.id];
-                  const managerEv = currentAssessment.managerEvidence[indicator.id];
+                  const staffEvRaw = currentAssessment.staffEvidence[indicator.id];
+                  const managerEvRaw = currentAssessment.managerEvidence[indicator.id];
+                  
+                  // Extract text from evidence (can be string or object with notes/evidence)
+                  const getEvidenceText = (ev: any): string => {
+                    if (!ev) return '';
+                    if (typeof ev === 'string') return ev;
+                    if (typeof ev === 'object') {
+                      return ev.notes || ev.evidence || '';
+                    }
+                    return '';
+                  };
+                  
+                  const staffEv = getEvidenceText(staffEvRaw);
+                  const managerEv = getEvidenceText(managerEvRaw);
                   
                   return (
                     <div key={indicator.id} className={cn("border-b last:border-0 p-4", idx % 2 === 0 && "bg-muted/20")}>
