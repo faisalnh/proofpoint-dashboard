@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Activity, User, Settings, LogOut, ClipboardList, Users, Building2, FileText, Shield } from "lucide-react";
+import { Activity, User, LogOut, ClipboardList, Users, Building2, FileText, Shield, LayoutDashboard, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,139 +15,156 @@ export function Header({ className }: HeaderProps) {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const navItems = [
+    {
+      path: '/assessment',
+      label: 'Self-Assessment',
+      icon: ClipboardList,
+      show: true
+    },
+    {
+      path: '/manager',
+      label: 'Team',
+      icon: Users,
+      show: isManager || isAdmin
+    },
+    {
+      path: '/director',
+      label: 'Organization',
+      icon: Building2,
+      show: isDirector || isAdmin
+    },
+    {
+      path: '/rubrics',
+      label: 'Rubrics',
+      icon: FileText,
+      show: isManager || isDirector || isAdmin
+    },
+    {
+      path: '/admin',
+      label: 'Admin',
+      icon: Shield,
+      show: isAdmin
+    }
+  ].filter(item => item.show);
+
   return (
     <header className={cn(
-      "h-16 border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50",
+      "h-16 border-b border-border/50 glass-panel-strong sticky top-0 z-50",
       className
     )}>
       <div className="container h-full flex items-center justify-between">
         {/* Logo */}
-        <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-            <Activity className="h-5 w-5 text-primary-foreground" />
+        <Link to="/dashboard" className="flex items-center gap-3 group">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-primary glow-primary group-hover:scale-105 transition-transform">
+              <Activity className="h-5 w-5 text-primary-foreground" />
+            </div>
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-foreground">ProofPoint</h1>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground -mt-0.5">
-              Performance OS
+            <h1 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">ProofPoint</h1>
+            <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+              Command Center
             </p>
           </div>
         </Link>
         
         {/* Nav */}
         {user && (
-          <nav className="hidden md:flex items-center gap-1">
-            <Link to="/assessment">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className={cn(
-                  "gap-2",
-                  isActive('/assessment') ? "text-primary font-medium" : "text-muted-foreground"
-                )}
-              >
-                <ClipboardList className="h-4 w-4" />
-                Self-Assessment
-              </Button>
-            </Link>
-            
-            {(isManager || isAdmin) && (
-              <Link to="/manager">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className={cn(
-                    "gap-2",
-                    isActive('/manager') ? "text-primary font-medium" : "text-muted-foreground"
-                  )}
-                >
-                  <Users className="h-4 w-4" />
-                  Team
-                </Button>
-              </Link>
-            )}
-            
-            {(isDirector || isAdmin) && (
-              <Link to="/director">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className={cn(
-                    "gap-2",
-                    isActive('/director') ? "text-primary font-medium" : "text-muted-foreground"
-                  )}
-                >
-                  <Building2 className="h-4 w-4" />
-                  Organization
-                </Button>
-              </Link>
-            )}
-            
-            {(isManager || isDirector || isAdmin) && (
-              <Link to="/rubrics">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className={cn(
-                    "gap-2",
-                    isActive('/rubrics') ? "text-primary font-medium" : "text-muted-foreground"
-                  )}
-                >
-                  <FileText className="h-4 w-4" />
-                  Rubrics
-                </Button>
-              </Link>
-            )}
-            
-            {isAdmin && (
-              <Link to="/admin">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className={cn(
-                    "gap-2",
-                    isActive('/admin') ? "text-primary font-medium" : "text-muted-foreground"
-                  )}
-                >
-                  <Shield className="h-4 w-4" />
-                  Admin
-                </Button>
-              </Link>
-            )}
+          <nav className="hidden md:flex items-center gap-1 p-1 rounded-xl bg-muted/30 border border-border/30 backdrop-blur-sm">
+            {navItems.map((item) => {
+              const active = isActive(item.path);
+              return (
+                <Link key={item.path} to={item.path}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={cn(
+                      "gap-2 rounded-lg transition-all duration-300",
+                      active 
+                        ? "bg-background/80 text-primary shadow-sm border border-border/50" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    )}
+                  >
+                    <item.icon className={cn(
+                      "h-4 w-4 transition-colors",
+                      active ? "text-primary" : ""
+                    )} />
+                    <span className="hidden lg:inline">{item.label}</span>
+                  </Button>
+                </Link>
+              );
+            })}
           </nav>
         )}
         
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground">
-                  <User className="h-5 w-5" />
+                <Button 
+                  variant="ghost" 
+                  className="gap-2 px-3 py-2 h-auto rounded-xl bg-muted/30 border border-border/30 hover:bg-muted/50 hover:border-primary/30 transition-all duration-300"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-sm font-medium text-foreground leading-none">
+                      {profile?.full_name?.split(' ')[0] || 'User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {isAdmin ? 'Admin' : isDirector ? 'Director' : isManager ? 'Manager' : 'Staff'}
+                    </p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{profile?.full_name || 'User'}</p>
-                  <p className="text-xs text-muted-foreground">{profile?.email}</p>
+              <DropdownMenuContent align="end" className="w-64 glass-panel-strong border-border/30 p-2">
+                {/* User Info */}
+                <div className="px-3 py-3 rounded-lg bg-muted/30 mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{profile?.full_name || 'User'}</p>
+                      <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                    </div>
+                  </div>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/dashboard" className="cursor-pointer">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Dashboard
+                
+                <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
+                  <Link to="/dashboard" className="flex items-center gap-2 p-2">
+                    <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
+                      <LayoutDashboard className="h-4 w-4 text-foreground" />
+                    </div>
+                    <span>Dashboard</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
+                
+                <DropdownMenuSeparator className="my-2 bg-border/50" />
+                
+                <DropdownMenuItem 
+                  onClick={signOut} 
+                  className="rounded-lg cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <div className="flex items-center gap-2 p-1">
+                    <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                      <LogOut className="h-4 w-4" />
+                    </div>
+                    <span>Sign Out</span>
+                  </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <Link to="/auth">
-              <Button variant="outline" size="sm">Sign In</Button>
+              <Button className="glow-primary hover:scale-105 transition-all duration-300">
+                Sign In
+              </Button>
             </Link>
           )}
         </div>
