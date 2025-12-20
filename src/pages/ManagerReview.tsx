@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Users, CheckCircle, Send, User, Link, FileText, Download } from "lucide-react";
+import { ArrowLeft, Users, CheckCircle, Send, User, Link, FileText, Download, Zap, Loader2, TrendingUp, Clock, UserCheck } from "lucide-react";
 import { generateAppraisalPdf } from "@/lib/generateAppraisalPdf";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,7 +84,6 @@ export default function ManagerReview() {
         return;
       }
 
-      // Fetch template with sections
       const { data: templateData } = await supabase
         .from('rubric_templates')
         .select(`
@@ -139,7 +138,6 @@ export default function ManagerReview() {
     fetchAssessment();
   }, [assessmentId]);
 
-  // Fetch staff and manager profiles for PDF
   useEffect(() => {
     if (!reviewData?.assessment) return;
     
@@ -147,7 +145,6 @@ export default function ManagerReview() {
       const staffId = reviewData.assessment.staff_id;
       const managerId = reviewData.assessment.manager_id || user?.id;
       
-      // Fetch staff profile with department
       const { data: staffData } = await supabase
         .from('profiles')
         .select('full_name, departments(name)')
@@ -161,7 +158,6 @@ export default function ManagerReview() {
         });
       }
       
-      // Fetch manager profile
       if (managerId) {
         const { data: managerData } = await supabase
           .from('profiles')
@@ -253,7 +249,6 @@ export default function ManagerReview() {
   const handleSubmitReview = async () => {
     if (!reviewData || !assessmentId) return;
 
-    // Calculate final score
     const managerSections = reviewData.sections.map(s => ({
       ...s,
       indicators: s.indicators.map(i => ({
@@ -293,11 +288,17 @@ export default function ManagerReview() {
 
   if (loading || assessmentsLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+        <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
         <Header />
         <main className="container py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <div className="flex flex-col items-center justify-center h-64 gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary rounded-full blur-xl opacity-30 animate-pulse" />
+              <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
+            </div>
+            <p className="text-muted-foreground">Loading team assessments...</p>
           </div>
         </main>
       </div>
@@ -311,43 +312,72 @@ export default function ManagerReview() {
     const completedAssessments = assessments.filter(a => ['approved', 'acknowledged'].includes(a.status));
     
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+        <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
+        <div className="fixed top-[20%] right-[10%] w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none animate-float" />
+        <div className="fixed bottom-[20%] left-[5%] w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '-3s' }} />
+        
         <Header />
-        <main className="container py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
-              <Users className="h-8 w-8" />
+        <main className="container relative py-8">
+          {/* Page Header */}
+          <div className="mb-10">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                <Zap className="h-3.5 w-3.5" />
+                <span>Manager Dashboard</span>
+              </div>
+            </div>
+            <h1 className="text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
               Team Dashboard
             </h1>
-            <p className="text-muted-foreground mt-1">Review and score your team's assessments</p>
+            <p className="text-muted-foreground mt-2">Review and score your team's assessments</p>
           </div>
 
           <div className="space-y-6">
-            <Card>
+            {/* Pending Reviews */}
+            <Card className="glass-panel border-border/30 overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-amber-500/30 via-amber-500 to-amber-500/30" />
               <CardHeader>
-                <CardTitle>Pending Reviews ({pendingAssessments.length})</CardTitle>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <span>Pending Reviews</span>
+                  <Badge variant="secondary" className="ml-auto">{pendingAssessments.length}</Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {pendingAssessments.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No assessments pending review</p>
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground">No assessments pending review</p>
+                  </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {pendingAssessments.map(a => (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                        className="group flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-amber-500/30 hover:bg-background/80 cursor-pointer transition-all duration-300 hover:shadow-lg"
                         onClick={() => navigate(`/manager?id=${a.id}`)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <User className="h-6 w-6 text-amber-600" />
                           </div>
                           <div>
-                            <div className="font-medium">{a.staff_name}</div>
+                            <div className="font-medium group-hover:text-amber-600 transition-colors">{a.staff_name}</div>
                             <div className="text-sm text-muted-foreground">{a.period}</div>
                           </div>
                         </div>
-                        <Badge variant="secondary">{getStatusLabel(a.status)}</Badge>
+                        <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                          {getStatusLabel(a.status)}
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -355,29 +385,39 @@ export default function ManagerReview() {
               </CardContent>
             </Card>
 
+            {/* Awaiting Director */}
             {inProgressAssessments.length > 0 && (
-              <Card>
+              <Card className="glass-panel border-border/30 overflow-hidden">
+                <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
                 <CardHeader>
-                  <CardTitle>Awaiting Director Approval ({inProgressAssessments.length})</CardTitle>
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                    </div>
+                    <span>Awaiting Director Approval</span>
+                    <Badge variant="secondary" className="ml-auto">{inProgressAssessments.length}</Badge>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {inProgressAssessments.map(a => (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                        className="group flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-primary/30 hover:bg-background/80 cursor-pointer transition-all duration-300 hover:shadow-lg"
                         onClick={() => navigate(`/manager?id=${a.id}`)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-amber-600" />
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <User className="h-6 w-6 text-primary" />
                           </div>
                           <div>
-                            <div className="font-medium">{a.staff_name}</div>
+                            <div className="font-medium group-hover:text-primary transition-colors">{a.staff_name}</div>
                             <div className="text-sm text-muted-foreground">{a.period}</div>
                           </div>
                         </div>
-                        <Badge variant="outline">{getStatusLabel(a.status)}</Badge>
+                        <Badge variant="outline" className="border-primary/30 text-primary">
+                          {getStatusLabel(a.status)}
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -385,29 +425,39 @@ export default function ManagerReview() {
               </Card>
             )}
 
+            {/* Completed */}
             {completedAssessments.length > 0 && (
-              <Card>
+              <Card className="glass-panel border-border/30 overflow-hidden">
+                <div className="h-1 bg-gradient-to-r from-score-3/30 via-score-3 to-score-3/30" />
                 <CardHeader>
-                  <CardTitle>Completed ({completedAssessments.length})</CardTitle>
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-score-3/10 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-score-3" />
+                    </div>
+                    <span>Completed</span>
+                    <Badge variant="secondary" className="ml-auto">{completedAssessments.length}</Badge>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {completedAssessments.map(a => (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                        className="group flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-score-3/30 hover:bg-background/80 cursor-pointer transition-all duration-300 hover:shadow-lg"
                         onClick={() => navigate(`/manager?id=${a.id}`)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                            <CheckCircle className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-score-3/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <CheckCircle className="h-6 w-6 text-score-3" />
                           </div>
                           <div>
-                            <div className="font-medium">{a.staff_name}</div>
+                            <div className="font-medium group-hover:text-score-3 transition-colors">{a.staff_name}</div>
                             <div className="text-sm text-muted-foreground">{a.period}</div>
                           </div>
                         </div>
-                        <Badge variant="default">{getStatusLabel(a.status)}</Badge>
+                        <Badge className="bg-score-3/10 text-score-3 border border-score-3/20">
+                          {getStatusLabel(a.status)}
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -422,10 +472,16 @@ export default function ManagerReview() {
 
   if (!reviewData) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
         <Header />
         <main className="container py-8">
-          <p className="text-center text-muted-foreground">Assessment not found</p>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Assessment not found</p>
+            <Button variant="outline" onClick={() => navigate('/manager')} className="mt-4">
+              Back to Team
+            </Button>
+          </div>
         </main>
       </div>
     );
@@ -441,55 +497,90 @@ export default function ManagerReview() {
   }));
   const managerScore = calculateWeightedScore(managerSections);
   
-  // Read-only if manager has already submitted their review
   const isReadOnly = reviewData.assessment.status !== 'self_submitted';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+      <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
+      <div className="fixed top-[30%] right-[5%] w-80 h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="fixed bottom-[20%] left-[5%] w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '-2s' }} />
+      
       <Header />
       
-      <main className="container py-8">
-        <Button variant="ghost" onClick={() => navigate('/manager')} className="mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
+      <main className="container relative py-8">
+        {/* Back Button */}
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/manager')} 
+          className="mb-6 group hover:bg-muted/50"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
           Back to Team
         </Button>
 
+        {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Manager Review</h1>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <UserCheck className="h-3.5 w-3.5" />
+              <span>Manager Review</span>
+            </div>
+            {staffProfile && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border border-border/30 text-sm">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>{staffProfile.full_name}</span>
+              </div>
+            )}
+          </div>
+          <h1 className="text-4xl font-bold text-foreground tracking-tight">Performance Review</h1>
           <p className="text-muted-foreground mt-1">Compare staff self-assessment with your evaluation</p>
         </div>
 
         {/* Progress Indicator */}
-        <Card className="mb-6">
-          <CardContent className="py-4">
+        <Card className="mb-6 glass-panel border-border/30 overflow-hidden">
+          <div className="h-0.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+          <CardContent className="py-5">
             <AssessmentProgress status={reviewData.assessment.status} />
           </CardContent>
         </Card>
 
         {/* Score Summary */}
         <div className="grid grid-cols-2 gap-4 mb-8">
-          <Card>
-            <CardContent className="py-4">
+          <Card className="glass-panel border-border/30">
+            <CardContent className="py-6">
               <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-1">Staff Score</p>
-                <p className="text-3xl font-mono font-bold text-foreground">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Staff Score</p>
+                </div>
+                <p className="text-4xl font-mono font-bold text-foreground">
                   {staffScore?.toFixed(2) || '--'}
                 </p>
                 {staffScore && (
-                  <Badge variant="outline" className="mt-2">{getGradeFromScore(staffScore)}</Badge>
+                  <Badge variant="outline" className="mt-3 text-base px-4 py-1">{getGradeFromScore(staffScore)}</Badge>
                 )}
               </div>
             </CardContent>
           </Card>
-          <Card className="border-primary">
-            <CardContent className="py-4">
+          <Card className="glass-panel border-primary/30 bg-primary/5 overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
+            <CardContent className="py-6">
               <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-1">Manager Score</p>
-                <p className="text-3xl font-mono font-bold text-primary">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <UserCheck className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="text-sm font-medium text-primary">Manager Score</p>
+                </div>
+                <p className="text-4xl font-mono font-bold text-primary">
                   {managerScore?.toFixed(2) || '--'}
                 </p>
                 {managerScore && (
-                  <Badge className="mt-2">{getGradeFromScore(managerScore)}</Badge>
+                  <Badge className="mt-3 text-base px-4 py-1 glow-primary">{getGradeFromScore(managerScore)}</Badge>
                 )}
               </div>
             </CardContent>
@@ -499,24 +590,27 @@ export default function ManagerReview() {
         {/* Split View */}
         <div className="space-y-6">
           {reviewData.sections.map(section => (
-            <Card key={section.id}>
-              <CardHeader className="bg-secondary/30">
+            <Card key={section.id} className="glass-panel border-border/30 overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b border-border/30">
                 <CardTitle className="flex items-center justify-between">
-                  <span>{section.name}</span>
-                  <Badge variant="outline">{section.weight}%</Badge>
+                  <span className="text-lg">{section.name}</span>
+                  <Badge variant="outline" className="font-mono">{section.weight}%</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 {section.indicators.map((indicator, idx) => (
-                  <div key={indicator.id} className={cn("border-b last:border-0", idx % 2 === 0 && "bg-muted/20")}>
-                    <div className="p-4">
-                      <h4 className="font-medium mb-1">{indicator.name}</h4>
-                      <p className="text-sm text-muted-foreground mb-4">{indicator.description}</p>
+                  <div key={indicator.id} className={cn("border-b border-border/30 last:border-0", idx % 2 === 0 && "bg-muted/10")}>
+                    <div className="p-5">
+                      <h4 className="font-semibold mb-1">{indicator.name}</h4>
+                      <p className="text-sm text-muted-foreground mb-5">{indicator.description}</p>
                       
                       <div className="grid grid-cols-2 gap-6">
                         {/* Staff Side */}
-                        <div className="space-y-3">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Staff Assessment</p>
+                        <div className="space-y-3 p-4 rounded-xl bg-muted/20 border border-border/30">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                            <User className="h-3.5 w-3.5" />
+                            Staff Assessment
+                          </p>
                           <div className="flex items-center gap-2">
                             <span className="text-sm">Score:</span>
                             <Badge variant={indicator.score !== null && indicator.score <= 1 ? 'destructive' : indicator.score !== null && indicator.score >= 3 ? 'default' : 'secondary'}>
@@ -524,16 +618,19 @@ export default function ManagerReview() {
                             </Badge>
                           </div>
                           {renderEvidence(indicator.evidence) && (
-                            <div className="p-3 bg-muted rounded-lg text-sm">
-                              <p className="text-xs text-muted-foreground mb-1">Evidence:</p>
+                            <div className="p-3 bg-background/50 rounded-lg text-sm border border-border/30">
+                              <p className="text-xs text-muted-foreground mb-2 font-medium">Evidence:</p>
                               {renderEvidence(indicator.evidence)}
                             </div>
                           )}
                         </div>
 
                         {/* Manager Side */}
-                        <div className="space-y-3 border-l pl-6">
-                          <p className="text-xs font-medium text-primary uppercase tracking-wide">Manager Assessment</p>
+                        <div className="space-y-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
+                          <p className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
+                            <UserCheck className="h-3.5 w-3.5" />
+                            Manager Assessment
+                          </p>
                           <ScoreSelector
                             value={reviewData.managerScores[indicator.id] ?? null}
                             onChange={(score) => handleScoreChange(indicator.id, score)}
@@ -544,7 +641,7 @@ export default function ManagerReview() {
                             placeholder="Add notes or justification..."
                             value={reviewData.managerEvidence[indicator.id] || ''}
                             onChange={(e) => handleEvidenceChange(indicator.id, e.target.value)}
-                            className="min-h-[80px]"
+                            className="min-h-[80px] bg-background/50 border-border/50"
                             disabled={isReadOnly}
                           />
                         </div>
@@ -568,10 +665,13 @@ export default function ManagerReview() {
         </div>
 
         {/* Overall Manager Notes */}
-        <Card className="mt-8">
+        <Card className="mt-8 glass-panel border-border/30 overflow-hidden">
+          <div className="h-0.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
               Overall Manager Notes
             </CardTitle>
           </CardHeader>
@@ -581,33 +681,53 @@ export default function ManagerReview() {
               value={reviewData.managerNotes}
               onChange={(e) => handleManagerNotesChange(e.target.value)}
               rows={4}
-              className="resize-none"
+              className="resize-none bg-background/50 border-border/50"
               disabled={isReadOnly}
             />
           </CardContent>
         </Card>
 
-        {/* Actions - only show if not yet submitted by manager */}
+        {/* Actions */}
         {reviewData.assessment.status === 'self_submitted' && (
-          <div className="flex justify-end gap-3 mt-8 p-4 bg-card border rounded-xl">
-            <Button variant="outline" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Progress"}
-            </Button>
-            <Button onClick={handleSubmitReview} disabled={saving}>
-              <Send className="h-4 w-4 mr-2" />
-              Submit Review
-            </Button>
-          </div>
+          <Card className="mt-8 glass-panel border-border/30 overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+            <CardContent className="py-4">
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={handleSave} disabled={saving} className="glass-panel border-border/30">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {saving ? "Saving..." : "Save Progress"}
+                </Button>
+                <Button onClick={handleSubmitReview} disabled={saving} className="glow-primary">
+                  <Send className="h-4 w-4 mr-2" />
+                  Submit Review
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Download Report - show after manager has submitted */}
+        {/* Download Report */}
         {isReadOnly && managerScore && (
-          <div className="flex justify-end gap-3 mt-8 p-4 bg-card border rounded-xl">
-            <Button variant="outline" onClick={handleDownloadReport}>
-              <Download className="h-4 w-4 mr-2" />
-              Download Report
-            </Button>
-          </div>
+          <Card className="mt-8 glass-panel border-score-3/30 bg-score-3/5 overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-score-3/30 via-score-3 to-score-3/30" />
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-score-3/10 flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-score-3" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-score-3">Review Complete</p>
+                    <p className="text-sm text-muted-foreground">Download the performance report</p>
+                  </div>
+                </div>
+                <Button variant="outline" onClick={handleDownloadReport} className="glass-panel border-border/30 hover:border-score-3/30">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Report
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </main>
     </div>
