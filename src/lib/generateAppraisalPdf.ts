@@ -36,6 +36,17 @@ export function generateAppraisalPdf(data: AppraisalData): void {
 
   const gradeColor = getGradeColor(data.grade);
 
+  // Calculate dynamic sizing based on content
+  const totalIndicators = data.sections.reduce((acc, s) => acc + s.indicators.length, 0);
+  const sectionCount = data.sections.length;
+  
+  // Dynamic font sizing for one-page fit
+  const baseFontSize = totalIndicators > 15 ? 8 : totalIndicators > 10 ? 9 : 10;
+  const sectionPadding = totalIndicators > 15 ? 6 : 8;
+  const indicatorPadding = totalIndicators > 15 ? 4 : 6;
+  const headerSize = totalIndicators > 15 ? 16 : 18;
+  const sectionMargin = totalIndicators > 15 ? 8 : 12;
+
   const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -49,7 +60,7 @@ export function generateAppraisalPdf(data: AppraisalData): void {
   <style>
     @page {
       size: A4;
-      margin: 15mm;
+      margin: 10mm 12mm;
     }
     
     * {
@@ -60,8 +71,8 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 10pt;
-      line-height: 1.5;
+      font-size: ${baseFontSize}pt;
+      line-height: 1.3;
       color: #1a1a2e;
       background: #fff;
       padding: 0;
@@ -70,12 +81,12 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     .page-container {
       max-width: 800px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 16px;
     }
     
     .no-print {
       background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-      padding: 16px;
+      padding: 12px;
       text-align: center;
       position: sticky;
       top: 0;
@@ -87,8 +98,8 @@ export function generateAppraisalPdf(data: AppraisalData): void {
       background: #fff;
       color: #3b82f6;
       border: none;
-      padding: 12px 32px;
-      font-size: 14px;
+      padding: 10px 28px;
+      font-size: 13px;
       font-weight: 600;
       border-radius: 8px;
       cursor: pointer;
@@ -103,100 +114,89 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     
     .header {
       text-align: center;
-      margin-bottom: 24px;
-      padding-bottom: 20px;
-      border-bottom: 3px solid #3b82f6;
-      position: relative;
-    }
-    
-    .header::after {
-      content: '';
-      position: absolute;
-      bottom: -3px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 60px;
-      height: 3px;
-      background: #1d4ed8;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #3b82f6;
     }
     
     .header h1 {
-      font-size: 22pt;
+      font-size: ${headerSize}pt;
       font-weight: 700;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       color: #1a1a2e;
     }
     
     .header h2 {
-      font-size: 13pt;
+      font-size: ${baseFontSize + 2}pt;
       font-weight: 500;
       color: #3b82f6;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
+      text-decoration: underline;
     }
     
     .header h3 {
-      font-size: 11pt;
+      font-size: ${baseFontSize}pt;
       font-weight: 400;
       color: #6b7280;
     }
     
     .staff-info {
-      margin: 20px 0;
-      padding: 16px 20px;
+      margin: 12px 0;
+      padding: 10px 16px;
       background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
       border: 1px solid #bfdbfe;
-      border-radius: 12px;
+      border-radius: 8px;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
+      gap: 12px;
     }
     
     .info-item {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
     }
     
     .info-label {
-      font-size: 9pt;
+      font-size: ${baseFontSize - 1}pt;
       font-weight: 600;
       color: #3b82f6;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
     
     .info-value {
-      font-size: 11pt;
+      font-size: ${baseFontSize + 1}pt;
       font-weight: 500;
       color: #1a1a2e;
     }
     
     .section {
-      margin: 16px 0;
-      border-radius: 10px;
+      margin: ${sectionMargin}px 0;
+      border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       border: 1px solid #e5e7eb;
     }
     
     .section-header {
       background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
       color: #fff;
-      padding: 10px 16px;
+      padding: ${sectionPadding}px 12px;
       font-weight: 600;
-      font-size: 11pt;
+      font-size: ${baseFontSize + 1}pt;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
     
     .section-weight {
-      background: rgba(255,255,255,0.2);
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 10pt;
+      background: rgba(255,255,255,0.25);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: ${baseFontSize}pt;
+      font-weight: 500;
     }
     
     .indicators-grid {
@@ -207,15 +207,10 @@ export function generateAppraisalPdf(data: AppraisalData): void {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 16px;
-      font-size: 10pt;
-      color: #1a1a2e;
+      padding: ${indicatorPadding}px 12px;
+      font-size: ${baseFontSize}pt;
+      color: #374151;
       border-bottom: 1px solid #f3f4f6;
-      transition: background 0.15s;
-    }
-    
-    .indicator:nth-child(even) {
-      background: #f9fafb;
     }
     
     .indicator:last-child {
@@ -223,31 +218,27 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     .indicator-name {
-      color: #374151;
       flex: 1;
     }
     
     .indicator-score {
       font-weight: 700;
-      font-size: 11pt;
+      font-size: ${baseFontSize + 1}pt;
       color: #3b82f6;
-      min-width: 30px;
+      min-width: 28px;
       text-align: center;
-      background: #eff6ff;
-      padding: 4px 12px;
-      border-radius: 6px;
     }
     
     .total-section {
-      margin-top: 24px;
-      padding: 24px;
-      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      margin-top: 16px;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
       border: 2px solid #3b82f6;
-      border-radius: 16px;
+      border-radius: 10px;
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 48px;
+      gap: 40px;
     }
     
     .score-box {
@@ -255,16 +246,16 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     .score-label {
-      font-size: 10pt;
+      font-size: ${baseFontSize}pt;
       font-weight: 600;
       color: #3b82f6;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
     }
     
     .total-score {
-      font-size: 36pt;
+      font-size: 24pt;
       font-weight: 700;
       color: #1a1a2e;
       line-height: 1;
@@ -275,53 +266,52 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     .grade {
-      font-size: 32pt;
+      font-size: 22pt;
       font-weight: 700;
       color: #fff;
       background: ${gradeColor};
-      padding: 8px 28px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px ${gradeColor}40;
+      padding: 6px 20px;
+      border-radius: 8px;
       display: inline-block;
     }
     
     .signatures {
-      margin-top: 32px;
+      margin-top: 20px;
       display: flex;
       justify-content: space-around;
-      gap: 24px;
+      gap: 20px;
     }
     
     .signature-box {
       text-align: center;
       flex: 1;
-      max-width: 220px;
+      max-width: 200px;
     }
     
     .signature-line {
       border-top: 2px solid #3b82f6;
-      margin-top: 50px;
-      padding-top: 10px;
+      margin-top: 36px;
+      padding-top: 6px;
     }
     
     .signature-name {
       font-weight: 600;
-      font-size: 11pt;
+      font-size: ${baseFontSize + 1}pt;
       color: #1a1a2e;
     }
     
     .signature-title {
-      font-size: 9pt;
+      font-size: ${baseFontSize - 1}pt;
       color: #6b7280;
-      margin-top: 2px;
+      margin-top: 1px;
     }
     
     .footer {
-      margin-top: 24px;
-      padding-top: 16px;
+      margin-top: 16px;
+      padding-top: 10px;
       border-top: 1px solid #e5e7eb;
       text-align: center;
-      font-size: 8pt;
+      font-size: ${baseFontSize - 2}pt;
       color: #9ca3af;
     }
     
@@ -331,12 +321,33 @@ export function generateAppraisalPdf(data: AppraisalData): void {
     }
     
     @media print {
-      body { padding: 0; }
+      body { 
+        padding: 0; 
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
       .page-container { padding: 0; max-width: none; }
       .no-print { display: none; }
-      .section { break-inside: avoid; }
-      .total-section { break-inside: avoid; }
-      .signatures { break-inside: avoid; }
+      .section { break-inside: avoid; page-break-inside: avoid; }
+      .total-section { break-inside: avoid; page-break-inside: avoid; }
+      .signatures { break-inside: avoid; page-break-inside: avoid; }
+      .section-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .staff-info {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+        -webkit-print-color-adjust: exact !important;
+      }
+      .total-section {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+        -webkit-print-color-adjust: exact !important;
+      }
+      .grade {
+        background: ${gradeColor} !important;
+        -webkit-print-color-adjust: exact !important;
+      }
     }
   </style>
 </head>
