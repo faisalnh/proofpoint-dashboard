@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare, User, UserCheck, Clock, FileDown } from "lucide-react";
+import { Send, Save, Calendar, Briefcase, ShieldCheck, Plus, ArrowLeft, CheckCircle, MessageSquare, User, UserCheck, Clock, FileDown, Zap, Loader2, Sparkles, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAssessment, useMyAssessments, useRubricTemplates, SectionData, IndicatorData, hasValidEvidence, getGradeFromScore } from "@/hooks/useAssessment";
@@ -53,26 +53,20 @@ export default function SelfAssessment() {
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
 
   // Auto-detect review period based on current date
-  // May-August: Semester 2 of previousYear - currentYear academic year
-  // Nov-Feb: Semester 1 of currentYear - nextYear academic year
   const getDefaultPeriod = () => {
     const now = new Date();
-    const month = now.getMonth() + 1; // 1-12
+    const month = now.getMonth() + 1;
     const year = now.getFullYear();
     
     if (month >= 5 && month <= 8) {
-      // May-August: Semester 2 of previous-current academic year
       return `Semester 2, ${year - 1}-${year} Academic Year`;
     } else if (month >= 11 || month <= 2) {
-      // Nov-Feb: Semester 1
       if (month >= 11) {
         return `Semester 1, ${year}-${year + 1} Academic Year`;
       } else {
-        // Jan-Feb belongs to academic year that started previous year
         return `Semester 1, ${year - 1}-${year} Academic Year`;
       }
     } else {
-      // March-April, Sep-Oct: default to nearest semester
       if (month >= 9) {
         return `Semester 1, ${year}-${year + 1} Academic Year`;
       } else {
@@ -85,7 +79,7 @@ export default function SelfAssessment() {
 
   const validation = useMemo(() => validateSections(sections), [sections]);
 
-  // Convert sections to review format for comparison view - must be before early returns
+  // Convert sections to review format for comparison view
   const reviewSections: ReviewSectionData[] = useMemo(() => {
     return sections.map(section => ({
       id: section.id,
@@ -157,7 +151,6 @@ export default function SelfAssessment() {
     } else {
       updateAssessmentStatus('acknowledged');
       toast({ title: "Acknowledged", description: "Assessment acknowledged successfully" });
-      // Generate PDF after acknowledgement
       handleGeneratePdf();
     }
   };
@@ -165,7 +158,6 @@ export default function SelfAssessment() {
   const handleGeneratePdf = async () => {
     if (!assessment) return;
 
-    // Fetch assessment with staff_id, manager_id, director_id
     const { data: assessmentData } = await supabase
       .from('assessments')
       .select('staff_id, manager_id, director_id')
@@ -194,7 +186,6 @@ export default function SelfAssessment() {
           if (managerProfile?.full_name) managerName = managerProfile.full_name;
           if (directorProfile?.full_name) directorName = directorProfile.full_name;
 
-          // Fetch department name if staff has department_id
           if (staffProfile?.department_id) {
             const { data: dept } = await supabase
               .from('departments')
@@ -207,7 +198,6 @@ export default function SelfAssessment() {
       }
     }
 
-    // Calculate final score from manager scores
     const managerScore = sections.reduce((acc, s) => {
       const scored = s.indicators.filter(i => i.managerScore !== null);
       if (scored.length === 0) return acc;
@@ -236,11 +226,17 @@ export default function SelfAssessment() {
   // Loading state
   if (templatesLoading || assessmentsLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+        <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
         <Header />
         <main className="container py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <div className="flex flex-col items-center justify-center h-64 gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary rounded-full blur-xl opacity-30 animate-pulse" />
+              <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
+            </div>
+            <p className="text-muted-foreground">Loading assessments...</p>
           </div>
         </main>
       </div>
@@ -250,20 +246,34 @@ export default function SelfAssessment() {
   // No assessment selected - show list or create new
   if (!assessmentId) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+        <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
+        <div className="fixed top-[20%] right-[10%] w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none animate-float" />
+        
         <Header />
-        <main className="container py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Self-Assessment</h1>
-            <p className="text-muted-foreground mt-1">View your assessments or start a new one</p>
+        <main className="container relative py-8">
+          {/* Page Header */}
+          <div className="mb-10">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                <Zap className="h-3.5 w-3.5" />
+                <span>Self-Assessment</span>
+              </div>
+            </div>
+            <h1 className="text-4xl font-bold text-foreground tracking-tight">Performance Evaluation</h1>
+            <p className="text-muted-foreground mt-2">View your assessments or start a new evaluation cycle</p>
           </div>
 
-          {/* Create New */}
-          <Card className="mb-8">
+          {/* Create New Card */}
+          <Card className="mb-8 glass-panel border-border/30 overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Start New Assessment
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Plus className="h-5 w-5 text-primary" />
+                </div>
+                <span>Start New Assessment</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -271,7 +281,7 @@ export default function SelfAssessment() {
                 <div>
                   <label className="text-sm font-medium text-muted-foreground mb-2 block">Rubric Template</label>
                   <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background/50 border-border/50">
                       <SelectValue placeholder="Select template" />
                     </SelectTrigger>
                     <SelectContent>
@@ -283,10 +293,24 @@ export default function SelfAssessment() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground mb-2 block">Review Period</label>
-                  <Input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="e.g., Q4 2024" />
+                  <Input 
+                    value={period} 
+                    onChange={(e) => setPeriod(e.target.value)} 
+                    placeholder="e.g., Q4 2024" 
+                    className="bg-background/50 border-border/50"
+                  />
                 </div>
                 <div className="flex items-end">
-                  <Button onClick={handleCreateAssessment} disabled={creating || !selectedTemplate}>
+                  <Button 
+                    onClick={handleCreateAssessment} 
+                    disabled={creating || !selectedTemplate}
+                    className="w-full glow-primary hover:scale-[1.02] transition-all duration-300"
+                  >
+                    {creating ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
                     {creating ? "Creating..." : "Create Assessment"}
                   </Button>
                 </div>
@@ -295,26 +319,41 @@ export default function SelfAssessment() {
           </Card>
 
           {/* Existing Assessments */}
-          <Card>
+          <Card className="glass-panel border-border/30 overflow-hidden">
             <CardHeader>
-              <CardTitle>My Assessments</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                My Assessments
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {assessments.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No assessments yet. Create your first one above.</p>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                    <Briefcase className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground">No assessments yet. Create your first one above.</p>
+                </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {assessments.map(a => (
                     <div
                       key={a.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                      className="group flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-primary/30 hover:bg-background/80 cursor-pointer transition-all duration-300 hover:shadow-lg"
                       onClick={() => navigate(`/assessment?id=${a.id}`)}
                     >
-                      <div>
-                        <div className="font-medium">{a.period}</div>
-                        <div className="text-sm text-muted-foreground">Created {new Date(a.created_at).toLocaleDateString()}</div>
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                          <Calendar className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="font-medium group-hover:text-primary transition-colors">{a.period}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Created {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        </div>
                       </div>
-                      <Badge variant={a.status === 'draft' ? 'outline' : a.status === 'approved' ? 'default' : 'secondary'}>
+                      <Badge variant={a.status === 'draft' ? 'outline' : a.status === 'approved' || a.status === 'acknowledged' ? 'default' : 'secondary'}>
                         {getStatusLabel(a.status)}
                       </Badge>
                     </div>
@@ -331,11 +370,16 @@ export default function SelfAssessment() {
   // Assessment loading
   if (assessmentLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
         <Header />
         <main className="container py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <div className="flex flex-col items-center justify-center h-64 gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary rounded-full blur-xl opacity-30 animate-pulse" />
+              <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
+            </div>
+            <p className="text-muted-foreground">Loading assessment...</p>
           </div>
         </main>
       </div>
@@ -344,70 +388,95 @@ export default function SelfAssessment() {
 
   if (!assessment) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
         <Header />
         <main className="container py-8">
-          <p className="text-center text-muted-foreground">Assessment not found</p>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Assessment not found</p>
+            <Button variant="outline" onClick={() => navigate('/assessment')} className="mt-4">
+              Back to Assessments
+            </Button>
+          </div>
         </main>
       </div>
     );
   }
 
   const isEditable = assessment.status === 'draft';
-  const showAcknowledge = assessment.status === 'approved'; // Only after director approval
+  const showAcknowledge = assessment.status === 'approved';
   const isReviewed = ['manager_reviewed', 'approved', 'acknowledged'].includes(assessment.status);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+      <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
+      <div className="fixed top-[30%] right-[5%] w-80 h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="fixed bottom-[20%] left-[5%] w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '-2s' }} />
+      
       <Header />
       
-      <main className="container py-8">
+      <main className="container relative py-8">
         {/* Back Button */}
-        <Button variant="ghost" onClick={() => navigate('/assessment')} className="mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/assessment')} 
+          className="mb-6 group hover:bg-muted/50"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
           Back to Assessments
         </Button>
 
         {/* Page Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Briefcase className="h-4 w-4" />
-            <span>Assessment</span>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border border-border/30">
+              <Briefcase className="h-3.5 w-3.5" />
+              <span>Assessment</span>
+            </div>
             <span className="text-border">•</span>
-            <Calendar className="h-4 w-4" />
-            <span>{assessment.period}</span>
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border border-border/30">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{assessment.period}</span>
+            </div>
           </div>
           
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground tracking-tight">Self-Assessment</h1>
+              <h1 className="text-4xl font-bold text-foreground tracking-tight">Self-Assessment</h1>
               <p className="text-muted-foreground mt-1">
-                Rate your performance honestly. Remember: <span className="font-medium text-foreground">No Evidence, No Score.</span>
+                Rate your performance honestly. Remember: <span className="font-semibold text-primary">No Evidence, No Score.</span>
               </p>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Badge variant={isEditable ? 'outline' : 'secondary'} className="gap-1.5 py-1.5">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                {getStatusLabel(assessment.status)}
-              </Badge>
-            </div>
+            <Badge 
+              variant={isEditable ? 'outline' : 'secondary'} 
+              className="gap-1.5 py-2 px-4 text-sm glass-panel border-border/30"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {getStatusLabel(assessment.status)}
+            </Badge>
           </div>
           
           {/* Progress Indicator */}
-          <Card className="mb-6">
-            <CardContent className="py-4">
+          <Card className="mt-6 glass-panel border-border/30 overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+            <CardContent className="py-5">
               <AssessmentProgress status={assessment.status} />
             </CardContent>
           </Card>
         </div>
 
-        {/* Status-specific Notice */}
+        {/* Status-specific Notices */}
         {assessment.status === 'manager_reviewed' && (
-          <Card className="mb-6 border-amber-500 bg-amber-500/5">
+          <Card className="mb-6 glass-panel border-amber-500/30 bg-amber-500/5 overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-amber-500/30 via-amber-500 to-amber-500/30" />
             <CardContent className="py-4">
               <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-amber-600" />
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-amber-600" />
+                </div>
                 <div>
                   <p className="font-medium">Waiting for Director Approval</p>
                   <p className="text-sm text-muted-foreground">Manager has completed the review. Pending director approval.</p>
@@ -418,22 +487,25 @@ export default function SelfAssessment() {
         )}
         
         {assessment.status === 'approved' && (
-          <Card className="mb-6 border-primary">
+          <Card className="mb-6 glass-panel border-primary/30 overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
             <CardContent className="py-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-primary" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-primary" />
+                  </div>
                   <div>
                     <p className="font-medium">Director Approved</p>
                     <p className="text-sm text-muted-foreground">Review the scores below and acknowledge or raise questions</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleRaiseQuestion}>
+                  <Button variant="outline" size="sm" onClick={handleRaiseQuestion} className="glass-panel border-border/30">
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Raise Question
                   </Button>
-                  <Button size="sm" onClick={handleAcknowledge}>
+                  <Button size="sm" onClick={handleAcknowledge} className="glow-primary">
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Acknowledge
                   </Button>
@@ -444,17 +516,20 @@ export default function SelfAssessment() {
         )}
         
         {assessment.status === 'acknowledged' && (
-          <Card className="mb-6 border-evidence-success bg-evidence-success-bg">
+          <Card className="mb-6 glass-panel border-score-3/30 bg-score-3/5 overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-score-3/30 via-score-3 to-score-3/30" />
             <CardContent className="py-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-evidence-success" />
+                  <div className="w-10 h-10 rounded-lg bg-score-3/10 flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-score-3" />
+                  </div>
                   <div>
-                    <p className="font-medium text-evidence-success">Assessment Complete</p>
+                    <p className="font-medium text-score-3">Assessment Complete</p>
                     <p className="text-sm text-muted-foreground">You have acknowledged this assessment</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleGeneratePdf}>
+                <Button variant="outline" size="sm" onClick={handleGeneratePdf} className="glass-panel border-border/30">
                   <FileDown className="h-4 w-4 mr-2" />
                   Download Report
                 </Button>
@@ -468,14 +543,15 @@ export default function SelfAssessment() {
           {/* Assessment Form / Review Comparison */}
           <div className="lg:col-span-8 space-y-6">
             {isReviewed ? (
-              // Show comparison view when reviewed
               <>
                 {/* Score Summary Cards */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                  <Card className="bg-muted/30">
+                  <Card className="glass-panel border-border/30">
                     <CardContent className="py-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                        </div>
                         <span className="text-sm font-medium">Self Assessment</span>
                       </div>
                       {(() => {
@@ -486,17 +562,19 @@ export default function SelfAssessment() {
                         }, 0);
                         return (
                           <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold font-mono">{selfScore.toFixed(2)}</span>
+                            <span className="text-3xl font-bold font-mono">{selfScore.toFixed(2)}</span>
                             <span className="text-lg font-semibold text-muted-foreground">({getGradeFromScore(selfScore)})</span>
                           </div>
                         );
                       })()}
                     </CardContent>
                   </Card>
-                  <Card className="bg-primary/5 border-primary/20">
+                  <Card className="glass-panel border-primary/30 bg-primary/5">
                     <CardContent className="py-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <UserCheck className="h-4 w-4 text-primary" />
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <UserCheck className="h-4 w-4 text-primary" />
+                        </div>
                         <span className="text-sm font-medium text-primary">Manager Review</span>
                       </div>
                       {(() => {
@@ -507,7 +585,7 @@ export default function SelfAssessment() {
                         }, 0);
                         return (
                           <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold font-mono text-primary">{managerScore.toFixed(2)}</span>
+                            <span className="text-3xl font-bold font-mono text-primary">{managerScore.toFixed(2)}</span>
                             <span className="text-lg font-semibold text-primary/70">({getGradeFromScore(managerScore)})</span>
                           </div>
                         );
@@ -524,7 +602,6 @@ export default function SelfAssessment() {
                 ))}
               </>
             ) : (
-              // Show editable form for draft/submitted
               sections.map(section => (
                 <AssessmentSection
                   key={section.id}
@@ -539,41 +616,48 @@ export default function SelfAssessment() {
             
             {/* Submit Section */}
             {isEditable && (
-              <div className="flex items-center justify-between p-4 bg-card border rounded-xl">
-                <div>
-                  {validation.valid ? (
-                    <p className="text-sm text-evidence-success font-medium flex items-center gap-2">
-                      <ShieldCheck className="h-4 w-4" />
-                      All requirements met. Ready to submit.
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-evidence-alert">{validation.missing}</span> indicator(s) need completion or evidence
-                    </p>
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={saveDraft}
-                    disabled={saving}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {saving ? "Saving..." : "Save Draft"}
-                  </Button>
-                  <Button 
-                    onClick={handleSubmit}
-                    disabled={!validation.valid || saving}
-                    className={cn(
-                      !validation.valid && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Submit Assessment
-                  </Button>
-                </div>
-              </div>
+              <Card className="glass-panel border-border/30 overflow-hidden">
+                <div className="h-0.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                      {validation.valid ? (
+                        <p className="text-sm text-score-3 font-medium flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4" />
+                          All requirements met. Ready to submit.
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-medium text-evidence-alert">{validation.missing}</span> indicator(s) need completion or evidence
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={saveDraft}
+                        disabled={saving}
+                        className="glass-panel border-border/30"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? "Saving..." : "Save Draft"}
+                      </Button>
+                      <Button 
+                        onClick={handleSubmit}
+                        disabled={!validation.valid || saving}
+                        className={cn(
+                          "glow-primary",
+                          !validation.valid && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Submit Assessment
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
           
@@ -584,7 +668,7 @@ export default function SelfAssessment() {
               
               {/* Legend for Review */}
               {isReviewed && (
-                <Card>
+                <Card className="glass-panel border-border/30">
                   <CardContent className="py-4">
                     <h4 className="font-medium mb-3">Score Legend</h4>
                     <div className="space-y-2 text-sm">
@@ -596,7 +680,7 @@ export default function SelfAssessment() {
                         <UserCheck className="h-4 w-4 text-primary" />
                         <span>Manager Review Score</span>
                       </div>
-                      <hr className="my-3" />
+                      <hr className="my-3 border-border/50" />
                       <p className="text-muted-foreground text-xs">
                         Compare your self-assessment with your manager's review. 
                         Green indicates higher scores, red indicates lower.

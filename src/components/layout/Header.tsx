@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Activity, User, LogOut, ClipboardList, Users, Building2, FileText, Shield, LayoutDashboard, ChevronDown } from "lucide-react";
+import { Activity, User, LogOut, ClipboardList, Users, Building2, FileText, Shield, LayoutDashboard, ChevronDown, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
 
 interface HeaderProps {
   className?: string;
@@ -12,6 +13,26 @@ interface HeaderProps {
 export function Header({ className }: HeaderProps) {
   const location = useLocation();
   const { user, profile, isAdmin, isManager, isDirector, signOut } = useAuth();
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    // Check initial theme
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    setIsDark(isDarkMode);
+  }, []);
+
+  const toggleTheme = () => {
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
+    
+    if (newIsDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -101,6 +122,20 @@ export function Header({ className }: HeaderProps) {
         
         {/* Actions */}
         <div className="flex items-center gap-3">
+          {/* Dark Mode Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="w-10 h-10 rounded-xl bg-muted/30 border border-border/30 hover:bg-muted/50 hover:border-primary/30 transition-all duration-300"
+          >
+            {isDark ? (
+              <Sun className="h-5 w-5 text-amber-500 transition-transform hover:rotate-12" />
+            ) : (
+              <Moon className="h-5 w-5 text-primary transition-transform hover:-rotate-12" />
+            )}
+          </Button>
+
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
