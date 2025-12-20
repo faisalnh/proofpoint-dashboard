@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
-import { Shield, Loader2 } from 'lucide-react';
+import { Activity, Loader2, Mail, Lock, User, ArrowLeft, Sparkles } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -122,118 +122,202 @@ export default function Auth() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary rounded-full blur-xl opacity-30 animate-pulse" />
+          <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-border/50 shadow-lg">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Shield className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold">ProofPoint</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              The Modern Performance OS
-            </CardDescription>
-          </div>
-        </CardHeader>
-        
-        <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+    <div className="min-h-screen flex items-center justify-center overflow-hidden relative">
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-background" />
+      <div className="absolute inset-0 grid-pattern" />
+      <div className="absolute inset-0 mesh-gradient" />
+      
+      {/* Floating Orbs */}
+      <div className="absolute top-[10%] left-[15%] w-80 h-80 bg-primary/15 rounded-full blur-3xl animate-float" />
+      <div className="absolute bottom-[10%] right-[10%] w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '-3s' }} />
+      <div className="absolute top-[50%] right-[30%] w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '-1.5s' }} />
+      
+      {/* Content */}
+      <div className="relative w-full max-w-md px-4">
+        {/* Back Link */}
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          <span>Back to home</span>
+        </Link>
+
+        {/* Glass Card */}
+        <Card className="glass-panel-strong border-border/30 shadow-2xl overflow-hidden">
+          {/* Gradient Top Border */}
+          <div className="h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
+          
+          <CardHeader className="text-center space-y-4 pt-8 pb-2">
+            {/* Logo */}
+            <div className="mx-auto relative">
+              <div className="absolute inset-0 bg-primary rounded-2xl blur-xl opacity-40 animate-pulse-glow" />
+              <div className="relative w-16 h-16 rounded-2xl bg-primary glow-primary flex items-center justify-center">
+                <Activity className="h-8 w-8 text-primary-foreground" />
+              </div>
+            </div>
             
-            <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={loginData.email}
-                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    className={errors.email ? 'border-destructive' : ''}
-                  />
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={loginData.password}
-                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    className={errors.password ? 'border-destructive' : ''}
-                  />
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-                
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            <div className="space-y-1">
+              <CardTitle className="text-3xl font-bold tracking-tight">ProofPoint</CardTitle>
+              <CardDescription className="text-muted-foreground flex items-center justify-center gap-2">
+                <Sparkles className="h-3 w-3" />
+                <span>Performance Command Center</span>
+                <Sparkles className="h-3 w-3" />
+              </CardDescription>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="pt-4 pb-8 px-8">
+            <Tabs defaultValue="login" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-8 bg-muted/50 p-1 rounded-xl">
+                <TabsTrigger 
+                  value="login" 
+                  className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-300"
+                >
                   Sign In
-                </Button>
-              </form>
-            </TabsContent>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="signup"
+                  className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-300"
+                >
+                  Sign Up
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="login" className="mt-0">
+                <form onSubmit={handleLogin} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email" className="text-sm font-medium flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                      Email
+                    </Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      className={`h-12 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20 transition-all ${errors.email ? 'border-destructive' : ''}`}
+                    />
+                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="login-password" className="text-sm font-medium flex items-center gap-2">
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      Password
+                    </Label>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={loginData.password}
+                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                      className={`h-12 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20 transition-all ${errors.password ? 'border-destructive' : ''}`}
+                    />
+                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 text-base font-medium glow-primary hover:scale-[1.02] transition-all duration-300" 
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    ) : null}
+                    Sign In
+                  </Button>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="signup" className="mt-0">
+                <form onSubmit={handleSignup} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name" className="text-sm font-medium flex items-center gap-2">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      Full Name
+                    </Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={signupData.fullName}
+                      onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
+                      className={`h-12 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20 transition-all ${errors.fullName ? 'border-destructive' : ''}`}
+                    />
+                    {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email" className="text-sm font-medium flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                      Email
+                    </Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={signupData.email}
+                      onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                      className={`h-12 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20 transition-all ${errors.email ? 'border-destructive' : ''}`}
+                    />
+                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password" className="text-sm font-medium flex items-center gap-2">
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      Password
+                    </Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={signupData.password}
+                      onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+                      className={`h-12 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20 transition-all ${errors.password ? 'border-destructive' : ''}`}
+                    />
+                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 text-base font-medium glow-primary hover:scale-[1.02] transition-all duration-300" 
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    ) : null}
+                    Create Account
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
             
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={signupData.fullName}
-                    onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
-                    className={errors.fullName ? 'border-destructive' : ''}
-                  />
-                  {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={signupData.email}
-                    onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                    className={errors.email ? 'border-destructive' : ''}
-                  />
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={signupData.password}
-                    onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                    className={errors.password ? 'border-destructive' : ''}
-                  />
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-                
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Create Account
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            {/* Footer Text */}
+            <p className="text-center text-xs text-muted-foreground mt-6">
+              By continuing, you agree to our Terms of Service
+            </p>
+          </CardContent>
+        </Card>
+        
+        {/* Security Badge */}
+        <div className="flex items-center justify-center gap-2 mt-6 text-sm text-muted-foreground">
+          <Lock className="h-3.5 w-3.5" />
+          <span>Secured with enterprise-grade encryption</span>
+        </div>
+      </div>
     </div>
   );
 }
