@@ -15,7 +15,11 @@ import {
   ChevronRight,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  ArrowRight,
+  Zap,
+  Loader2,
+  TrendingUp
 } from 'lucide-react';
 
 interface Assessment {
@@ -50,15 +54,37 @@ export default function Dashboard() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'draft':
-        return <Badge variant="outline" className="text-muted-foreground"><Clock className="h-3 w-3 mr-1" /> Draft</Badge>;
+        return (
+          <Badge variant="outline" className="bg-muted/50 border-border text-muted-foreground">
+            <Clock className="h-3 w-3 mr-1" /> Draft
+          </Badge>
+        );
       case 'self_submitted':
-        return <Badge className="bg-primary/20 text-primary"><ChevronRight className="h-3 w-3 mr-1" /> Submitted</Badge>;
+        return (
+          <Badge className="bg-primary/10 text-primary border border-primary/20">
+            <ChevronRight className="h-3 w-3 mr-1" /> Submitted
+          </Badge>
+        );
       case 'manager_reviewed':
-        return <Badge className="bg-evidence-success/20 text-evidence-success"><CheckCircle2 className="h-3 w-3 mr-1" /> Reviewed</Badge>;
+        return (
+          <Badge className="bg-score-3/10 text-score-3 border border-score-3/20">
+            <CheckCircle2 className="h-3 w-3 mr-1" /> Reviewed
+          </Badge>
+        );
       case 'director_approved':
-        return <Badge className="bg-green-500/20 text-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Approved</Badge>;
+      case 'approved':
+      case 'acknowledged':
+        return (
+          <Badge className="bg-score-4/10 text-score-4 border border-score-4/20">
+            <CheckCircle2 className="h-3 w-3 mr-1" /> Approved
+          </Badge>
+        );
       case 'rejected':
-        return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
+        return (
+          <Badge className="bg-destructive/10 text-destructive border border-destructive/20">
+            <AlertCircle className="h-3 w-3 mr-1" /> Rejected
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -74,140 +100,207 @@ export default function Dashboard() {
     }
   });
 
+  const actionCards = [
+    {
+      title: 'Self Assessment',
+      description: 'Complete your performance evaluation',
+      icon: ClipboardList,
+      link: '/assessment',
+      buttonText: 'Start Assessment',
+      buttonVariant: 'default' as const,
+      show: true,
+      gradient: 'from-blue-500/10 to-cyan-500/10',
+      iconColor: 'text-blue-500'
+    },
+    {
+      title: 'Team Dashboard',
+      description: 'Review your team\'s assessments',
+      icon: Users,
+      link: '/manager',
+      buttonText: 'View Team',
+      buttonVariant: 'outline' as const,
+      show: isManager || isAdmin,
+      gradient: 'from-violet-500/10 to-purple-500/10',
+      iconColor: 'text-violet-500'
+    },
+    {
+      title: 'Director Overview',
+      description: 'Approve and oversee all departments',
+      icon: Building2,
+      link: '/director',
+      buttonText: 'View Organization',
+      buttonVariant: 'outline' as const,
+      show: isDirector || isAdmin,
+      gradient: 'from-emerald-500/10 to-teal-500/10',
+      iconColor: 'text-emerald-500'
+    },
+    {
+      title: 'Rubric Templates',
+      description: 'Create and manage evaluation criteria',
+      icon: FileText,
+      link: '/rubrics',
+      buttonText: 'Manage Rubrics',
+      buttonVariant: 'outline' as const,
+      show: isManager || isDirector || isAdmin,
+      gradient: 'from-amber-500/10 to-orange-500/10',
+      iconColor: 'text-amber-500'
+    },
+    {
+      title: 'Admin Panel',
+      description: 'Manage users, roles, and departments',
+      icon: Settings,
+      link: '/admin',
+      buttonText: 'Open Admin',
+      buttonVariant: 'outline' as const,
+      show: isAdmin,
+      gradient: 'from-rose-500/10 to-pink-500/10',
+      iconColor: 'text-rose-500'
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+      <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
+      
+      {/* Floating Orbs */}
+      <div className="fixed top-[20%] right-[10%] w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="fixed bottom-[20%] left-[5%] w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '-3s' }} />
+      
       <Header />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">
-            Welcome back, {profile?.full_name || 'User'}
+      <main className="container relative mx-auto px-4 py-8">
+        {/* Welcome Section */}
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <Zap className="h-3.5 w-3.5" />
+              <span>Dashboard</span>
+            </div>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
+            Welcome back, <span className="text-gradient-hero">{profile?.full_name || 'User'}</span>
           </h1>
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-3">
             {roleLabels.map(role => (
-              <Badge key={role} variant="secondary">{role}</Badge>
+              <Badge 
+                key={role} 
+                variant="secondary" 
+                className="bg-secondary/50 border border-border/50 backdrop-blur-sm"
+              >
+                {role}
+              </Badge>
             ))}
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Self Assessment Card */}
-          <Card className="border-border/50 hover:border-primary/30 transition-colors">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-primary" />
-                Self Assessment
-              </CardTitle>
-              <CardDescription>Complete your performance evaluation</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to="/assessment">
-                <Button className="w-full">Start Assessment</Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          {/* Manager Dashboard */}
-          {(isManager || isAdmin) && (
-            <Card className="border-border/50 hover:border-primary/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Team Dashboard
-                </CardTitle>
-                <CardDescription>Review your team's assessments</CardDescription>
+        {/* Action Cards Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-10">
+          {actionCards.filter(card => card.show).map((card, index) => (
+            <Card 
+              key={card.title}
+              className="group relative glass-panel border-border/30 hover-lift hover-glow overflow-hidden"
+            >
+              {/* Gradient Background */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+              
+              <CardHeader className="relative">
+                <div className="flex items-center justify-between">
+                  <div className={`w-12 h-12 rounded-xl bg-background/80 border border-border/50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <card.icon className={`h-6 w-6 ${card.iconColor}`} />
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
+                </div>
+                <CardTitle className="mt-4 text-xl">{card.title}</CardTitle>
+                <CardDescription className="text-muted-foreground">{card.description}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <Link to="/manager">
-                  <Button variant="outline" className="w-full">View Team</Button>
+              <CardContent className="relative">
+                <Link to={card.link}>
+                  <Button 
+                    variant={card.buttonVariant} 
+                    className={`w-full ${card.buttonVariant === 'default' ? 'glow-primary' : 'glass-panel hover:border-primary/50'} transition-all duration-300`}
+                  >
+                    {card.buttonText}
+                  </Button>
                 </Link>
               </CardContent>
             </Card>
-          )}
-
-          {/* Director Dashboard */}
-          {(isDirector || isAdmin) && (
-            <Card className="border-border/50 hover:border-primary/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-primary" />
-                  Director Overview
-                </CardTitle>
-                <CardDescription>Approve and oversee all departments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link to="/director">
-                  <Button variant="outline" className="w-full">View Organization</Button>
-                </Link>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Rubric Management */}
-          {(isManager || isDirector || isAdmin) && (
-            <Card className="border-border/50 hover:border-primary/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Rubric Templates
-                </CardTitle>
-                <CardDescription>Create and manage evaluation criteria</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link to="/rubrics">
-                  <Button variant="outline" className="w-full">Manage Rubrics</Button>
-                </Link>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Admin Panel */}
-          {isAdmin && (
-            <Card className="border-border/50 hover:border-primary/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-primary" />
-                  Admin Panel
-                </CardTitle>
-                <CardDescription>Manage users, roles, and departments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link to="/admin">
-                  <Button variant="outline" className="w-full">Open Admin</Button>
-                </Link>
-              </CardContent>
-            </Card>
-          )}
+          ))}
         </div>
 
         {/* Recent Assessments */}
-        <Card className="mt-8 border-border/50">
+        <Card className="glass-panel border-border/30 overflow-hidden">
+          {/* Gradient Top Border */}
+          <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+          
           <CardHeader>
-            <CardTitle>Recent Assessments</CardTitle>
-            <CardDescription>Your latest performance evaluations</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Recent Assessments
+                </CardTitle>
+                <CardDescription>Your latest performance evaluations</CardDescription>
+              </div>
+              <Link to="/assessment">
+                <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">
+                  View All
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="flex items-center justify-center py-8">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-primary rounded-full blur-lg opacity-30 animate-pulse" />
+                  <Loader2 className="relative h-8 w-8 animate-spin text-primary" />
+                </div>
+              </div>
             ) : assessments.length === 0 ? (
-              <p className="text-muted-foreground">No assessments yet. Start your first one!</p>
+              <div className="text-center py-12">
+                <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                  <ClipboardList className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground mb-4">No assessments yet. Start your first one!</p>
+                <Link to="/assessment">
+                  <Button className="glow-primary">
+                    <Zap className="h-4 w-4 mr-2" />
+                    Start Assessment
+                  </Button>
+                </Link>
+              </div>
             ) : (
               <div className="space-y-3">
-                {assessments.map((assessment) => (
+                {assessments.map((assessment, index) => (
                   <Link
                     key={assessment.id}
                     to={`/assessment?id=${assessment.id}`}
-                    className="block"
+                    className="block group"
                     aria-label={`Open assessment for ${assessment.period}`}
                   >
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
-                      <div>
-                        <p className="font-medium">{assessment.period}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(assessment.created_at).toLocaleDateString()}
-                        </p>
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-primary/30 hover:bg-background/80 transition-all duration-300 group-hover:shadow-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground group-hover:text-primary transition-colors">{assessment.period}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(assessment.created_at).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            })}
+                          </p>
+                        </div>
                       </div>
-                      {getStatusBadge(assessment.status)}
+                      <div className="flex items-center gap-3">
+                        {getStatusBadge(assessment.status)}
+                        <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                      </div>
                     </div>
                   </Link>
                 ))}
@@ -216,8 +309,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Sign Out */}
         <div className="mt-8 flex justify-end">
-          <Button variant="ghost" onClick={signOut}>
+          <Button 
+            variant="ghost" 
+            onClick={signOut}
+            className="text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          >
             Sign Out
           </Button>
         </div>
