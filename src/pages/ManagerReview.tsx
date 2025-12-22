@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Users, CheckCircle, Send, User, Link, FileText, Download, Zap, Loader2, TrendingUp, Clock, UserCheck } from "lucide-react";
+import { ArrowLeft, Users, CheckCircle, Send, User, Link, FileText, Download, Zap, Loader2, TrendingUp, Clock, UserCheck, Eye } from "lucide-react";
 import { generateAppraisalPdf } from "@/lib/generateAppraisalPdf";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,7 @@ import { ScoreSelector } from "@/components/assessment/ScoreSelector";
 import { QuestionsPanel } from "@/components/assessment/QuestionsPanel";
 import { AssessmentProgress } from "@/components/assessment/AssessmentProgress";
 import { getStatusLabel } from "@/lib/assessmentStatus";
+import { PrintPreviewModal } from "@/components/PrintPreviewModal";
 
 // Helper to render evidence
 function renderEvidence(evidence: string | EvidenceItem[]): React.ReactNode {
@@ -64,6 +65,7 @@ export default function ManagerReview() {
   const [saving, setSaving] = useState(false);
   const [staffProfile, setStaffProfile] = useState<{ full_name: string; department_name: string } | null>(null);
   const [managerProfile, setManagerProfile] = useState<{ full_name: string } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!assessmentId) {
@@ -174,13 +176,10 @@ export default function ManagerReview() {
     fetchProfiles();
   }, [reviewData?.assessment, user?.id]);
 
-  const handleDownloadReport = () => {
-    if (!reviewData || !managerScore) {
-      toast({ title: "Cannot generate report", description: "Manager score is incomplete", variant: "destructive" });
-      return;
-    }
+  const getPdfData = () => {
+    if (!reviewData || !managerScore) return null;
     
-    const pdfData = {
+    return {
       staffName: staffProfile?.full_name || 'Staff Member',
       managerName: managerProfile?.full_name || user?.email || 'Manager',
       directorName: 'Director',
@@ -197,7 +196,14 @@ export default function ManagerReview() {
       totalScore: managerScore,
       grade: getGradeFromScore(managerScore)
     };
-    
+  };
+
+  const handleDownloadReport = () => {
+    const pdfData = getPdfData();
+    if (!pdfData) {
+      toast({ title: "Cannot generate report", description: "Manager score is incomplete", variant: "destructive" });
+      return;
+    }
     generateAppraisalPdf(pdfData);
   };
 
@@ -721,14 +727,28 @@ export default function ManagerReview() {
                     <p className="text-sm text-muted-foreground">Download the performance report</p>
                   </div>
                 </div>
-                <Button variant="outline" onClick={handleDownloadReport} className="glass-panel border-border/30 hover:border-score-3/30">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Report
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setPreviewOpen(true)} className="glass-panel border-border/30 hover:border-score-3/30">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview
+                  </Button>
+                  <Button variant="outline" onClick={handleDownloadReport} className="glass-panel border-border/30 hover:border-score-3/30">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
+
+        {/* Print Preview Modal */}
+        <PrintPreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          data={getPdfData()}
+          onPrint={handleDownloadReport}
+        />
       </main>
     </div>
   );

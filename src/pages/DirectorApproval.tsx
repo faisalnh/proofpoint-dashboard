@@ -6,13 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Building, CheckCircle, XCircle, User, FileText, MessageSquare, Link as LinkIcon, Paperclip } from "lucide-react";
+import { ArrowLeft, Building, CheckCircle, XCircle, User, FileText, MessageSquare, Link as LinkIcon, Paperclip, Loader2, Zap, Clock, TrendingUp, Download, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateWeightedScore, getGradeFromScore, SectionData, ScoreOption } from "@/hooks/useAssessment";
 import { supabase } from "@/integrations/supabase/client";
 import { AssessmentProgress } from "@/components/assessment/AssessmentProgress";
 import { getStatusLabel } from "@/lib/assessmentStatus";
+import { generateAppraisalPdf } from "@/lib/generateAppraisalPdf";
+import { PrintPreviewModal } from "@/components/PrintPreviewModal";
 
 interface AssessmentWithDetails {
   id: string;
@@ -22,6 +24,7 @@ interface AssessmentWithDetails {
   staff_name?: string;
   staff_email?: string;
   manager_name?: string;
+  department_name?: string;
   final_score: number | null;
   final_grade: string | null;
   staff_submitted_at: string | null;
@@ -45,10 +48,10 @@ export default function DirectorApproval() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [directorComments, setDirectorComments] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     async function fetchAssessments() {
-      // Fetch acknowledged assessments pending director approval
       const { data, error } = await supabase
         .from('assessments')
         .select('*')
@@ -61,14 +64,13 @@ export default function DirectorApproval() {
         return;
       }
 
-      // Get staff and manager profiles
       const staffIds = [...new Set((data || []).map(a => a.staff_id))];
       const managerIds = [...new Set((data || []).filter(a => a.manager_id).map(a => a.manager_id))];
       const allUserIds = [...new Set([...staffIds, ...managerIds])];
 
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, full_name, email')
+        .select('user_id, full_name, email, departments(name)')
         .in('user_id', allUserIds);
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
@@ -81,6 +83,7 @@ export default function DirectorApproval() {
         staff_name: profileMap.get(a.staff_id)?.full_name || 'Unknown',
         staff_email: profileMap.get(a.staff_id)?.email || '',
         manager_name: a.manager_id ? profileMap.get(a.manager_id)?.full_name : undefined,
+        department_name: (profileMap.get(a.staff_id)?.departments as any)?.name || 'N/A',
         final_score: a.final_score,
         final_grade: a.final_grade,
         staff_submitted_at: a.staff_submitted_at,
@@ -110,7 +113,6 @@ export default function DirectorApproval() {
       const assessment = assessments.find(a => a.id === assessmentId);
       if (!assessment) return;
 
-      // Fetch template sections
       const { data: assessmentData } = await supabase
         .from('assessments')
         .select('template_id')
@@ -164,6 +166,37 @@ export default function DirectorApproval() {
 
     fetchDetails();
   }, [assessmentId, assessments]);
+
+  const getPdfData = () => {
+    if (!currentAssessment || !currentAssessment.final_score) return null;
+    
+    return {
+      staffName: currentAssessment.staff_name || 'Staff Member',
+      managerName: currentAssessment.manager_name || 'Manager',
+      directorName: 'Director',
+      department: currentAssessment.department_name || 'N/A',
+      period: currentAssessment.period,
+      sections: currentAssessment.sections.map(s => ({
+        name: s.name,
+        weight: s.weight,
+        indicators: s.indicators.map(i => ({
+          name: i.name,
+          score: currentAssessment.managerScores[i.id] ?? i.score
+        }))
+      })),
+      totalScore: currentAssessment.final_score,
+      grade: currentAssessment.final_grade || getGradeFromScore(currentAssessment.final_score)
+    };
+  };
+
+  const handleDownloadReport = () => {
+    const pdfData = getPdfData();
+    if (!pdfData) {
+      toast({ title: "Cannot generate report", description: "Assessment data is incomplete", variant: "destructive" });
+      return;
+    }
+    generateAppraisalPdf(pdfData);
+  };
 
   const handleApprove = async () => {
     if (!currentAssessment) return;
@@ -223,11 +256,17 @@ export default function DirectorApproval() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+        <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
         <Header />
         <main className="container py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <div className="flex flex-col items-center justify-center h-64 gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary rounded-full blur-xl opacity-30 animate-pulse" />
+              <Loader2 className="relative h-10 w-10 animate-spin text-primary" />
+            </div>
+            <p className="text-muted-foreground">Loading assessments...</p>
           </div>
         </main>
       </div>
@@ -240,42 +279,66 @@ export default function DirectorApproval() {
     const reviewed = assessments.filter(a => a.status === 'approved' || a.status === 'rejected' || a.status === 'acknowledged');
 
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+        <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
+        <div className="fixed top-[20%] right-[10%] w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none animate-float" />
+        <div className="fixed bottom-[20%] left-[5%] w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '-3s' }} />
+        
         <Header />
-        <main className="container py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
-              <Building className="h-8 w-8" />
+        <main className="container relative py-8">
+          {/* Page Header */}
+          <div className="mb-10">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                <Zap className="h-3.5 w-3.5" />
+                <span>Director Dashboard</span>
+              </div>
+            </div>
+            <h1 className="text-4xl font-bold text-foreground tracking-tight flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Building className="h-6 w-6 text-primary" />
+              </div>
               Director Overview
             </h1>
-            <p className="text-muted-foreground mt-1">Review and approve final assessments</p>
+            <p className="text-muted-foreground mt-2">Review and approve final assessments</p>
           </div>
 
-          <div className="grid gap-6">
-            <Card>
+          <div className="space-y-6">
+            {/* Pending Approval */}
+            <Card className="glass-panel border-border/30 overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-amber-500/30 via-amber-500 to-amber-500/30" />
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Pending Approval ({pendingApproval.length})
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <span>Pending Approval</span>
+                  <Badge variant="secondary" className="ml-auto">{pendingApproval.length}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {pendingApproval.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No assessments pending approval</p>
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground">No assessments pending approval</p>
+                  </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {pendingApproval.map(a => (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                        className="group flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-amber-500/30 hover:bg-background/80 cursor-pointer transition-all duration-300 hover:shadow-lg"
                         onClick={() => navigate(`/director?id=${a.id}`)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <User className="h-6 w-6 text-amber-600" />
                           </div>
                           <div>
-                            <div className="font-medium">{a.staff_name}</div>
+                            <div className="font-medium group-hover:text-amber-600 transition-colors">{a.staff_name}</div>
                             <div className="text-sm text-muted-foreground">
                               {a.period} • Reviewed by {a.manager_name || 'Manager'}
                             </div>
@@ -285,7 +348,7 @@ export default function DirectorApproval() {
                           {a.final_score && (
                             <div className="text-right">
                               <p className="font-mono font-bold text-lg">{a.final_score.toFixed(2)}</p>
-                              <Badge>{a.final_grade}</Badge>
+                              <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/20">{a.final_grade}</Badge>
                             </div>
                           )}
                         </div>
@@ -296,31 +359,46 @@ export default function DirectorApproval() {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Completed */}
+            <Card className="glass-panel border-border/30 overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-emerald-500/30 via-emerald-500 to-emerald-500/30" />
               <CardHeader>
-                <CardTitle>Completed ({reviewed.length})</CardTitle>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <span>Completed</span>
+                  <Badge variant="secondary" className="ml-auto">{reviewed.length}</Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {reviewed.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No completed assessments</p>
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No completed assessments</p>
+                  </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {reviewed.map(a => (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                        className="group flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-emerald-500/30 hover:bg-background/80 cursor-pointer transition-all duration-300 hover:shadow-lg"
                         onClick={() => navigate(`/director?id=${a.id}`)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                            <User className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <User className="h-6 w-6 text-muted-foreground" />
                           </div>
                           <div>
-                            <div className="font-medium">{a.staff_name}</div>
+                            <div className="font-medium group-hover:text-emerald-600 transition-colors">{a.staff_name}</div>
                             <div className="text-sm text-muted-foreground">{a.period}</div>
                           </div>
                         </div>
-                        <Badge variant={a.status === 'approved' ? 'default' : 'destructive'}>
+                        <Badge 
+                          className={cn(
+                            a.status === 'approved' && "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20",
+                            a.status === 'rejected' && "bg-destructive/10 text-destructive border border-destructive/20"
+                          )}
+                        >
                           {getStatusLabel(a.status)}
                         </Badge>
                       </div>
@@ -337,7 +415,8 @@ export default function DirectorApproval() {
 
   if (!currentAssessment) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
         <Header />
         <main className="container py-8">
           <p className="text-center text-muted-foreground">Assessment not found</p>
@@ -348,45 +427,111 @@ export default function DirectorApproval() {
 
   const canApprove = currentAssessment.status === 'manager_reviewed';
 
+  // Helper to parse evidence
+  const parseEvidence = (ev: any): { notes: string; links: string[] } => {
+    if (!ev) return { notes: '', links: [] };
+    
+    if (Array.isArray(ev)) {
+      const notes = ev.map(e => e.notes || e.evidence || '').filter(Boolean).join('\n');
+      const links = ev.flatMap(e => {
+        const text = e.evidence || '';
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        return text.match(urlRegex) || [];
+      });
+      return { notes, links };
+    }
+    
+    if (typeof ev === 'object') {
+      const notes = ev.notes || ev.evidence || '';
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const links = (ev.evidence || '').match(urlRegex) || [];
+      return { notes, links };
+    }
+    
+    if (typeof ev === 'string') {
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const links = ev.match(urlRegex) || [];
+      return { notes: ev, links };
+    }
+    
+    return { notes: '', links: [] };
+  };
+
+  const getScoreLabel = (score: number | null | undefined, options: ScoreOption[] | undefined): string => {
+    if (score === null || score === undefined || !options) return '';
+    const option = options.find(o => o.score === score);
+    return option?.label || '';
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+      <div className="fixed inset-0 mesh-gradient opacity-30 pointer-events-none" />
+      <div className="fixed top-[20%] right-[10%] w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none animate-float" />
+      <div className="fixed bottom-[20%] left-[5%] w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none animate-float" style={{ animationDelay: '-3s' }} />
+      
       <Header />
       
-      <main className="container py-8">
-        <Button variant="ghost" onClick={() => navigate('/director')} className="mb-4">
+      <main className="container relative py-8">
+        <Button variant="ghost" onClick={() => navigate('/director')} className="mb-4 hover:bg-primary/10">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Overview
         </Button>
 
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground tracking-tight">{currentAssessment.staff_name}</h1>
-              <p className="text-muted-foreground mt-1">{currentAssessment.period} • Reviewed by {currentAssessment.manager_name}</p>
+        {/* Header Card */}
+        <Card className="glass-panel border-border/30 overflow-hidden mb-6">
+          <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <User className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground tracking-tight">{currentAssessment.staff_name}</h1>
+                  <p className="text-muted-foreground mt-1">{currentAssessment.period} • Reviewed by {currentAssessment.manager_name}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-5xl font-mono font-bold text-primary">{currentAssessment.final_score?.toFixed(2) || '--'}</p>
+                {currentAssessment.final_grade && (
+                  <Badge className="mt-2 text-lg px-4 bg-primary/10 text-primary border border-primary/20">{currentAssessment.final_grade}</Badge>
+                )}
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-4xl font-mono font-bold text-primary">{currentAssessment.final_score?.toFixed(2) || '--'}</p>
-              {currentAssessment.final_grade && (
-                <Badge className="mt-2 text-lg px-4">{currentAssessment.final_grade}</Badge>
-              )}
-            </div>
-          </div>
-        </div>
+            
+            {/* Action Buttons for approved assessments */}
+            {currentAssessment.status === 'approved' && (
+              <div className="mt-6 flex gap-3 justify-end">
+                <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2">
+                  <Eye className="h-4 w-4" />
+                  Preview Report
+                </Button>
+                <Button onClick={handleDownloadReport} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Download PDF
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Progress Indicator */}
-        <Card className="mb-6">
+        <Card className="glass-panel border-border/30 mb-6">
           <CardContent className="py-4">
             <AssessmentProgress status={currentAssessment.status} />
           </CardContent>
         </Card>
+
+        {/* Sections */}
         <div className="space-y-6">
           {currentAssessment.sections.map(section => (
-            <Card key={section.id}>
-              <CardHeader className="bg-secondary/30">
+            <Card key={section.id} className="glass-panel border-border/30 overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+              <CardHeader className="bg-primary/5">
                 <CardTitle className="flex items-center justify-between">
                   <span>{section.name}</span>
-                  <Badge variant="outline">{section.weight}%</Badge>
+                  <Badge variant="outline" className="border-primary/30 text-primary">{section.weight}%</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -396,62 +541,21 @@ export default function DirectorApproval() {
                   const staffEvRaw = currentAssessment.staffEvidence[indicator.id];
                   const managerEvRaw = currentAssessment.managerEvidence[indicator.id];
                   
-                  // Extract evidence details (can be string, object, or array)
-                  const parseEvidence = (ev: any): { notes: string; links: string[] } => {
-                    if (!ev) return { notes: '', links: [] };
-                    
-                    // If it's an array of evidence items
-                    if (Array.isArray(ev)) {
-                      const notes = ev.map(e => e.notes || e.evidence || '').filter(Boolean).join('\n');
-                      const links = ev.flatMap(e => {
-                        const text = e.evidence || '';
-                        const urlRegex = /(https?:\/\/[^\s]+)/g;
-                        return text.match(urlRegex) || [];
-                      });
-                      return { notes, links };
-                    }
-                    
-                    // If it's an object with notes/evidence
-                    if (typeof ev === 'object') {
-                      const notes = ev.notes || ev.evidence || '';
-                      const urlRegex = /(https?:\/\/[^\s]+)/g;
-                      const links = (ev.evidence || '').match(urlRegex) || [];
-                      return { notes, links };
-                    }
-                    
-                    // If it's a string
-                    if (typeof ev === 'string') {
-                      const urlRegex = /(https?:\/\/[^\s]+)/g;
-                      const links = ev.match(urlRegex) || [];
-                      return { notes: ev, links };
-                    }
-                    
-                    return { notes: '', links: [] };
-                  };
-                  
                   const staffEvidence = parseEvidence(staffEvRaw);
                   const managerEvidence = parseEvidence(managerEvRaw);
-                  
-                  // Get score label from score_options
-                  const getScoreLabel = (score: number | null | undefined, options: ScoreOption[] | undefined): string => {
-                    if (score === null || score === undefined || !options) return '';
-                    const option = options.find(o => o.score === score);
-                    return option?.label || '';
-                  };
                   
                   const staffScoreLabel = getScoreLabel(staffScore, indicator.score_options);
                   const managerScoreLabel = getScoreLabel(managerScore, indicator.score_options);
                   
                   return (
-                    <div key={indicator.id} className={cn("border-b last:border-0 p-4", idx % 2 === 0 && "bg-muted/20")}>
+                    <div key={indicator.id} className={cn("border-b last:border-0 p-4", idx % 2 === 0 && "bg-muted/10")}>
                       <h4 className="font-medium mb-1">{indicator.name}</h4>
                       {indicator.description && (
                         <p className="text-sm text-muted-foreground mb-2">{indicator.description}</p>
                       )}
                       
-                      {/* Accepted Evidence Types */}
                       {indicator.evidence_guidance && (
-                        <div className="mb-3 p-2 bg-muted/50 rounded text-xs">
+                        <div className="mb-3 p-2 bg-muted/30 rounded-lg text-xs">
                           <span className="font-medium">Accepted Evidence: </span>
                           <span className="text-muted-foreground">{indicator.evidence_guidance}</span>
                         </div>
@@ -459,7 +563,7 @@ export default function DirectorApproval() {
                       
                       <div className="grid grid-cols-2 gap-6">
                         {/* Staff */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 p-3 rounded-xl bg-muted/20">
                           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Staff Self-Assessment</p>
                           <div className="flex items-center gap-2">
                             <Badge variant={staffScore <= 1 ? 'destructive' : staffScore >= 3 ? 'default' : 'secondary'}>
@@ -470,9 +574,8 @@ export default function DirectorApproval() {
                             )}
                           </div>
                           
-                          {/* Staff Evidence */}
                           {(staffEvidence.notes || staffEvidence.links.length > 0) && (
-                            <div className="mt-2 p-2 bg-muted/30 rounded text-sm space-y-2">
+                            <div className="mt-2 p-2 bg-background/50 rounded-lg text-sm space-y-2">
                               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                                 <Paperclip className="h-3 w-3" /> Evidence Provided:
                               </p>
@@ -500,7 +603,7 @@ export default function DirectorApproval() {
                         </div>
                         
                         {/* Manager */}
-                        <div className="border-l pl-6 space-y-2">
+                        <div className="space-y-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
                           <p className="text-xs font-medium text-primary uppercase tracking-wide">Manager Review</p>
                           <div className="flex items-center gap-2">
                             <Badge className="bg-primary" variant="default">
@@ -511,9 +614,8 @@ export default function DirectorApproval() {
                             )}
                           </div>
                           
-                          {/* Manager Comments */}
                           {(managerEvidence.notes || managerEvidence.links.length > 0) && (
-                            <div className="mt-2 p-2 bg-primary/5 rounded text-sm space-y-2">
+                            <div className="mt-2 p-2 bg-background/50 rounded-lg text-sm space-y-2">
                               <p className="text-xs font-medium text-primary flex items-center gap-1">
                                 <MessageSquare className="h-3 w-3" /> Manager Comments:
                               </p>
@@ -549,10 +651,11 @@ export default function DirectorApproval() {
         </div>
 
         {/* Score Summary */}
-        <Card className="mt-8">
-          <CardHeader className="bg-muted/30">
+        <Card className="glass-panel border-border/30 overflow-hidden mt-8">
+          <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+          <CardHeader className="bg-primary/5">
             <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+              <FileText className="h-5 w-5 text-primary" />
               Score Summary
             </CardTitle>
           </CardHeader>
@@ -571,11 +674,11 @@ export default function DirectorApproval() {
                   : null;
                 
                 return (
-                  <div key={section.id} className="border rounded-lg overflow-hidden">
-                    <div className="bg-secondary/50 px-4 py-2 flex items-center justify-between">
+                  <div key={section.id} className="border rounded-xl overflow-hidden">
+                    <div className="bg-primary/10 px-4 py-2 flex items-center justify-between">
                       <span className="font-semibold">{section.name}</span>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{section.weight}%</Badge>
+                        <Badge variant="outline" className="border-primary/30">{section.weight}%</Badge>
                         {sectionAvg !== null && (
                           <Badge className={cn(
                             sectionAvg < 2 && "bg-destructive",
@@ -589,7 +692,7 @@ export default function DirectorApproval() {
                     </div>
                     <div className="divide-y">
                       {sectionIndicators.map((ind, idx) => (
-                        <div key={idx} className="px-4 py-2 flex items-center justify-between text-sm">
+                        <div key={idx} className="px-4 py-2 flex items-center justify-between text-sm bg-background/50">
                           <span className="text-muted-foreground">{ind.name}</span>
                           <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1">
@@ -616,11 +719,11 @@ export default function DirectorApproval() {
               <div className="border-t pt-4 flex items-center justify-between">
                 <span className="text-lg font-semibold">Final Score</span>
                 <div className="flex items-center gap-4">
-                  <span className="text-3xl font-mono font-bold text-primary">
+                  <span className="text-4xl font-mono font-bold text-primary">
                     {currentAssessment.final_score?.toFixed(2) || '--'}
                   </span>
                   {currentAssessment.final_grade && (
-                    <Badge className="text-lg px-4 py-1">{currentAssessment.final_grade}</Badge>
+                    <Badge className="text-lg px-4 py-1 bg-primary/10 text-primary border border-primary/20">{currentAssessment.final_grade}</Badge>
                   )}
                 </div>
               </div>
@@ -630,7 +733,8 @@ export default function DirectorApproval() {
 
         {/* Manager Overall Notes */}
         {currentAssessment.manager_notes && (
-          <Card className="mt-8 border-primary/20">
+          <Card className="glass-panel border-primary/20 overflow-hidden mt-8">
+            <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
             <CardHeader className="bg-primary/5">
               <CardTitle className="flex items-center gap-2 text-primary">
                 <FileText className="h-5 w-5" />
@@ -645,42 +749,59 @@ export default function DirectorApproval() {
 
         {/* Director Comments and Actions */}
         {canApprove && (
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="glass-panel border-border/30 overflow-hidden mt-8">
+            <div className="h-1 bg-gradient-to-r from-amber-500/30 via-amber-500 to-amber-500/30" />
+            <CardHeader className="bg-amber-500/5">
+              <CardTitle className="flex items-center gap-2 text-amber-600">
                 <MessageSquare className="h-5 w-5" />
                 Director Comments
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-4">
               <Textarea
                 placeholder="Add your comments here (required for rejection)..."
                 value={directorComments}
                 onChange={(e) => setDirectorComments(e.target.value)}
                 rows={4}
-                className="resize-none"
+                className="resize-none bg-background/50"
               />
-              <div className="flex justify-end gap-3">
-                <Button variant="destructive" onClick={handleReject} disabled={processing}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  {processing ? "Processing..." : "Reject"}
-                </Button>
-                <Button onClick={handleApprove} disabled={processing}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {processing ? "Processing..." : "Approve"}
-                </Button>
+              <div className="flex justify-between gap-3">
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2">
+                    <Eye className="h-4 w-4" />
+                    Preview Report
+                  </Button>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="destructive" onClick={handleReject} disabled={processing} className="gap-2">
+                    <XCircle className="h-4 w-4" />
+                    {processing ? "Processing..." : "Reject"}
+                  </Button>
+                  <Button onClick={handleApprove} disabled={processing} className="gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    {processing ? "Processing..." : "Approve"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
         {currentAssessment.status === 'approved' && (
-          <div className="mt-8 p-4 bg-evidence-success-bg border border-evidence-success-border rounded-xl flex items-center gap-3">
-            <CheckCircle className="h-5 w-5 text-evidence-success" />
-            <p className="font-medium text-evidence-success">This assessment has been approved</p>
+          <div className="mt-8 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-emerald-600" />
+            <p className="font-medium text-emerald-600">This assessment has been approved</p>
           </div>
         )}
       </main>
+
+      {/* Print Preview Modal */}
+      <PrintPreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        data={getPdfData()}
+        onPrint={handleDownloadReport}
+      />
     </div>
   );
 }
