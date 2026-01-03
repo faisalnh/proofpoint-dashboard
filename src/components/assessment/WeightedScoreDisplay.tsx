@@ -4,7 +4,9 @@ import { EvidenceItem } from "./EvidenceInput";
 import { TrendingUp, Award, AlertTriangle } from "lucide-react";
 
 interface WeightedScoreDisplayProps {
-  sections: SectionData[];
+  sections?: SectionData[];
+  score?: number | null;
+  label?: string;
 }
 
 function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
@@ -14,19 +16,21 @@ function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
   return typeof evidence === 'string' && evidence.trim().length > 0;
 }
 
-function calculateWeightedScore(sections: SectionData[]): number | null {
+function calculateWeightedScore(sections: SectionData[] | undefined | null): number | null {
+  if (!sections || !Array.isArray(sections)) return null;
+
   let totalWeight = 0;
   let weightedSum = 0;
-  
+
   for (const section of sections) {
-    const scoredIndicators = section.indicators.filter(i => i.score !== null);
+    const scoredIndicators = section.indicators?.filter(i => i.score !== null) || [];
     if (scoredIndicators.length === 0) continue;
-    
+
     const sectionAvg = scoredIndicators.reduce((acc, i) => acc + (i.score ?? 0), 0) / scoredIndicators.length;
     weightedSum += sectionAvg * section.weight;
     totalWeight += section.weight;
   }
-  
+
   if (totalWeight === 0) return null;
   return weightedSum / totalWeight;
 }
@@ -45,23 +49,26 @@ function getLetterGrade(score: number): { grade: string; label: string } {
   return { grade: "F", label: "Unsatisfactory" };
 }
 
-export function WeightedScoreDisplay({ sections }: WeightedScoreDisplayProps) {
-  const weightedScore = calculateWeightedScore(sections);
+export function WeightedScoreDisplay({ sections, score, label }: WeightedScoreDisplayProps) {
+  const calculatedScore = calculateWeightedScore(sections);
+  const weightedScore = score !== undefined ? score : calculatedScore;
   const gradeInfo = weightedScore !== null ? getLetterGrade(weightedScore) : null;
-  
-  // Calculate completion
-  const totalIndicators = sections.reduce((acc, s) => acc + s.indicators.length, 0);
-  const completedIndicators = sections.reduce(
-    (acc, s) => acc + s.indicators.filter(i => 
+
+  // Calculate completion if sections are provided
+  const hasSections = sections && Array.isArray(sections) && sections.length > 0;
+  const totalIndicators = hasSections ? sections!.reduce((acc, s) => acc + (s.indicators?.length || 0), 0) : 0;
+  const completedIndicators = hasSections ? sections!.reduce(
+    (acc, s) => acc + (s.indicators?.filter(i =>
       i.score !== null && (i.score === 0 || hasValidEvidence(i.evidence))
-    ).length,
+    ).length || 0),
     0
-  );
+  ) : 0;
   const completionPercent = totalIndicators > 0 ? (completedIndicators / totalIndicators) * 100 : 0;
 
-  const Icon = weightedScore !== null 
+  const Icon = weightedScore !== null
     ? (weightedScore >= 3 ? Award : weightedScore >= 2 ? TrendingUp : AlertTriangle)
     : TrendingUp;
+
 
   return (
     <div className="bg-card border rounded-xl overflow-hidden">
@@ -75,9 +82,9 @@ export function WeightedScoreDisplay({ sections }: WeightedScoreDisplayProps) {
             weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-muted-foreground",
             weightedScore !== null && weightedScore >= 3 && "text-evidence-success"
           )} />
-          <span className="text-sm font-medium text-muted-foreground">Weighted Score</span>
+          <span className="text-sm font-medium text-muted-foreground">{label || "Weighted Score"}</span>
         </div>
-        
+
         <div className={cn(
           "text-5xl font-mono font-bold tracking-tight",
           weightedScore === null && "text-muted-foreground/30",
@@ -87,7 +94,7 @@ export function WeightedScoreDisplay({ sections }: WeightedScoreDisplayProps) {
         )}>
           {weightedScore !== null ? weightedScore.toFixed(2) : "—.——"}
         </div>
-        
+
         {gradeInfo && (
           <div className="mt-3 flex items-center justify-center gap-2">
             <span className={cn(
@@ -102,7 +109,7 @@ export function WeightedScoreDisplay({ sections }: WeightedScoreDisplayProps) {
           </div>
         )}
       </div>
-      
+
       {/* Completion Progress */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">
@@ -112,7 +119,7 @@ export function WeightedScoreDisplay({ sections }: WeightedScoreDisplayProps) {
           </span>
         </div>
         <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div 
+          <div
             className={cn(
               "h-full transition-all duration-500 rounded-full",
               completionPercent < 50 && "bg-evidence-alert",
@@ -123,38 +130,40 @@ export function WeightedScoreDisplay({ sections }: WeightedScoreDisplayProps) {
           />
         </div>
       </div>
-      
+
       {/* Section Breakdown */}
-      <div className="px-4 pb-4 space-y-2">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-          Section Weights
-        </div>
-        {sections.map(section => {
-          const sectionScore = section.indicators.filter(i => i.score !== null);
-          const avg = sectionScore.length > 0 
-            ? sectionScore.reduce((a, i) => a + (i.score ?? 0), 0) / sectionScore.length 
-            : null;
-          
-          return (
-            <div key={section.id} className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs text-primary">{section.weight}%</span>
-                <span className="text-muted-foreground">{section.name}</span>
+      {hasSections && (
+        <div className="px-4 pb-4 space-y-2">
+          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            Section Weights
+          </div>
+          {sections!.map(section => {
+            const sectionScore = section.indicators?.filter(i => i.score !== null) || [];
+            const avg = sectionScore.length > 0
+              ? sectionScore.reduce((a, i) => a + (i.score ?? 0), 0) / sectionScore.length
+              : null;
+
+            return (
+              <div key={section.id} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-primary">{section.weight}%</span>
+                  <span className="text-muted-foreground">{section.name}</span>
+                </div>
+                {avg !== null && (
+                  <span className={cn(
+                    "font-mono font-medium",
+                    avg < 2 && "text-evidence-alert",
+                    avg >= 2 && avg < 3 && "text-foreground",
+                    avg >= 3 && "text-evidence-success"
+                  )}>
+                    {avg.toFixed(2)}
+                  </span>
+                )}
               </div>
-              {avg !== null && (
-                <span className={cn(
-                  "font-mono font-medium",
-                  avg < 2 && "text-evidence-alert",
-                  avg >= 2 && avg < 3 && "text-foreground",
-                  avg >= 3 && "text-evidence-success"
-                )}>
-                  {avg.toFixed(2)}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

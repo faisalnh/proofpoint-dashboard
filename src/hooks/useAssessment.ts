@@ -56,6 +56,8 @@ export interface Assessment {
   manager_evidence: Record<string, string>;
   final_score: number | null;
   final_grade: string | null;
+  manager_notes: string | null;
+  director_comments: string | null;
   staff_submitted_at: string | null;
   manager_reviewed_at: string | null;
   director_approved_at: string | null;
@@ -112,6 +114,7 @@ export function useAssessment(assessmentId?: string) {
   const [sections, setSections] = useState<SectionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [managerFeedback, setManagerFeedback] = useState("");
 
   useEffect(() => {
     if (!assessmentId) {
@@ -129,6 +132,7 @@ export function useAssessment(assessmentId?: string) {
       }
 
       setAssessment(assessmentData as Assessment);
+      setManagerFeedback((assessmentData as any).manager_notes || "");
 
       // Fetch rubric template with sections and indicators
       const template_id = (assessmentData as any).template_id;
@@ -179,24 +183,49 @@ export function useAssessment(assessmentId?: string) {
     if (!assessment) return;
 
     setSaving(true);
-    const staffScores: Record<string, number> = {};
-    const staffEvidence: Record<string, string | EvidenceItem[]> = {};
+    const updates: any = {};
 
-    sections.forEach(section => {
-      section.indicators.forEach(indicator => {
-        if (indicator.score !== null) {
-          staffScores[indicator.id] = indicator.score;
-        }
-        if (indicator.evidence) {
-          staffEvidence[indicator.id] = indicator.evidence;
-        }
+    // Determine if we are saving staff or manager data
+    const isManagerView = assessment.status === 'self_submitted' || assessment.status === 'manager_reviewed';
+
+    if (isManagerView) {
+      const managerScores: Record<string, number> = {};
+      const managerEvidence: Record<string, string | EvidenceItem[]> = {};
+
+      sections.forEach(section => {
+        section.indicators.forEach(indicator => {
+          if (indicator.managerScore !== null && indicator.managerScore !== undefined) {
+            managerScores[indicator.id] = indicator.managerScore;
+          }
+          if (indicator.managerEvidence) {
+            managerEvidence[indicator.id] = indicator.managerEvidence;
+          }
+        });
       });
-    });
 
-    const { error } = await api.updateAssessment(assessment.id, {
-      staff_scores: staffScores,
-      staff_evidence: staffEvidence,
-    });
+      updates.manager_scores = managerScores;
+      updates.manager_evidence = managerEvidence;
+      updates.manager_notes = managerFeedback;
+    } else {
+      const staffScores: Record<string, number> = {};
+      const staffEvidence: Record<string, string | EvidenceItem[]> = {};
+
+      sections.forEach(section => {
+        section.indicators.forEach(indicator => {
+          if (indicator.score !== null) {
+            staffScores[indicator.id] = indicator.score;
+          }
+          if (indicator.evidence) {
+            staffEvidence[indicator.id] = indicator.evidence;
+          }
+        });
+      });
+
+      updates.staff_scores = staffScores;
+      updates.staff_evidence = staffEvidence;
+    }
+
+    const { error } = await api.updateAssessment(assessment.id, updates);
 
     setSaving(false);
 
@@ -242,17 +271,64 @@ export function useAssessment(assessmentId?: string) {
     }
   };
 
-  const updateIndicator = (sectionId: string, indicatorId: string, updates: Partial<IndicatorData>) => {
-    setSections(prev => prev.map(section => {
-      if (section.id !== sectionId) return section;
-      return {
-        ...section,
-        indicators: section.indicators.map(indicator => {
-          if (indicator.id !== indicatorId) return indicator;
-          return { ...indicator, ...updates };
-        })
-      };
-    }));
+  const submitReview = async () => {
+    if (!assessment) return;
+
+    setSaving(true);
+    const managerScores: Record<string, number> = {};
+    const managerEvidence: Record<string, string | EvidenceItem[]> = {};
+
+    sections.forEach(section => {
+      section.indicators.forEach(indicator => {
+        if (indicator.managerScore !== null && indicator.managerScore !== undefined) {
+          managerScores[indicator.id] = indicator.managerScore;
+        }
+        if (indicator.managerEvidence) {
+          managerEvidence[indicator.id] = indicator.managerEvidence;
+        }
+      });
+    });
+
+    // Calculate final score for performance review
+    const finalScore = calculateWeightedScore(sections, 'manager');
+
+    if (!managerFeedback || !managerFeedback.trim()) {
+      toast({
+        title: "Feedback Required",
+        description: "Please provide overall feedback before submitting the review.",
+        variant: "destructive"
+      });
+      setSaving(false);
+      return;
+    }
+
+    const { error } = await api.updateAssessment(assessment.id, {
+      manager_scores: managerScores,
+      manager_evidence: managerEvidence,
+      manager_notes: managerFeedback,
+      status: 'manager_reviewed',
+      manager_reviewed_at: new Date().toISOString(),
+      final_score: finalScore,
+    });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to submit review", variant: "destructive" });
+    } else {
+      toast({ title: "Submitted", description: "Review submitted successfully" });
+      setAssessment(prev => prev ? { ...prev, status: 'manager_reviewed' } : null);
+    }
+  };
+
+  const updateIndicator = (indicatorId: string, updates: Partial<IndicatorData>) => {
+    setSections(prev => prev.map(section => ({
+      ...section,
+      indicators: section.indicators.map(indicator => {
+        if (indicator.id !== indicatorId) return indicator;
+        return { ...indicator, ...updates };
+      })
+    })));
   };
 
   const updateAssessmentStatus = (status: string) => {
@@ -266,8 +342,11 @@ export function useAssessment(assessmentId?: string) {
     saving,
     saveDraft,
     submitAssessment,
+    submitReview,
     updateIndicator,
     updateAssessmentStatus,
+    managerFeedback,
+    setManagerFeedback,
   };
 }
 
@@ -347,15 +426,17 @@ export function useTeamAssessments() {
   return { assessments, loading };
 }
 
-export function calculateWeightedScore(sections: SectionData[]): number | null {
+export function calculateWeightedScore(sections: SectionData[] | undefined | null, type: 'staff' | 'manager' = 'staff'): number | null {
+  if (!sections || !Array.isArray(sections)) return null;
+
   let totalWeight = 0;
   let weightedSum = 0;
 
   for (const section of sections) {
-    const scoredIndicators = section.indicators.filter(i => i.score !== null);
+    const scoredIndicators = section.indicators?.filter(i => (type === 'staff' ? i.score : i.managerScore) !== null) || [];
     if (scoredIndicators.length === 0) continue;
 
-    const sectionAvg = scoredIndicators.reduce((sum, i) => sum + (i.score || 0), 0) / scoredIndicators.length;
+    const sectionAvg = scoredIndicators.reduce((sum, i) => sum + ((type === 'staff' ? i.score : i.managerScore) || 0), 0) / scoredIndicators.length;
     weightedSum += sectionAvg * section.weight;
     totalWeight += section.weight;
   }

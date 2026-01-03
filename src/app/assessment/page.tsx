@@ -211,7 +211,7 @@ function AssessmentContent() {
                                 <CardTitle className="text-lg">Assessment Progress</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <AssessmentProgress sections={sections} />
+                                <AssessmentProgress status={assessment?.status || 'draft'} />
                             </CardContent>
                         </Card>
 

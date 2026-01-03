@@ -30,6 +30,8 @@ interface Assessment {
     period: string;
     status: string;
     created_at: string;
+    staff_id: string;
+    staff_name: string;
 }
 
 function DashboardContent() {
@@ -100,6 +102,15 @@ function DashboardContent() {
             default: return role;
         }
     });
+
+    const getAssessmentUrl = (assessment: Assessment) => {
+        const isTeamAssessment = assessment.staff_id !== profile?.user_id;
+        if ((isManager || isAdmin) && isTeamAssessment) {
+            return `/manager?id=${assessment.id}`;
+        }
+        return `/assessment?id=${assessment.id}`;
+    };
+
 
     const actionCards = [
         {
@@ -242,7 +253,9 @@ function DashboardContent() {
                                     <TrendingUp className="h-5 w-5 text-primary" />
                                     Recent Assessments
                                 </CardTitle>
-                                <CardDescription>Your latest performance evaluations</CardDescription>
+                                <CardDescription>
+                                    {isManager || isAdmin || isDirector ? 'Latest evaluations across your organization' : 'Your latest performance evaluations'}
+                                </CardDescription>
                             </div>
                             <Link href="/assessment">
                                 <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">
@@ -278,9 +291,9 @@ function DashboardContent() {
                                 {assessments.map((assessment) => (
                                     <Link
                                         key={assessment.id}
-                                        href={`/assessment?id=${assessment.id}`}
+                                        href={getAssessmentUrl(assessment)}
                                         className="block group"
-                                        aria-label={`Open assessment for ${assessment.period}`}
+                                        aria-label={`Open assessment for ${assessment.staff_name || assessment.period}`}
                                     >
                                         <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-primary/30 hover:bg-background/80 transition-all duration-300 group-hover:shadow-lg">
                                             <div className="flex items-center gap-4">
@@ -288,7 +301,17 @@ function DashboardContent() {
                                                     <FileText className="h-5 w-5 text-primary" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-foreground group-hover:text-primary transition-colors">{assessment.period}</p>
+                                                    <p className="font-medium text-foreground group-hover:text-primary transition-colors">
+                                                        {(isManager || isAdmin) && assessment.staff_name ? (
+                                                            <>
+                                                                <span className="font-bold">{assessment.staff_name}</span>
+                                                                <span className="text-muted-foreground mx-2">•</span>
+                                                                <span className="text-sm">{assessment.period}</span>
+                                                            </>
+                                                        ) : (
+                                                            assessment.period
+                                                        )}
+                                                    </p>
                                                     <p className="text-sm text-muted-foreground">
                                                         {new Date(assessment.created_at).toLocaleDateString('en-US', {
                                                             month: 'short',

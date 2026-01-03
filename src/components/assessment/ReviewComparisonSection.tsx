@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { ReviewComparisonIndicator, ReviewIndicatorData } from "./ReviewComparisonIndicator";
 import { Percent } from "lucide-react";
+import { IndicatorData } from "@/hooks/useAssessment";
 
 export interface ReviewSectionData {
   id: string;
@@ -17,12 +18,14 @@ function calculateSectionScore(indicators: ReviewIndicatorData[], type: 'staff' 
 
 interface ReviewComparisonSectionProps {
   section: ReviewSectionData;
+  onIndicatorChange?: (indicatorId: string, updates: Partial<IndicatorData>) => void;
+  readonly?: boolean;
 }
 
-export function ReviewComparisonSection({ section }: ReviewComparisonSectionProps) {
+export function ReviewComparisonSection({ section, onIndicatorChange, readonly }: ReviewComparisonSectionProps) {
   const staffScore = calculateSectionScore(section.indicators, 'staff');
   const managerScore = calculateSectionScore(section.indicators, 'manager');
-  
+
   return (
     <div className="bg-card border rounded-xl overflow-hidden">
       {/* Section Header */}
@@ -39,7 +42,7 @@ export function ReviewComparisonSection({ section }: ReviewComparisonSectionProp
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           {/* Staff Score */}
           {staffScore !== null && (
@@ -55,7 +58,7 @@ export function ReviewComparisonSection({ section }: ReviewComparisonSectionProp
               <div className="text-xs text-muted-foreground">Self</div>
             </div>
           )}
-          
+
           {/* Manager Score */}
           {managerScore !== null && (
             <div className="text-right">
@@ -69,7 +72,7 @@ export function ReviewComparisonSection({ section }: ReviewComparisonSectionProp
           )}
         </div>
       </div>
-      
+
       {/* Indicators */}
       <div className="p-4 space-y-3">
         {section.indicators.map((indicator, index) => (
@@ -77,6 +80,9 @@ export function ReviewComparisonSection({ section }: ReviewComparisonSectionProp
             key={indicator.id}
             indicator={indicator}
             index={index}
+            onScoreChange={(score) => onIndicatorChange?.(indicator.id, { managerScore: score })}
+            onEvidenceChange={(evidence) => onIndicatorChange?.(indicator.id, { managerEvidence: evidence })}
+            readonly={readonly}
           />
         ))}
       </div>

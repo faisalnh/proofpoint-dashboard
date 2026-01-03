@@ -12,6 +12,7 @@ interface ScoreSelectorProps {
   onChange: (score: number) => void;
   disabled?: boolean;
   scoreOptions?: ScoreOption[];
+  hideEvidenceRequirement?: boolean;
 }
 
 const defaultScoreOptions: ScoreOption[] = [
@@ -80,12 +81,11 @@ const getScoreConfig = (score: number) => {
       };
   }
 };
-
-export function ScoreSelector({ value, onChange, disabled, scoreOptions }: ScoreSelectorProps) {
+export function ScoreSelector({ value, onChange, disabled, scoreOptions, hideEvidenceRequirement }: ScoreSelectorProps) {
   const options = scoreOptions?.filter(o => o.enabled) || defaultScoreOptions;
   const selectedOption = options.find(o => o.score === value);
   const selectedConfig = selectedOption ? getScoreConfig(selectedOption.score) : null;
-  
+
   return (
     <div className="space-y-4">
       {/* Score Buttons */}
@@ -93,7 +93,7 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions }: Score
         {options.map((option) => {
           const isSelected = value === option.score;
           const config = getScoreConfig(option.score);
-          
+
           return (
             <button
               key={option.score}
@@ -102,7 +102,7 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions }: Score
               disabled={disabled}
               className={cn(
                 "relative group transition-all duration-300",
-                disabled && "opacity-50 cursor-not-allowed"
+                disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
               )}
             >
               {/* Glow Effect */}
@@ -112,24 +112,24 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions }: Score
                   config.bg
                 )} />
               )}
-              
+
               {/* Button */}
               <div
                 className={cn(
                   "relative w-14 h-14 rounded-xl border-2 flex flex-col items-center justify-center font-mono font-bold text-lg transition-all duration-300",
-                  isSelected 
+                  isSelected
                     ? cn(config.bg, config.border, config.text, config.glow, "scale-110")
                     : "bg-card border-border hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground hover:scale-105 hover:shadow-lg"
                 )}
               >
                 {option.score}
-                
+
                 {/* Sparkle for score 4 */}
                 {isSelected && option.score === 4 && (
                   <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-yellow-300 animate-pulse" />
                 )}
               </div>
-              
+
               {/* Tooltip */}
               <div className={cn(
                 "absolute top-full mt-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg text-xs text-center font-medium",
@@ -158,7 +158,7 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions }: Score
             "absolute inset-0 bg-gradient-to-r opacity-30 pointer-events-none",
             selectedConfig.gradient
           )} />
-          
+
           <div className="relative flex items-start gap-3">
             <div className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
@@ -182,10 +182,12 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions }: Score
               )}>
                 Score {selectedOption.score}: {selectedOption.label}
               </p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {selectedOption.score === 0 && "No evidence required for this rating"}
-                {selectedOption.score >= 1 && "Evidence required to support this rating"}
-              </p>
+              {!hideEvidenceRequirement && (
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {selectedOption.score === 0 && "No evidence required for this rating"}
+                  {selectedOption.score >= 1 && "Evidence required to support this rating"}
+                </p>
+              )}
             </div>
           </div>
         </div>

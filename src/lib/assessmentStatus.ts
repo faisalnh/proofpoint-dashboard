@@ -1,11 +1,11 @@
 // Assessment status labels and helpers
 
-export type AssessmentStatus = 
-  | 'draft' 
-  | 'self_submitted' 
-  | 'manager_reviewed' 
-  | 'acknowledged' 
-  | 'approved' 
+export type AssessmentStatus =
+  | 'draft'
+  | 'self_submitted'
+  | 'manager_reviewed'
+  | 'acknowledged'
+  | 'director_approved'
   | 'rejected';
 
 export interface StatusInfo {
@@ -30,7 +30,7 @@ export const STATUS_CONFIG: Record<AssessmentStatus, StatusInfo> = {
     description: 'Awaiting director approval',
     step: 2,
   },
-  approved: {
+  director_approved: {
     label: 'Director Approved',
     description: 'Awaiting staff acknowledgement',
     step: 3,
@@ -47,7 +47,15 @@ export const STATUS_CONFIG: Record<AssessmentStatus, StatusInfo> = {
   },
 };
 
-export function getStatusInfo(status: string): StatusInfo {
+export function getStatusInfo(status: string | undefined | null): StatusInfo {
+  if (!status) {
+    return {
+      label: 'Initializing',
+      description: 'Loading assessment status...',
+      step: 0,
+    };
+  }
+
   return STATUS_CONFIG[status as AssessmentStatus] || {
     label: status.replace('_', ' '),
     description: '',
@@ -55,10 +63,11 @@ export function getStatusInfo(status: string): StatusInfo {
   };
 }
 
-export function getStatusLabel(status: string): string {
+export function getStatusLabel(status: string | undefined | null): string {
   return getStatusInfo(status).label;
 }
 
-export function getCurrentStep(status: string): number {
+export function getCurrentStep(status: string | undefined | null): number {
   return getStatusInfo(status).step;
 }
+

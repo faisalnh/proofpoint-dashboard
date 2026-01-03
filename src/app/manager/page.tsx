@@ -28,6 +28,8 @@ import {
     FileText
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 function ManagerContent() {
     const router = useRouter();
@@ -35,7 +37,17 @@ function ManagerContent() {
     const assessmentId = searchParams.get('id');
 
     const { assessments, loading: listLoading } = useTeamAssessments();
-    const { assessment, sections, loading: assessmentLoading } = useAssessment(assessmentId || undefined);
+    const {
+        assessment,
+        sections,
+        loading: assessmentLoading,
+        updateIndicator,
+        saveDraft,
+        submitReview,
+        saving,
+        managerFeedback,
+        setManagerFeedback
+    } = useAssessment(assessmentId || undefined);
 
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -71,8 +83,9 @@ function ManagerContent() {
             );
         }
 
-        const staffWeightedScore = calculateWeightedScore(sections);
-        // Note: In a real implementation, we'd also calculate manager weighted score if they've scored.
+        const staffWeightedScore = calculateWeightedScore(sections, 'staff');
+        const managerWeightedScore = calculateWeightedScore(sections, 'manager');
+        const isReadOnly = assessment?.status === 'manager_reviewed' || assessment?.status === 'director_approved';
 
         return (
             <div className="max-w-5xl mx-auto py-8">
@@ -91,14 +104,26 @@ function ManagerContent() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <Button variant="outline">
-                            Save Draft
-                        </Button>
-                        <Button className="glow-primary">
-                            Submit Review
-                        </Button>
-                    </div>
+                    {!isReadOnly && (
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={saveDraft}
+                                disabled={saving}
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                Save Draft
+                            </Button>
+                            <Button
+                                className="glow-primary"
+                                onClick={submitReview}
+                                disabled={saving || !managerFeedback.trim()}
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                Submit Review
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -106,6 +131,8 @@ function ManagerContent() {
                         {sections.map((section) => (
                             <ReviewComparisonSection
                                 key={section.id}
+                                onIndicatorChange={updateIndicator}
+                                readonly={isReadOnly}
                                 section={{
                                     ...section,
                                     indicators: section.indicators.map(i => ({
@@ -118,6 +145,44 @@ function ManagerContent() {
                                 }}
                             />
                         ))}
+
+                        {/* Overall Feedback Section */}
+                        <Card className="glass-panel border-border/30 overflow-hidden mt-8">
+                            <CardHeader className="bg-primary/[0.03] border-b border-border/10">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-primary" />
+                                    Overall Manager Feedback
+                                </CardTitle>
+                                <CardDescription>Provide a summary rationale for the final grade and general comments on performance.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-6">
+                                {isReadOnly ? (
+                                    <div className="p-4 rounded-xl bg-muted/30 border border-border/50 text-foreground whitespace-pre-wrap">
+                                        {managerFeedback || <span className="text-muted-foreground italic">No overall feedback provided</span>}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="overall-feedback" className="text-sm font-semibold">Summary Comments <span className="text-evidence-alert">*</span></Label>
+                                            <span className="text-xs text-muted-foreground">This feedback is required for submission</span>
+                                        </div>
+                                        <Textarea
+                                            id="overall-feedback"
+                                            placeholder="Summarize the performance review, highlight strengths, and note areas for development..."
+                                            className="min-h-[200px] bg-background border-primary/20 focus-visible:ring-primary/30 text-base"
+                                            value={managerFeedback}
+                                            onChange={(e) => setManagerFeedback(e.target.value)}
+                                        />
+                                        {!managerFeedback.trim() && (
+                                            <div className="flex items-center gap-2 text-xs text-evidence-alert mt-1">
+                                                <AlertCircle className="h-3 w-3" />
+                                                Please provide overall feedback before submitting
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
 
                     <div className="space-y-6">
@@ -143,6 +208,10 @@ function ManagerContent() {
                             <WeightedScoreDisplay
                                 score={staffWeightedScore}
                                 label="Staff Self-Grade"
+                            />
+                            <WeightedScoreDisplay
+                                score={managerWeightedScore}
+                                label="Manager Review Grade"
                             />
 
                             <Alert className="bg-primary/5 border-primary/10">
