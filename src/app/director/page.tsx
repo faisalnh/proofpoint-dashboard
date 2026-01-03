@@ -25,8 +25,16 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
+import {
+    Alert,
+    AlertTitle,
+    AlertDescription
+} from '@/components/ui/alert';
+import { FileText, AlertCircle, Info } from 'lucide-react';
 
 function DirectorContent() {
     const router = useRouter();
@@ -36,7 +44,16 @@ function DirectorContent() {
 
     const [assessments, setAssessments] = useState<any[]>([]);
     const [loadingList, setLoadingList] = useState(true);
-    const { assessment, sections, loading: assessmentLoading } = useAssessment(assessmentId || undefined);
+    const {
+        assessment,
+        sections,
+        loading: assessmentLoading,
+        saving,
+        approveAssessment,
+        managerFeedback,
+        directorFeedback,
+        setDirectorFeedback
+    } = useAssessment(assessmentId || undefined);
     const [searchTerm, setSearchTerm] = useState('');
 
     // Fetch organizational assessments (those pending director approval)
@@ -83,7 +100,9 @@ function DirectorContent() {
             );
         }
 
-        const staffScore = calculateWeightedScore(sections);
+        const staffScore = calculateWeightedScore(sections, 'staff');
+        const managerScore = calculateWeightedScore(sections, 'manager');
+        const isApproved = assessment?.status === 'director_approved';
 
         return (
             <div className="max-w-5xl mx-auto py-8">
@@ -103,10 +122,16 @@ function DirectorContent() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20">
-                            <ShieldCheck className="h-4 w-4 mr-2" />
-                            Approve Assessment
-                        </Button>
+                        {!isApproved && (
+                            <Button
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 glow-primary"
+                                onClick={approveAssessment}
+                                disabled={saving || !directorFeedback.trim()}
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                                Approve Assessment
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -133,28 +158,85 @@ function DirectorContent() {
                         <div className="sticky top-24 space-y-6">
                             <Card className="glass-panel border-border/30 overflow-hidden">
                                 <div className="h-1 bg-emerald-500" />
-                                <CardHeader>
+                                <CardHeader className="bg-emerald-500/5">
                                     <CardTitle className="text-lg">Executive Summary</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">Staff Score</span>
-                                        <span className="font-mono font-bold text-lg">{staffScore?.toFixed(2) || '-.--'}</span>
+                                <CardContent className="space-y-6 pt-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Staff Score</span>
+                                            <div className="text-2xl font-mono font-bold text-foreground mt-1">
+                                                {staffScore?.toFixed(2) || '-.--'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Manager Score</span>
+                                            <div className="text-2xl font-mono font-bold text-primary mt-1">
+                                                {managerScore?.toFixed(2) || '-.--'}
+                                            </div>
+                                        </div>
                                     </div>
-                                    {/* We could add manager score here if available in the hook */}
+
+                                    <div className="space-y-4 pt-4 border-t border-border/50">
+                                        <div>
+                                            <span className="text-xs font-bold text-muted-foreground block mb-2 uppercase tracking-tight">Manager's Rationale</span>
+                                            <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 text-sm whitespace-pre-wrap">
+                                                {managerFeedback || <span className="italic text-muted-foreground">No overall feedback provided by manager</span>}
+                                            </div>
+                                        </div>
+
+                                        {!isApproved ? (
+                                            <div className="space-y-3 pt-4">
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor="director-comments" className="text-sm font-bold uppercase tracking-tight">Director Final Comments <span className="text-destructive">*</span></Label>
+                                                </div>
+                                                <Textarea
+                                                    id="director-comments"
+                                                    placeholder="Provide final oversight comments or organizational context..."
+                                                    className="min-h-[120px] bg-background border-emerald-500/20 focus-visible:ring-emerald-500/30 text-sm"
+                                                    value={directorFeedback}
+                                                    onChange={(e) => setDirectorFeedback(e.target.value)}
+                                                />
+                                                {!directorFeedback.trim() && (
+                                                    <div className="flex items-center gap-2 text-[10px] text-destructive font-medium uppercase tracking-tight">
+                                                        <AlertCircle className="h-3 w-3" />
+                                                        Feedback required for approval
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <span className="text-xs font-bold text-muted-foreground block mb-2 uppercase tracking-tight">Director's Final Comments</span>
+                                                <div className="p-3 rounded-lg bg-emerald-50/50 border border-emerald-100 text-sm whitespace-pre-wrap">
+                                                    {directorFeedback || <span className="italic text-muted-foreground">No final comments provided</span>}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div className="pt-4 border-t border-border/50">
-                                        <p className="text-xs text-muted-foreground italic">
-                                            This view compares self-assessment scores with manager review scores.
-                                            As Director, your approval confirms the final performance evaluation.
-                                        </p>
+                                        <div className="flex items-start gap-2 text-xs text-muted-foreground italic">
+                                            <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                                            <p>
+                                                As Director, your approval confirms the final performance evaluation and seals the assessment record.
+                                            </p>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
                             <WeightedScoreDisplay
-                                score={staffScore}
-                                label="Final Performance Score"
+                                score={managerScore}
+                                label="Confirmed Final Grade"
                             />
+
+                            <Alert className="bg-emerald-500/5 border-emerald-500/10">
+                                <AlertCircle className="h-4 w-4 text-emerald-600" />
+                                <AlertTitle className="text-sm font-semibold">Director Review</AlertTitle>
+                                <AlertDescription className="text-xs">
+                                    Final oversight ensures consistency across teams and alignment with organizational goals.
+                                </AlertDescription>
+                            </Alert>
                         </div>
                     </div>
                 </div>

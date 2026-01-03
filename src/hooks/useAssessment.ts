@@ -115,6 +115,7 @@ export function useAssessment(assessmentId?: string) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [managerFeedback, setManagerFeedback] = useState("");
+  const [directorFeedback, setDirectorFeedback] = useState("");
 
   useEffect(() => {
     if (!assessmentId) {
@@ -133,6 +134,7 @@ export function useAssessment(assessmentId?: string) {
 
       setAssessment(assessmentData as Assessment);
       setManagerFeedback((assessmentData as any).manager_notes || "");
+      setDirectorFeedback((assessmentData as any).director_comments || "");
 
       // Fetch rubric template with sections and indicators
       const template_id = (assessmentData as any).template_id;
@@ -321,6 +323,36 @@ export function useAssessment(assessmentId?: string) {
     }
   };
 
+  const approveAssessment = async () => {
+    if (!assessment) return;
+
+    if (!directorFeedback || !directorFeedback.trim()) {
+      toast({
+        title: "Feedback Required",
+        description: "Please provide final comments before approving.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    const { error } = await api.updateAssessment(assessment.id, {
+      status: 'director_approved',
+      director_comments: directorFeedback,
+      director_approved_at: new Date().toISOString(),
+    });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to approve assessment", variant: "destructive" });
+    } else {
+      toast({ title: "Approved", description: "Assessment approved successfully" });
+      setAssessment(prev => prev ? { ...prev, status: 'director_approved' } : null);
+    }
+  };
+
   const updateIndicator = (indicatorId: string, updates: Partial<IndicatorData>) => {
     setSections(prev => prev.map(section => ({
       ...section,
@@ -347,6 +379,9 @@ export function useAssessment(assessmentId?: string) {
     updateAssessmentStatus,
     managerFeedback,
     setManagerFeedback,
+    directorFeedback,
+    setDirectorFeedback,
+    approveAssessment,
   };
 }
 

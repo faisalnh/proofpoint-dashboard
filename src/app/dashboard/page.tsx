@@ -105,9 +105,15 @@ function DashboardContent() {
 
     const getAssessmentUrl = (assessment: Assessment) => {
         const isTeamAssessment = assessment.staff_id !== profile?.user_id;
+
+        if (isDirector && isTeamAssessment) {
+            return `/director?id=${assessment.id}`;
+        }
+
         if ((isManager || isAdmin) && isTeamAssessment) {
             return `/manager?id=${assessment.id}`;
         }
+
         return `/assessment?id=${assessment.id}`;
     };
 
@@ -302,7 +308,7 @@ function DashboardContent() {
                                                 </div>
                                                 <div>
                                                     <p className="font-medium text-foreground group-hover:text-primary transition-colors">
-                                                        {(isManager || isAdmin) && assessment.staff_name ? (
+                                                        {(isManager || isAdmin || isDirector) && assessment.staff_name ? (
                                                             <>
                                                                 <span className="font-bold">{assessment.staff_name}</span>
                                                                 <span className="text-muted-foreground mx-2">•</span>
