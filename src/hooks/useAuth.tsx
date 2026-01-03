@@ -1,6 +1,8 @@
+'use client';
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 type AppRole = 'admin' | 'staff' | 'manager' | 'director';
 
@@ -44,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('user_id', userId)
       .maybeSingle();
-    
+
     if (profileData) {
       setProfile(profileData as Profile);
     }
@@ -54,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId);
-    
+
     if (rolesData) {
       setRoles(rolesData.map(r => r.role as AppRole));
     }
@@ -66,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           // Defer Supabase calls with setTimeout to prevent deadlock
           setTimeout(() => {
@@ -84,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         fetchUserData(session.user.id);
       }
@@ -96,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -107,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     });
-    
+
     return { error: error as Error | null };
   };
 
@@ -116,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password
     });
-    
+
     return { error: error as Error | null };
   };
 

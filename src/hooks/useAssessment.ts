@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "./use-toast";
 
@@ -416,7 +416,7 @@ export function useTeamAssessments() {
       // Combine and dedupe
       const allData = [...(managerData || []), ...(pendingData || [])];
       const uniqueData = allData.filter((a, idx, arr) => arr.findIndex(b => b.id === a.id) === idx);
-      
+
       if (uniqueData.length === 0) {
         setAssessments([]);
         setLoading(false);
