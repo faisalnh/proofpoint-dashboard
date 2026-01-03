@@ -85,7 +85,9 @@ function ManagerContent() {
 
         const staffWeightedScore = calculateWeightedScore(sections, 'staff');
         const managerWeightedScore = calculateWeightedScore(sections, 'manager');
-        const isReadOnly = assessment?.status === 'manager_reviewed' || assessment?.status === 'director_approved';
+        const isReadOnly = assessment?.status === 'manager_reviewed' ||
+            assessment?.status === 'director_approved' ||
+            assessment?.status === 'acknowledged';
 
         return (
             <div className="max-w-5xl mx-auto py-8">
@@ -206,12 +208,16 @@ function ManagerContent() {
                             </Card>
 
                             <WeightedScoreDisplay
+                                sections={sections}
                                 score={staffWeightedScore}
                                 label="Staff Self-Grade"
+                                type="staff"
                             />
                             <WeightedScoreDisplay
+                                sections={sections}
                                 score={managerWeightedScore}
                                 label="Manager Review Grade"
+                                type="manager"
                             />
 
                             <Alert className="bg-primary/5 border-primary/10">

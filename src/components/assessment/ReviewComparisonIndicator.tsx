@@ -65,13 +65,13 @@ function renderEvidenceContent(evidence: string | EvidenceItem[]) {
                 href={item.evidence}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
+                className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
               >
                 <ExternalLink className="h-3 w-3" />
-                {item.evidence.length > 50 ? item.evidence.substring(0, 50) + '...' : item.evidence}
+                {item.name || (item.evidence.length > 50 ? item.evidence.substring(0, 50) + '...' : item.evidence)}
               </a>
             ) : (
-              <span>{item.evidence}</span>
+              <span className="font-medium text-foreground">{item.name || item.evidence}</span>
             )}
             {item.notes && (
               <p className="text-muted-foreground mt-1 pl-4 border-l-2 border-border">{item.notes}</p>

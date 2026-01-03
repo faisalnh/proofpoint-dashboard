@@ -7,6 +7,7 @@ interface WeightedScoreDisplayProps {
   sections?: SectionData[];
   score?: number | null;
   label?: string;
+  type?: 'staff' | 'manager';
 }
 
 function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
@@ -49,7 +50,7 @@ function getLetterGrade(score: number): { grade: string; label: string } {
   return { grade: "F", label: "Unsatisfactory" };
 }
 
-export function WeightedScoreDisplay({ sections, score, label }: WeightedScoreDisplayProps) {
+export function WeightedScoreDisplay({ sections, score, label, type = 'staff' }: WeightedScoreDisplayProps) {
   const calculatedScore = calculateWeightedScore(sections);
   const weightedScore = score !== undefined ? score : calculatedScore;
   const gradeInfo = weightedScore !== null ? getLetterGrade(weightedScore) : null;
@@ -57,12 +58,23 @@ export function WeightedScoreDisplay({ sections, score, label }: WeightedScoreDi
   // Calculate completion if sections are provided
   const hasSections = sections && Array.isArray(sections) && sections.length > 0;
   const totalIndicators = hasSections ? sections!.reduce((acc, s) => acc + (s.indicators?.length || 0), 0) : 0;
+
   const completedIndicators = hasSections ? sections!.reduce(
-    (acc, s) => acc + (s.indicators?.filter(i =>
-      i.score !== null && (i.score === 0 || hasValidEvidence(i.evidence))
-    ).length || 0),
+    (acc, s) => acc + (s.indicators?.filter(i => {
+      // Cast to any to access manager properties if needed, or assume data structure matches
+      const ind = i as any;
+
+      if (type === 'manager') {
+        // Manager only needs to provide a score
+        return ind.managerScore !== undefined && ind.managerScore !== null;
+      }
+
+      // Staff needs score AND valid evidence (unless score is 0)
+      return i.score !== null && (i.score === 0 || hasValidEvidence(i.evidence));
+    }).length || 0),
     0
   ) : 0;
+
   const completionPercent = totalIndicators > 0 ? (completedIndicators / totalIndicators) * 100 : 0;
 
   const Icon = weightedScore !== null
@@ -138,9 +150,20 @@ export function WeightedScoreDisplay({ sections, score, label }: WeightedScoreDi
             Section Weights
           </div>
           {sections!.map(section => {
-            const sectionScore = section.indicators?.filter(i => i.score !== null) || [];
+            const isManager = type === 'manager';
+            // Filter indicators that have a score (either staff or manager depending on type)
+            const sectionScore = section.indicators?.filter(i => {
+              const ind = i as any;
+              const val = isManager ? ind.managerScore : i.score;
+              return val !== null && val !== undefined;
+            }) || [];
+
             const avg = sectionScore.length > 0
-              ? sectionScore.reduce((a, i) => a + (i.score ?? 0), 0) / sectionScore.length
+              ? sectionScore.reduce((a, i) => {
+                const ind = i as any;
+                const val = isManager ? ind.managerScore : i.score;
+                return a + (val ?? 0);
+              }, 0) / sectionScore.length
               : null;
 
             return (

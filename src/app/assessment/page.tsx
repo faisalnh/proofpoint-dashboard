@@ -1,5 +1,7 @@
 'use client';
 
+import { cn } from "@/lib/utils";
+
 import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -7,12 +9,14 @@ import { Header } from '@/components/layout/Header';
 import {
     AssessmentSection,
     AssessmentProgress,
+    ReviewComparisonSection,
     WeightedScoreDisplay
 } from '@/components/assessment';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     useAssessment,
@@ -28,7 +32,10 @@ import {
     Loader2,
     Calendar,
     Layout,
-    AlertCircle
+    AlertCircle,
+    ShieldCheck,
+    MessageSquare,
+    Info
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -44,7 +51,12 @@ function AssessmentContent() {
         saving,
         saveDraft,
         submitAssessment,
-        updateIndicator
+        updateIndicator,
+        staffAcknowledgement,
+        setStaffAcknowledgement,
+        acknowledgeAssessment,
+        managerFeedback,
+        directorFeedback
     } = useAssessment(assessmentId || undefined);
 
     const { templates, loading: templatesLoading } = useRubricTemplates();
@@ -64,7 +76,8 @@ function AssessmentContent() {
         setIsCreating(false);
     };
 
-    const weightedScore = calculateWeightedScore(sections);
+    const weightedScore = calculateWeightedScore(sections, 'staff');
+    const finalWeightedScore = calculateWeightedScore(sections, 'manager');
 
     // Loading State
     if (assessmentId && assessmentLoading) {
@@ -149,17 +162,25 @@ function AssessmentContent() {
     }
 
     // Active Assessment Form View
+    const isApproved = assessment?.status === 'director_approved';
+    const isAcknowledged = assessment?.status === 'acknowledged';
     const isReadOnly = assessment?.status !== 'draft' && assessment?.status !== 'rejected';
+    const showComparison = isApproved || isAcknowledged;
 
     return (
         <div className="max-w-5xl mx-auto py-8">
             {/* Feedback Bar */}
             {isReadOnly && (
-                <Alert className="mb-6 bg-primary/5 border-primary/20">
-                    <AlertCircle className="h-4 w-4 text-primary" />
-                    <AlertTitle>View Only Mode</AlertTitle>
+                <Alert className={cn(
+                    "mb-6",
+                    isAcknowledged ? "bg-emerald-500/5 border-emerald-500/20" : "bg-primary/5 border-primary/20"
+                )}>
+                    {isAcknowledged ? <ShieldCheck className="h-4 w-4 text-emerald-600" /> : <AlertCircle className="h-4 w-4 text-primary" />}
+                    <AlertTitle>{isAcknowledged ? "Assessment Completed" : "View Only Mode"}</AlertTitle>
                     <AlertDescription>
-                        This assessment has been submitted and is currently {assessment.status.replace('_', ' ')}.
+                        {isAcknowledged
+                            ? "This assessment cycle is complete. You have acknowledged the final results."
+                            : `This assessment has been submitted and is currently ${assessment.status.replace('_', ' ')}.`}
                     </AlertDescription>
                 </Alert>
             )}
@@ -193,14 +214,89 @@ function AssessmentContent() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Content: Sections */}
                 <div className="lg:col-span-2 space-y-8">
-                    {sections.map((section) => (
-                        <AssessmentSection
-                            key={section.id}
-                            section={section}
-                            onIndicatorChange={updateIndicator}
-                            readonly={isReadOnly}
-                        />
-                    ))}
+                    {showComparison ? (
+                        <>
+                            {sections.map((section) => (
+                                <ReviewComparisonSection
+                                    key={section.id}
+                                    readonly={true}
+                                    section={{
+                                        ...section,
+                                        indicators: section.indicators.map(i => ({
+                                            ...i,
+                                            staffScore: i.score,
+                                            staffEvidence: i.evidence,
+                                            managerScore: i.managerScore ?? null,
+                                            managerEvidence: i.managerEvidence ?? ''
+                                        }))
+                                    }}
+                                />
+                            ))}
+
+                            {/* Staff Acknowledgement Section */}
+                            <Card className="glass-panel border-border/30 overflow-hidden shadow-lg">
+                                <CardHeader className="bg-primary/5 border-b border-border/10">
+                                    <div className="flex items-center gap-2">
+                                        <MessageSquare className="h-5 w-5 text-primary" />
+                                        <CardTitle className="text-lg">Staff Acknowledgement</CardTitle>
+                                    </div>
+                                    <CardDescription>Final response and acknowledgement of the performance review.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="pt-6">
+                                    {isAcknowledged ? (
+                                        <div className="space-y-4">
+                                            <div className="p-4 rounded-xl bg-muted/30 border border-border/50 text-foreground whitespace-pre-wrap text-sm">
+                                                {staffAcknowledgement || <span className="text-muted-foreground italic">No feedback provided</span>}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 p-3 rounded-lg">
+                                                <ShieldCheck className="h-4 w-4" />
+                                                Acknowledged and completed
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 text-sm flex gap-3">
+                                                <Info className="h-5 w-5 shrink-0" />
+                                                <p>
+                                                    Please review the final scores and feedback from your manager and director.
+                                                    Provide your final response below to acknowledge this assessment.
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <Label htmlFor="staff-feedback" className="text-sm font-semibold">Final Response / Feedback <span className="text-destructive">*</span></Label>
+                                                <Textarea
+                                                    id="staff-feedback"
+                                                    placeholder="Enter your final comments or any response to the feedback received..."
+                                                    className="min-h-[150px] bg-background border-primary/20 focus-visible:ring-primary/30"
+                                                    value={staffAcknowledgement}
+                                                    onChange={(e) => setStaffAcknowledgement(e.target.value)}
+                                                />
+                                            </div>
+
+                                            <Button
+                                                className="w-full glow-primary h-12 text-base font-bold"
+                                                onClick={acknowledgeAssessment}
+                                                disabled={saving || !staffAcknowledgement.trim()}
+                                            >
+                                                {saving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <ShieldCheck className="h-5 w-5 mr-2" />}
+                                                Finalize & Acknowledge
+                                            </Button>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </>
+                    ) : (
+                        sections.map((section) => (
+                            <AssessmentSection
+                                key={section.id}
+                                section={section}
+                                onIndicatorChange={updateIndicator}
+                                readonly={isReadOnly}
+                            />
+                        ))
+                    )}
                 </div>
 
                 {/* Sidebar: Progress & Score */}
@@ -216,8 +312,10 @@ function AssessmentContent() {
                         </Card>
 
                         <WeightedScoreDisplay
-                            score={weightedScore}
-                            label="Projected Grade"
+                            sections={sections}
+                            score={showComparison ? finalWeightedScore : weightedScore}
+                            label={showComparison ? "Confirmed Final Grade" : "Projected Grade"}
+                            type={showComparison ? "manager" : "staff"}
                         />
 
                         <Card className="bg-primary/5 border-primary/10">

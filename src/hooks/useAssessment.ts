@@ -58,6 +58,7 @@ export interface Assessment {
   final_grade: string | null;
   manager_notes: string | null;
   director_comments: string | null;
+  staff_notes: string | null;
   staff_submitted_at: string | null;
   manager_reviewed_at: string | null;
   director_approved_at: string | null;
@@ -116,6 +117,7 @@ export function useAssessment(assessmentId?: string) {
   const [saving, setSaving] = useState(false);
   const [managerFeedback, setManagerFeedback] = useState("");
   const [directorFeedback, setDirectorFeedback] = useState("");
+  const [staffAcknowledgement, setStaffAcknowledgement] = useState("");
 
   useEffect(() => {
     if (!assessmentId) {
@@ -135,6 +137,7 @@ export function useAssessment(assessmentId?: string) {
       setAssessment(assessmentData as Assessment);
       setManagerFeedback((assessmentData as any).manager_notes || "");
       setDirectorFeedback((assessmentData as any).director_comments || "");
+      setStaffAcknowledgement((assessmentData as any).staff_notes || "");
 
       // Fetch rubric template with sections and indicators
       const template_id = (assessmentData as any).template_id;
@@ -353,6 +356,35 @@ export function useAssessment(assessmentId?: string) {
     }
   };
 
+  const acknowledgeAssessment = async () => {
+    if (!assessment) return;
+
+    if (!staffAcknowledgement || !staffAcknowledgement.trim()) {
+      toast({
+        title: "Feedback Required",
+        description: "Please provide your final comments/feedback before acknowledging.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    const { error } = await api.updateAssessment(assessment.id, {
+      status: 'acknowledged',
+      staff_notes: staffAcknowledgement,
+    });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to acknowledge assessment", variant: "destructive" });
+    } else {
+      toast({ title: "Acknowledged", description: "Assessment acknowledged successfully" });
+      setAssessment(prev => prev ? { ...prev, status: 'acknowledged' } : null);
+    }
+  };
+
   const updateIndicator = (indicatorId: string, updates: Partial<IndicatorData>) => {
     setSections(prev => prev.map(section => ({
       ...section,
@@ -381,7 +413,10 @@ export function useAssessment(assessmentId?: string) {
     setManagerFeedback,
     directorFeedback,
     setDirectorFeedback,
+    staffAcknowledgement,
+    setStaffAcknowledgement,
     approveAssessment,
+    acknowledgeAssessment,
   };
 }
 

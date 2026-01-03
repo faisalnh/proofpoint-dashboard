@@ -102,7 +102,7 @@ function DirectorContent() {
 
         const staffScore = calculateWeightedScore(sections, 'staff');
         const managerScore = calculateWeightedScore(sections, 'manager');
-        const isApproved = assessment?.status === 'director_approved';
+        const isApproved = assessment?.status === 'director_approved' || assessment?.status === 'acknowledged';
 
         return (
             <div className="max-w-5xl mx-auto py-8">
@@ -140,6 +140,7 @@ function DirectorContent() {
                         {sections.map((section) => (
                             <ReviewComparisonSection
                                 key={section.id}
+                                readonly={true}
                                 section={{
                                     ...section,
                                     indicators: section.indicators.map(i => ({

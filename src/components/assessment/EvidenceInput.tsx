@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 
 export interface EvidenceItem {
   evidence: string;
+  name?: string;
   notes: string;
   type?: "link" | "file";
   fileName?: string;
@@ -27,7 +28,7 @@ interface EvidenceInputProps {
 function parseEvidenceValue(value: string | EvidenceItem[]): EvidenceItem[] {
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return [{ evidence: "", notes: "", inputMode: "initial" }];
+      return [{ evidence: "", name: "", notes: "", inputMode: "initial" }];
     }
     // Ensure existing items with evidence show the correct input mode
     return value.map(item => ({
@@ -37,9 +38,9 @@ function parseEvidenceValue(value: string | EvidenceItem[]): EvidenceItem[] {
   }
   // Legacy string format - convert to new format
   if (typeof value === "string" && value.trim()) {
-    return [{ evidence: value, notes: "", type: "link", inputMode: "link" }];
+    return [{ evidence: value, name: "Link", notes: "", type: "link", inputMode: "link" }];
   }
-  return [{ evidence: "", notes: "", inputMode: "initial" }];
+  return [{ evidence: "", name: "", notes: "", inputMode: "initial" }];
 }
 
 function isEvidenceRequired(score: number | null): boolean {
@@ -70,7 +71,7 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
   };
 
   const addItem = () => {
-    onChange([...items, { evidence: "", notes: "", inputMode: "initial" }]);
+    onChange([...items, { evidence: "", name: "", notes: "", inputMode: "initial" }]);
   };
 
   const setInputMode = (index: number, mode: "initial" | "link" | "file") => {
@@ -115,7 +116,8 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
         ...newItems[index],
         evidence: result.url,
         type: "file",
-        fileName: result.fileName
+        fileName: result.fileName,
+        name: result.fileName // Default name to filename
       };
       onChange(newItems);
 
@@ -193,12 +195,11 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
         ) : (
           <>
             {/* Table Header */}
-            <div className="grid grid-cols-[40px_1fr_1fr_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
-              <span>#</span>
-              <span className="flex items-center gap-1">
-                Evidence (Link or File)
-              </span>
-              <span>Notes</span>
+            <div className="grid grid-cols-[30px_1fr_1fr_1fr_30px] gap-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+              <span className="text-center">#</span>
+              <span>Title / Name</span>
+              <span>Evidence (Link or File)</span>
+              <span>Additional Notes</span>
               <span></span>
             </div>
 
@@ -206,19 +207,28 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
             {items.map((item, index) => (
               <div
                 key={index}
-                className="grid grid-cols-[40px_1fr_1fr_40px] gap-2 items-start"
+                className="grid grid-cols-[30px_1fr_1fr_1fr_30px] gap-3 items-start p-2 rounded-lg bg-muted/20 border border-transparent hover:border-border/50 hover:bg-muted/30 transition-all duration-200"
               >
-                <span className="flex items-center justify-center h-9 text-sm font-mono text-muted-foreground">
+                <span className="flex items-center justify-center h-9 text-xs font-mono text-muted-foreground/60">
                   {index + 1}
                 </span>
+
+                {/* Name / Title */}
+                <Input
+                  value={item.name || ""}
+                  onChange={(e) => updateItem(index, "name", e.target.value)}
+                  placeholder="e.g. Sales Report"
+                  disabled={isDisabled}
+                  className="h-9 text-sm bg-background/50"
+                />
 
                 {/* Evidence Input */}
                 <div className="space-y-2">
                   {/* Show uploaded file info if exists */}
                   {item.type === "file" && item.fileName && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm border border-border/50 shadow-sm">
                       <FileText className="h-4 w-4 text-primary shrink-0" />
-                      <span className="truncate flex-1">{item.fileName}</span>
+                      <span className="truncate flex-1 font-medium">{item.name || item.fileName}</span>
                       <a
                         href={item.evidence}
                         target="_blank"
@@ -233,9 +243,9 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
 
                   {/* Show link evidence if exists */}
                   {item.type === "link" && item.evidence.trim() && item.inputMode !== "link" && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm border border-border/50 shadow-sm">
                       <Link className="h-4 w-4 text-primary shrink-0" />
-                      <span className="truncate flex-1">{item.evidence}</span>
+                      <span className="truncate flex-1 font-medium">{item.name || item.evidence}</span>
                       <a
                         href={item.evidence}
                         target="_blank"
@@ -427,9 +437,9 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
                 <Textarea
                   value={item.notes}
                   onChange={(e) => updateItem(index, "notes", e.target.value)}
-                  placeholder="Additional notes..."
+                  placeholder="Short explanation..."
                   disabled={isDisabled}
-                  className="min-h-[36px] h-9 resize-none py-2"
+                  className="min-h-[36px] h-9 resize-none py-2 text-sm bg-background/50"
                   rows={1}
                 />
                 <Button
@@ -438,7 +448,7 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
                   size="icon"
                   onClick={() => removeItem(index)}
                   disabled={isDisabled || items.length <= 1}
-                  className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                  className="h-9 w-9 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
