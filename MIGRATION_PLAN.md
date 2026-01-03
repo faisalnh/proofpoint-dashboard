@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document provides a comprehensive refactoring plan to migrate the Proofpoint Dashboard from Supabase to a fully self-hosted Docker solution. The migration will replace Supabase Auth, Database, and Storage with Auth.js, self-hosted PostgreSQL, and local filesystem storage respectively, while maintaining all existing functionality.
+This document provides a comprehensive refactoring plan to migrate the Proofpoint Dashboard from Supabase to a fully self-hosted Docker solution. The architecture has transitioned from a separate Vite/Fastify setup to a unified Next.js application. The migration will replace Supabase Auth, Database, and Storage with Auth.js, self-hosted PostgreSQL, and local filesystem storage respectively, while maintaining all existing functionality within the Next.js framework.
 
 ---
 
@@ -99,9 +99,9 @@ This document provides a comprehensive refactoring plan to migrate the Proofpoin
            │                                  │
            ▼                                  ▼
 ┌─────────────────────┐           ┌──────────────────────────────┐
-│   Frontend Build    │           │   Backend API (Fastify)       │
-│   (Static Files)    │           │   - REST API endpoints        │
-│                     │           │   - Auth.js integration       │
+│   Frontend (Next.js)│           │   API Routes (Next.js)        │
+│   - React Components│           │   - Serverless endpoints      │
+│   - App Router      │           │   - Auth.js integration       │
 │                     │           │   - File upload handling      │
 └─────────────────────┘           └───────┬──────────────────────┘
                                           │
