@@ -22,12 +22,10 @@ import {
     Loader2,
     CheckCircle2,
     Search,
-    FileText,
     ShieldCheck,
-    AlertCircle
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/lib/supabase/client';
+import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 
 function DirectorContent() {
@@ -47,17 +45,10 @@ function DirectorContent() {
 
         const fetchOrgAssessments = async () => {
             setLoadingList(true);
-            const { data, error } = await supabase
-                .from('assessments')
-                .select('*, profiles!assessments_staff_id_fkey(full_name, email)')
-                .order('created_at', { ascending: false });
+            const { data, error } = await api.getAssessments();
 
             if (!error && data) {
-                setAssessments(data.map(a => ({
-                    ...a,
-                    staff_name: a.profiles?.full_name || 'Unknown',
-                    staff_email: a.profiles?.email || ''
-                })));
+                setAssessments((data as any[]));
             }
             setLoadingList(false);
         };

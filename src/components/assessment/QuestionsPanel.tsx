@@ -5,8 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { MessageSquare, Send, CheckCircle, Clock } from "lucide-react";
-import { supabase } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api-client";
 
 interface Question {
   id: string;
@@ -17,7 +16,7 @@ interface Question {
   created_at: string;
   responded_at: string | null;
   asked_by: string;
-  asker_name?: string;
+  asked_by_name?: string;
   indicator_name?: string;
 }
 
@@ -27,7 +26,6 @@ interface QuestionsPanelProps {
 }
 
 export function QuestionsPanel({ assessmentId, indicators = [] }: QuestionsPanelProps) {
-  const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [responses, setResponses] = useState<Record<string, string>>({});
@@ -38,42 +36,17 @@ export function QuestionsPanel({ assessmentId, indicators = [] }: QuestionsPanel
   }, [assessmentId]);
 
   const fetchQuestions = async () => {
-    const { data, error } = await supabase
-      .from('assessment_questions')
-      .select(`
-        id,
-        indicator_id,
-        question,
-        response,
-        status,
-        created_at,
-        responded_at,
-        asked_by
-      `)
-      .eq('assessment_id', assessmentId)
-      .order('created_at', { ascending: false });
+    const { data, error } = await api.getQuestions({ assessmentId });
 
     if (error) {
       console.error('Error fetching questions:', error);
     } else {
-      // Fetch asker names
-      const askerIds = [...new Set((data || []).map(q => q.asked_by))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email')
-        .in('user_id', askerIds);
-
-      const profileMap = new Map(
-        (profiles || []).map(p => [p.user_id, p.full_name || p.email])
-      );
-
       const indicatorMap = new Map(
         indicators.map(i => [i.id, i.name])
       );
 
-      setQuestions((data || []).map(q => ({
+      setQuestions((data as Question[] || []).map(q => ({
         ...q,
-        asker_name: profileMap.get(q.asked_by) || 'Unknown',
         indicator_name: q.indicator_id ? indicatorMap.get(q.indicator_id) : undefined,
       })));
     }
@@ -88,15 +61,7 @@ export function QuestionsPanel({ assessmentId, indicators = [] }: QuestionsPanel
     }
 
     setSubmitting(questionId);
-    const { error } = await supabase
-      .from('assessment_questions')
-      .update({
-        response,
-        status: 'responded',
-        responded_by: user?.id,
-        responded_at: new Date().toISOString(),
-      })
-      .eq('id', questionId);
+    const { error } = await api.answerQuestion(questionId, response, 'responded');
 
     setSubmitting(null);
 
@@ -155,7 +120,7 @@ export function QuestionsPanel({ assessmentId, indicators = [] }: QuestionsPanel
                 )}
                 <p className="text-sm font-medium">{question.question}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Asked by {question.asker_name} • {new Date(question.created_at).toLocaleDateString()}
+                  Asked by {question.asked_by_name || 'Unknown'} • {new Date(question.created_at).toLocaleDateString()}
                 </p>
               </div>
               <Badge variant={question.status === 'pending' ? 'secondary' : 'default'} className="gap-1">

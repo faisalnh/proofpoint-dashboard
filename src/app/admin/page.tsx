@@ -20,7 +20,7 @@ import {
     Settings2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/lib/supabase/client';
+import { api } from '@/lib/api-client';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -47,19 +47,13 @@ function AdminContent() {
         const fetchUsers = async () => {
             setLoading(true);
             // Fetch profiles with their roles and department names
-            const { data, error } = await supabase
-                .from('profiles')
-                .select(`
-          *,
-          user_roles(role),
-          departments(name)
-        `);
+            const { data, error } = await api.getProfiles();
 
             if (!error && data) {
-                setUsers(data.map(user => ({
+                setUsers((data as any[]).map(user => ({
                     ...user,
-                    roles: user.user_roles?.map((r: any) => r.role) || ['staff'],
-                    department_name: user.departments?.name || 'Unassigned'
+                    roles: user.roles || ['staff'],
+                    department_name: user.department_name || 'Unassigned'
                 })));
             }
             setLoading(false);

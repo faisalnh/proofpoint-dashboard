@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api-client";
 import { useAuth } from "./useAuth";
 import { toast } from "./use-toast";
 
@@ -42,14 +42,6 @@ export function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
   return typeof evidence === 'string' && evidence.trim().length > 0;
 }
 
-// Helper to serialize evidence for storage
-function serializeEvidence(evidence: string | EvidenceItem[]): EvidenceItem[] | string {
-  if (Array.isArray(evidence)) {
-    return evidence;
-  }
-  return evidence;
-}
-
 export interface Assessment {
   id: string;
   period: string;
@@ -90,66 +82,32 @@ interface RubricTemplate {
   }[];
 }
 
-export function useRubricTemplates(departmentId?: string) {
+export function useRubricTemplates() {
   const [templates, setTemplates] = useState<RubricTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchTemplates() {
-      const { data, error } = await supabase
-        .from('rubric_templates')
-        .select(`
-          id, name, description, is_global, department_id,
-          rubric_sections (
-            id, name, weight, sort_order,
-            rubric_indicators (
-              id, name, description, evidence_guidance, score_options, sort_order
-            )
-          )
-        `)
-        .or(`is_global.eq.true${departmentId ? `,department_id.eq.${departmentId}` : ''}`);
+      const { data, error } = await api.getRubrics();
 
       if (error) {
         console.error('Error fetching templates:', error);
+        setLoading(false);
         return;
       }
 
-      const formatted = (data || []).map(t => ({
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        sections: (t.rubric_sections || [])
-          .sort((a: any, b: any) => a.sort_order - b.sort_order)
-          .map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            weight: Number(s.weight),
-            sort_order: s.sort_order,
-            indicators: (s.rubric_indicators || [])
-              .sort((a: any, b: any) => a.sort_order - b.sort_order)
-              .map((i: any) => ({
-                id: i.id,
-                name: i.name,
-                description: i.description,
-                evidence_guidance: i.evidence_guidance,
-                score_options: i.score_options as ScoreOption[],
-                sort_order: i.sort_order,
-              }))
-          }))
-      }));
-
-      setTemplates(formatted);
+      // API already returns enriched data with sections and indicators
+      setTemplates((data as any[]) || []);
       setLoading(false);
     }
 
     fetchTemplates();
-  }, [departmentId]);
+  }, []);
 
   return { templates, loading };
 }
 
 export function useAssessment(assessmentId?: string) {
-  const { user } = useAuth();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [sections, setSections] = useState<SectionData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,50 +120,38 @@ export function useAssessment(assessmentId?: string) {
     }
 
     async function fetchAssessment() {
-      const { data, error } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('id', assessmentId)
-        .single();
+      const { data: assessmentData, error: assessmentError } = await api.getAssessment(assessmentId);
 
-      if (error) {
-        console.error('Error fetching assessment:', error);
+      if (assessmentError || !assessmentData) {
+        console.error('Error fetching assessment:', assessmentError);
         setLoading(false);
         return;
       }
 
-      setAssessment(data as Assessment);
+      setAssessment(assessmentData as Assessment);
 
       // Fetch rubric template with sections and indicators
-      if (data.template_id) {
-        const { data: templateData } = await supabase
-          .from('rubric_templates')
-          .select(`
-            id, name,
-            rubric_sections (
-              id, name, weight, sort_order,
-              rubric_indicators (
-                id, name, description, evidence_guidance, score_options, sort_order
-              )
-            )
-          `)
-          .eq('id', data.template_id)
-          .single();
+      const template_id = (assessmentData as any).template_id;
+      if (template_id) {
+        const { data: rubricData, error: rubricError } = await api.getRubric(template_id);
 
-        if (templateData) {
+        if (rubricError || !rubricData) {
+          console.error('Error fetching rubric:', rubricError);
+        } else {
+          const data = assessmentData as any;
+          const template = rubricData as any;
+
           const staffScores = (data.staff_scores || {}) as Record<string, number>;
           const staffEvidence = (data.staff_evidence || {}) as Record<string, string | EvidenceItem[]>;
           const managerScores = (data.manager_scores || {}) as Record<string, number>;
           const managerEvidence = (data.manager_evidence || {}) as Record<string, string | EvidenceItem[]>;
 
-          const formattedSections = (templateData.rubric_sections || [])
-            .sort((a: any, b: any) => a.sort_order - b.sort_order)
+          const formattedSections = (template.sections || [])
             .map((s: any) => ({
               id: s.id,
               name: s.name,
               weight: Number(s.weight),
-              indicators: (s.rubric_indicators || [])
-                .sort((a: any, b: any) => a.sort_order - b.sort_order)
+              indicators: (s.indicators || [])
                 .map((i: any) => ({
                   id: i.id,
                   name: i.name,
@@ -247,14 +193,10 @@ export function useAssessment(assessmentId?: string) {
       });
     });
 
-    const { error } = await supabase
-      .from('assessments')
-      .update({
-        staff_scores: staffScores as never,
-        staff_evidence: staffEvidence as never,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', assessment.id);
+    const { error } = await api.updateAssessment(assessment.id, {
+      staff_scores: staffScores,
+      staff_evidence: staffEvidence,
+    });
 
     setSaving(false);
 
@@ -283,16 +225,12 @@ export function useAssessment(assessmentId?: string) {
       });
     });
 
-    const { error } = await supabase
-      .from('assessments')
-      .update({
-        staff_scores: staffScores as never,
-        staff_evidence: staffEvidence as never,
-        status: 'self_submitted',
-        staff_submitted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', assessment.id);
+    const { error } = await api.updateAssessment(assessment.id, {
+      staff_scores: staffScores,
+      staff_evidence: staffEvidence,
+      status: 'self_submitted',
+      staff_submitted_at: new Date().toISOString(),
+    });
 
     setSaving(false);
 
@@ -345,16 +283,12 @@ export function useMyAssessments() {
     }
 
     async function fetchAssessments() {
-      const { data, error } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('staff_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await api.getAssessments({ staffId: user!.id });
 
       if (error) {
         console.error('Error fetching assessments:', error);
       } else {
-        setAssessments((data || []) as Assessment[]);
+        setAssessments((data as Assessment[]) || []);
       }
       setLoading(false);
     }
@@ -365,24 +299,19 @@ export function useMyAssessments() {
   const createAssessment = async (templateId: string, period: string) => {
     if (!user) return null;
 
-    const { data, error } = await supabase
-      .from('assessments')
-      .insert({
-        staff_id: user.id,
-        template_id: templateId,
-        period,
-        status: 'draft',
-      })
-      .select()
-      .single();
+    const { data, error } = await api.createAssessment({
+      template_id: templateId,
+      period,
+    });
 
     if (error) {
       toast({ title: "Error", description: "Failed to create assessment", variant: "destructive" });
       return null;
     }
 
-    setAssessments(prev => [data as Assessment, ...prev]);
-    return data as Assessment;
+    const newAssessment = data as Assessment;
+    setAssessments(prev => [newAssessment, ...prev]);
+    return newAssessment;
   };
 
   return { assessments, loading, createAssessment };
@@ -400,45 +329,15 @@ export function useTeamAssessments() {
     }
 
     async function fetchTeamAssessments() {
-      // Get assessments where user is manager (any status) or pending review (self_submitted)
-      const { data: managerData } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('manager_id', user.id)
-        .order('created_at', { ascending: false });
+      // API currently handles general listing, we might need more specific filters later
+      // For now, get all assessments and we'll filter them as needed or expect the API to handle permissions
+      const { data, error } = await api.getAssessments();
 
-      const { data: pendingData } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('status', 'self_submitted')
-        .order('created_at', { ascending: false });
-
-      // Combine and dedupe
-      const allData = [...(managerData || []), ...(pendingData || [])];
-      const uniqueData = allData.filter((a, idx, arr) => arr.findIndex(b => b.id === a.id) === idx);
-
-      if (uniqueData.length === 0) {
-        setAssessments([]);
-        setLoading(false);
-        return;
+      if (error) {
+        console.error('Error fetching team assessments:', error);
+      } else {
+        setAssessments((data as any[]) || []);
       }
-
-      // Fetch staff profiles
-      const staffIds = [...new Set(uniqueData.map(a => a.staff_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email')
-        .in('user_id', staffIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
-
-      const enriched = uniqueData.map(a => ({
-        ...a as Assessment,
-        staff_name: profileMap.get(a.staff_id)?.full_name || 'Unknown',
-        staff_email: profileMap.get(a.staff_id)?.email || '',
-      }));
-
-      setAssessments(enriched);
       setLoading(false);
     }
 

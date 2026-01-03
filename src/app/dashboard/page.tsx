@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/lib/supabase/client';
+import { api } from '@/lib/api-client';
 import {
     ClipboardList,
     Users,
@@ -39,14 +39,12 @@ function DashboardContent() {
 
     useEffect(() => {
         const fetchAssessments = async () => {
-            const { data } = await supabase
-                .from('assessments')
-                .select('id, period, status, created_at')
-                .order('created_at', { ascending: false })
-                .limit(5);
+            const { data, error } = await api.getAssessments({ limit: 5 });
 
-            if (data) {
-                setAssessments(data);
+            if (error) {
+                console.error('Error fetching assessments:', error);
+            } else if (data) {
+                setAssessments(data as Assessment[]);
             }
             setLoading(false);
         };
