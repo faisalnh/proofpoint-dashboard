@@ -25,7 +25,8 @@ import {
     AlertTriangle,
     ChevronRight,
     FolderTree,
-    Plus
+    Plus,
+    Clock
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api-client';
@@ -95,7 +96,7 @@ function AdminContent() {
 
     // Delete confirmation
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-    const [itemToDelete, setItemToDelete] = useState<{ type: 'user' | 'department'; item: User | Department } | null>(null);
+    const [itemToDelete, setItemToDelete] = useState<{ type: 'user' | 'department'; item: User | Department; permanent?: boolean } | null>(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -137,7 +138,7 @@ function AdminContent() {
 
         let result;
         if (itemToDelete.type === 'user') {
-            result = await api.deleteUser((itemToDelete.item as User).id);
+            result = await api.deleteUser((itemToDelete.item as User).id, itemToDelete.permanent);
         } else {
             result = await api.deleteDepartment((itemToDelete.item as Department).id);
         }
@@ -151,7 +152,7 @@ function AdminContent() {
         } else {
             toast({
                 title: "Success",
-                description: `${itemToDelete.type === 'user' ? 'User suspended' : 'Department deleted'} successfully.`,
+                description: `${itemToDelete.type === 'user' ? (itemToDelete.permanent ? 'User permanently deleted' : 'User suspended') : 'Department deleted'} successfully.`,
             });
             fetchData();
         }
@@ -426,12 +427,22 @@ function AdminContent() {
                                                                 <DropdownMenuItem
                                                                     className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer rounded-md font-semibold"
                                                                     onClick={() => {
-                                                                        setItemToDelete({ type: 'user', item: user });
+                                                                        setItemToDelete({ type: 'user', item: user, permanent: false });
+                                                                        setDeleteConfirmOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <Clock className="h-4 w-4 mr-2" />
+                                                                    Suspend User
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer rounded-md font-bold"
+                                                                    onClick={() => {
+                                                                        setItemToDelete({ type: 'user', item: user, permanent: true });
                                                                         setDeleteConfirmOpen(true);
                                                                     }}
                                                                 >
                                                                     <Trash2 className="h-4 w-4 mr-2" />
-                                                                    Suspend User
+                                                                    Permanently Delete
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
@@ -521,11 +532,13 @@ function AdminContent() {
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-destructive" />
-                            Confirm {itemToDelete?.type === 'user' ? 'Suspension' : 'Deletion'}
+                            Confirm {itemToDelete?.type === 'user' ? (itemToDelete.permanent ? 'Permanent Deletion' : 'Suspension') : 'Deletion'}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             {itemToDelete?.type === 'user'
-                                ? `Are you sure you want to suspend ${(itemToDelete.item as User).full_name || 'this user'}? They will no longer be able to access the system.`
+                                ? itemToDelete.permanent
+                                    ? `Are you sure you want to PERMANENTLY DELETE ${(itemToDelete.item as User).full_name || 'this user'}? This will remove all their data and cannot be undone.`
+                                    : `Are you sure you want to suspend ${(itemToDelete.item as User).full_name || 'this user'}? They will no longer be able to access the system.`
                                 : `Are you sure you want to delete the "${(itemToDelete?.item as Department)?.name}" department? This action cannot be undone.`
                             }
                         </AlertDialogDescription>
@@ -536,7 +549,7 @@ function AdminContent() {
                             onClick={handleDeleteConfirm}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {itemToDelete?.type === 'user' ? 'Suspend User' : 'Delete Department'}
+                            {itemToDelete?.type === 'user' ? (itemToDelete.permanent ? 'Delete Permanently' : 'Suspend User') : 'Delete Department'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
