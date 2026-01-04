@@ -1,4 +1,7 @@
-import { Link, useLocation } from "react-router-dom";
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { cn } from "@/lib/utils";
 import { Activity, User, LogOut, ClipboardList, Users, Building2, FileText, Shield, LayoutDashboard, ChevronDown, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +14,7 @@ interface HeaderProps {
 }
 
 export function Header({ className }: HeaderProps) {
-  const location = useLocation();
+  const pathname = usePathname();
   const { user, profile, isAdmin, isManager, isDirector, signOut } = useAuth();
   const [isDark, setIsDark] = useState(false);
 
@@ -24,7 +27,7 @@ export function Header({ className }: HeaderProps) {
   const toggleTheme = () => {
     const newIsDark = !isDark;
     setIsDark(newIsDark);
-    
+
     if (newIsDark) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
@@ -34,7 +37,7 @@ export function Header({ className }: HeaderProps) {
     }
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => pathname === path;
 
   const navItems = [
     {
@@ -76,7 +79,7 @@ export function Header({ className }: HeaderProps) {
     )}>
       <div className="container h-full flex items-center justify-between">
         {/* Logo */}
-        <Link to="/dashboard" className="flex items-center gap-3 group">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
           <div className="relative">
             <div className="absolute inset-0 bg-primary rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
             <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-primary glow-primary group-hover:scale-105 transition-transform">
@@ -90,21 +93,21 @@ export function Header({ className }: HeaderProps) {
             </p>
           </div>
         </Link>
-        
+
         {/* Nav */}
         {user && (
           <nav className="hidden md:flex items-center gap-1 p-1 rounded-xl bg-muted/30 border border-border/30 backdrop-blur-sm">
             {navItems.map((item) => {
               const active = isActive(item.path);
               return (
-                <Link key={item.path} to={item.path}>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                <Link key={item.path} href={item.path}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className={cn(
                       "gap-2 rounded-lg transition-all duration-300",
-                      active 
-                        ? "bg-background/80 text-primary shadow-sm border border-border/50" 
+                      active
+                        ? "bg-background/80 text-primary shadow-sm border border-border/50"
                         : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                     )}
                   >
@@ -119,7 +122,7 @@ export function Header({ className }: HeaderProps) {
             })}
           </nav>
         )}
-        
+
         {/* Actions */}
         <div className="flex items-center gap-3">
           {/* Dark Mode Toggle */}
@@ -139,8 +142,8 @@ export function Header({ className }: HeaderProps) {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="gap-2 px-3 py-2 h-auto rounded-xl bg-muted/30 border border-border/30 hover:bg-muted/50 hover:border-primary/30 transition-all duration-300"
                 >
                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -170,20 +173,20 @@ export function Header({ className }: HeaderProps) {
                     </div>
                   </div>
                 </div>
-                
+
                 <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
-                  <Link to="/dashboard" className="flex items-center gap-2 p-2">
+                  <Link href="/dashboard" className="flex items-center gap-2 p-2">
                     <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
                       <LayoutDashboard className="h-4 w-4 text-foreground" />
                     </div>
                     <span>Dashboard</span>
                   </Link>
                 </DropdownMenuItem>
-                
+
                 <DropdownMenuSeparator className="my-2 bg-border/50" />
-                
-                <DropdownMenuItem 
-                  onClick={signOut} 
+
+                <DropdownMenuItem
+                  onClick={signOut}
                   className="rounded-lg cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
                 >
                   <div className="flex items-center gap-2 p-1">
@@ -196,7 +199,7 @@ export function Header({ className }: HeaderProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Link to="/auth">
+            <Link href="/auth">
               <Button className="glow-primary hover:scale-105 transition-all duration-300">
                 Sign In
               </Button>

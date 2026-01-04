@@ -1,101 +1,65 @@
-import { Check, FileText, UserCheck, User, Building, MessageSquare } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCurrentStep, getStatusInfo } from "@/lib/assessmentStatus";
-
-interface Step {
-  label: string;
-  icon: React.ElementType;
-  description?: string;
-}
-
-const STEPS: Step[] = [
-  { label: "Staff Assessment", icon: FileText, description: "Self-evaluation" },
-  { label: "Manager Appraisal", icon: UserCheck, description: "Review & scoring" },
-  { label: "Director Approval", icon: Building, description: "Final sign-off" },
-  { label: "Staff Acknowledged", icon: User, description: "Accept or raise questions" },
-];
 
 interface AssessmentProgressProps {
   status: string;
-  hasQuestions?: boolean;
   className?: string;
 }
 
-export function AssessmentProgress({ status, hasQuestions = false, className }: AssessmentProgressProps) {
-  const currentStep = getCurrentStep(status);
-  const statusInfo = getStatusInfo(status);
-  
-  // Special case: if rejected, highlight that
-  const isRejected = status === 'rejected';
-  
+export function AssessmentProgress({ status, className }: AssessmentProgressProps) {
+  // Determine step number based on status
+  const getStep = (s: string) => {
+    switch (s) {
+      case 'draft': return 1;
+      case 'self_submitted': return 2;
+      case 'manager_reviewed': return 3;
+      case 'director_approved': return 4;
+      case 'acknowledged': return 5;
+      default: return 1;
+    }
+  };
+
+  const currentStep = getStep(status);
+  const steps = [
+    { id: 1, name: 'Drafting' },
+    { id: 2, name: 'Submission' },
+    { id: 3, name: 'Review' },
+    { id: 4, name: 'Approval' },
+    { id: 5, name: 'Finalized' }
+  ];
+
   return (
-    <div className={cn("w-full", className)}>
-      {/* Progress Steps */}
-      <div className="flex items-center justify-between relative">
-        {/* Connecting Line */}
-        <div className="absolute top-5 left-0 right-0 h-0.5 bg-border" />
-        <div 
-          className="absolute top-5 left-0 h-0.5 bg-primary transition-all duration-300"
-          style={{ width: `${Math.max(0, (currentStep - 1) / (STEPS.length - 1) * 100)}%` }}
-        />
-        
-        {STEPS.map((step, index) => {
-          const stepNumber = index + 1;
-          // For acknowledged status (step 4), mark all steps including step 4 as complete
-          const isComplete = currentStep > stepNumber || (status === 'acknowledged' && stepNumber <= 4);
-          const isCurrent = currentStep === stepNumber && status !== 'acknowledged';
-          const Icon = step.icon;
-          
-          // Check if this is step 3 and there are questions
-          const showQuestionIndicator = stepNumber === 3 && hasQuestions && isCurrent;
-          
-          return (
-            <div key={step.label} className="flex flex-col items-center relative z-10">
-              {/* Step Circle */}
-              <div
-                className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200",
-                  isComplete && "bg-primary border-primary text-primary-foreground",
-                  isCurrent && !isRejected && "bg-primary/10 border-primary text-primary",
-                  isCurrent && isRejected && "bg-destructive/10 border-destructive text-destructive",
-                  !isComplete && !isCurrent && "bg-background border-muted-foreground/30 text-muted-foreground"
-                )}
-              >
-                {isComplete ? (
-                  <Check className="h-5 w-5" />
-                ) : showQuestionIndicator ? (
-                  <MessageSquare className="h-5 w-5" />
-                ) : (
-                  <Icon className="h-5 w-5" />
-                )}
-              </div>
-              
-              {/* Label */}
-              <span
-                className={cn(
-                  "mt-2 text-xs font-medium text-center max-w-[80px]",
-                  isComplete && "text-primary",
-                  isCurrent && !isRejected && "text-primary",
-                  isCurrent && isRejected && "text-destructive",
-                  !isComplete && !isCurrent && "text-muted-foreground"
-                )}
-              >
-                {showQuestionIndicator ? "Question Raised" : step.label}
-              </span>
+    <div className={cn("space-y-4", className)}>
+      <div className="flex justify-between mb-4">
+        {steps.map((step) => (
+          <div key={step.id} className="flex flex-col items-center gap-2 flex-1 relative">
+            {/* Connecting line */}
+            {step.id < 5 && (
+              <div className={cn(
+                "absolute left-1/2 top-4 w-full h-0.5 -z-10",
+                currentStep > step.id ? "bg-primary" : "bg-muted"
+              )} />
+            )}
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
+              currentStep > step.id ? "bg-primary text-white" :
+                currentStep === step.id ? "bg-primary text-white ring-4 ring-primary/20 scale-110" :
+                  "bg-muted text-muted-foreground"
+            )}>
+              {currentStep > step.id ? <ShieldCheck className="h-4 w-4" /> : step.id}
             </div>
-          );
-        })}
+            <span className={cn(
+              "text-[10px] font-bold uppercase tracking-tighter",
+              currentStep === step.id ? "text-primary" : "text-muted-foreground"
+            )}>
+              {step.name}
+            </span>
+          </div>
+        ))}
       </div>
-      
-      {/* Current Status Label */}
-      <div className="mt-4 text-center">
-        <p className={cn(
-          "text-sm font-medium",
-          isRejected ? "text-destructive" : "text-foreground"
-        )}>
-          {statusInfo.label}
-        </p>
-        <p className="text-xs text-muted-foreground">{statusInfo.description}</p>
+
+      <div className="p-3 rounded-lg bg-primary/5 text-primary border border-primary/10 text-xs font-bold text-center">
+        Current Phase: {steps.find(s => s.id === currentStep)?.name.toUpperCase()}
       </div>
     </div>
   );

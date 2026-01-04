@@ -1,37 +1,36 @@
-import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api-client";
 import { useAuth } from "./useAuth";
 import { toast } from "./use-toast";
 
-export interface ScoreOption {
-  score: number;
-  label: string;
-  enabled: boolean;
-}
-
-export interface EvidenceItem {
-  evidence: string;
-  notes: string;
-}
-
-export interface IndicatorData {
+export interface KPIData {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   evidence_guidance: string | null;
-  score_options: ScoreOption[];
-  score: number | null;
+  trainings: string | null;
+  rubric_4: string;
+  rubric_3: string;
+  rubric_2: string;
+  rubric_1: string;
+  score: number | 'X' | null;
   evidence: string | EvidenceItem[];
   // Manager data for review comparison
-  managerScore?: number | null;
+  managerScore?: number | 'X' | null;
   managerEvidence?: string | EvidenceItem[];
 }
 
-export interface SectionData {
+export interface StandardData {
+  id: string;
+  name: string;
+  kpis: KPIData[];
+}
+
+export interface DomainData {
   id: string;
   name: string;
   weight: number;
-  indicators: IndicatorData[];
+  standards: StandardData[];
 }
 
 // Helper to check if indicator has valid evidence
@@ -42,14 +41,6 @@ export function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
   return typeof evidence === 'string' && evidence.trim().length > 0;
 }
 
-// Helper to serialize evidence for storage
-function serializeEvidence(evidence: string | EvidenceItem[]): EvidenceItem[] | string {
-  if (Array.isArray(evidence)) {
-    return evidence;
-  }
-  return evidence;
-}
-
 export interface Assessment {
   id: string;
   period: string;
@@ -58,102 +49,89 @@ export interface Assessment {
   staff_id: string;
   manager_id: string | null;
   director_id: string | null;
-  staff_scores: Record<string, number>;
+  staff_scores: Record<string, number | 'X'>;
   staff_evidence: Record<string, string>;
-  manager_scores: Record<string, number>;
+  manager_scores: Record<string, number | 'X'>;
   manager_evidence: Record<string, string>;
   final_score: number | null;
   final_grade: string | null;
+  manager_notes: string | null;
+  director_comments: string | null;
+  staff_notes: string | null;
   staff_submitted_at: string | null;
   manager_reviewed_at: string | null;
   director_approved_at: string | null;
   created_at: string;
+  staff_name?: string;
+  staff_email?: string;
+  manager_name?: string;
+  director_name?: string;
+  staff_department?: string;
+  staff_job_title?: string;
 }
 
 interface RubricTemplate {
   id: string;
   name: string;
   description: string | null;
-  sections: {
+  domains: {
     id: string;
     name: string;
     weight: number;
     sort_order: number;
-    indicators: {
+    standards: {
       id: string;
       name: string;
-      description: string | null;
-      evidence_guidance: string | null;
-      score_options: ScoreOption[];
       sort_order: number;
+      kpis: {
+        id: string;
+        name: string;
+        description: string | null;
+        evidence_guidance: string | null;
+        trainings: string | null;
+        rubric_4: string;
+        rubric_3: string;
+        rubric_2: string;
+        rubric_1: string;
+        sort_order: number;
+      }[];
     }[];
   }[];
 }
 
-export function useRubricTemplates(departmentId?: string) {
+export function useRubricTemplates() {
   const [templates, setTemplates] = useState<RubricTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchTemplates() {
-      const { data, error } = await supabase
-        .from('rubric_templates')
-        .select(`
-          id, name, description, is_global, department_id,
-          rubric_sections (
-            id, name, weight, sort_order,
-            rubric_indicators (
-              id, name, description, evidence_guidance, score_options, sort_order
-            )
-          )
-        `)
-        .or(`is_global.eq.true${departmentId ? `,department_id.eq.${departmentId}` : ''}`);
+  const fetchTemplates = async () => {
+    setLoading(true);
+    const { data, error } = await api.getRubrics();
 
-      if (error) {
-        console.error('Error fetching templates:', error);
-        return;
-      }
-
-      const formatted = (data || []).map(t => ({
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        sections: (t.rubric_sections || [])
-          .sort((a: any, b: any) => a.sort_order - b.sort_order)
-          .map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            weight: Number(s.weight),
-            sort_order: s.sort_order,
-            indicators: (s.rubric_indicators || [])
-              .sort((a: any, b: any) => a.sort_order - b.sort_order)
-              .map((i: any) => ({
-                id: i.id,
-                name: i.name,
-                description: i.description,
-                evidence_guidance: i.evidence_guidance,
-                score_options: i.score_options as ScoreOption[],
-                sort_order: i.sort_order,
-              }))
-          }))
-      }));
-
-      setTemplates(formatted);
+    if (error) {
+      console.error('Error fetching templates:', error);
       setLoading(false);
+      return;
     }
 
-    fetchTemplates();
-  }, [departmentId]);
+    setTemplates((data as any[]) || []);
+    setLoading(false);
+  };
 
-  return { templates, loading };
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  return { templates, loading, refreshTemplates: fetchTemplates };
 }
 
 export function useAssessment(assessmentId?: string) {
-  const { user } = useAuth();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
-  const [sections, setSections] = useState<SectionData[]>([]);
+  const [domains, setDomains] = useState<DomainData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [managerFeedback, setManagerFeedback] = useState("");
+  const [directorFeedback, setDirectorFeedback] = useState("");
+  const [staffAcknowledgement, setStaffAcknowledgement] = useState("");
 
   useEffect(() => {
     if (!assessmentId) {
@@ -162,64 +140,64 @@ export function useAssessment(assessmentId?: string) {
     }
 
     async function fetchAssessment() {
-      const { data, error } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('id', assessmentId)
-        .single();
+      const { data: assessmentData, error: assessmentError } = await api.getAssessment(assessmentId);
 
-      if (error) {
-        console.error('Error fetching assessment:', error);
+      if (assessmentError || !assessmentData) {
+        console.error('Error fetching assessment:', assessmentError);
         setLoading(false);
         return;
       }
 
-      setAssessment(data as Assessment);
+      setAssessment(assessmentData as Assessment);
+      setManagerFeedback((assessmentData as any).manager_notes || "");
+      setDirectorFeedback((assessmentData as any).director_comments || "");
+      setStaffAcknowledgement((assessmentData as any).staff_notes || "");
 
-      // Fetch rubric template with sections and indicators
-      if (data.template_id) {
-        const { data: templateData } = await supabase
-          .from('rubric_templates')
-          .select(`
-            id, name,
-            rubric_sections (
-              id, name, weight, sort_order,
-              rubric_indicators (
-                id, name, description, evidence_guidance, score_options, sort_order
-              )
-            )
-          `)
-          .eq('id', data.template_id)
-          .single();
+      // Fetch rubric template with new hierarchy
+      const template_id = (assessmentData as any).template_id;
+      if (template_id) {
+        const { data: rubricData, error: rubricError } = await api.getRubric(template_id);
 
-        if (templateData) {
-          const staffScores = (data.staff_scores || {}) as Record<string, number>;
+        if (rubricError || !rubricData) {
+          console.error('Error fetching rubric:', rubricError);
+        } else {
+          const data = assessmentData as any;
+          const template = rubricData as any;
+
+          const staffScores = (data.staff_scores || {}) as Record<string, number | 'X'>;
           const staffEvidence = (data.staff_evidence || {}) as Record<string, string | EvidenceItem[]>;
-          const managerScores = (data.manager_scores || {}) as Record<string, number>;
+          const managerScores = (data.manager_scores || {}) as Record<string, number | 'X'>;
           const managerEvidence = (data.manager_evidence || {}) as Record<string, string | EvidenceItem[]>;
 
-          const formattedSections = (templateData.rubric_sections || [])
-            .sort((a: any, b: any) => a.sort_order - b.sort_order)
-            .map((s: any) => ({
-              id: s.id,
-              name: s.name,
-              weight: Number(s.weight),
-              indicators: (s.rubric_indicators || [])
-                .sort((a: any, b: any) => a.sort_order - b.sort_order)
-                .map((i: any) => ({
-                  id: i.id,
-                  name: i.name,
-                  description: i.description || '',
-                  evidence_guidance: i.evidence_guidance,
-                  score_options: i.score_options as ScoreOption[],
-                  score: staffScores[i.id] ?? null,
-                  evidence: staffEvidence[i.id] || '',
-                  managerScore: managerScores[i.id] ?? null,
-                  managerEvidence: managerEvidence[i.id] || '',
+          const formattedDomains = (template.domains || [])
+            .map((d: any) => ({
+              id: d.id,
+              name: d.name,
+              weight: Number(d.weight || 0),
+              standards: (d.standards || [])
+                .map((s: any) => ({
+                  id: s.id,
+                  name: s.name,
+                  kpis: (s.kpis || [])
+                    .map((k: any) => ({
+                      id: k.id,
+                      name: k.name,
+                      description: k.description,
+                      evidence_guidance: k.evidence_guidance,
+                      trainings: k.trainings,
+                      rubric_4: k.rubric_4,
+                      rubric_3: k.rubric_3,
+                      rubric_2: k.rubric_2,
+                      rubric_1: k.rubric_1,
+                      score: staffScores[k.id] ?? null,
+                      evidence: staffEvidence[k.id] || '',
+                      managerScore: managerScores[k.id] ?? null,
+                      managerEvidence: managerEvidence[k.id] || '',
+                    }))
                 }))
             }));
 
-          setSections(formattedSections);
+          setDomains(formattedDomains);
         }
       }
 
@@ -233,28 +211,53 @@ export function useAssessment(assessmentId?: string) {
     if (!assessment) return;
 
     setSaving(true);
-    const staffScores: Record<string, number> = {};
-    const staffEvidence: Record<string, string | EvidenceItem[]> = {};
+    const updates: any = {};
 
-    sections.forEach(section => {
-      section.indicators.forEach(indicator => {
-        if (indicator.score !== null) {
-          staffScores[indicator.id] = indicator.score;
-        }
-        if (indicator.evidence) {
-          staffEvidence[indicator.id] = indicator.evidence;
-        }
+    // Determine if we are saving staff or manager data
+    const isManagerView = assessment.status === 'self_submitted' || assessment.status === 'manager_reviewed';
+
+    if (isManagerView) {
+      const managerScores: Record<string, number | 'X'> = {};
+      const managerEvidence: Record<string, string | EvidenceItem[]> = {};
+
+      domains.forEach(domain => {
+        domain.standards.forEach(standard => {
+          standard.kpis.forEach(kpi => {
+            if (kpi.managerScore !== null && kpi.managerScore !== undefined) {
+              managerScores[kpi.id] = kpi.managerScore;
+            }
+            if (kpi.managerEvidence) {
+              managerEvidence[kpi.id] = kpi.managerEvidence;
+            }
+          });
+        });
       });
-    });
 
-    const { error } = await supabase
-      .from('assessments')
-      .update({
-        staff_scores: staffScores as never,
-        staff_evidence: staffEvidence as never,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', assessment.id);
+      updates.manager_scores = managerScores;
+      updates.manager_evidence = managerEvidence;
+      updates.manager_notes = managerFeedback;
+    } else {
+      const staffScores: Record<string, number | 'X'> = {};
+      const staffEvidence: Record<string, string | EvidenceItem[]> = {};
+
+      domains.forEach(domain => {
+        domain.standards.forEach(standard => {
+          standard.kpis.forEach(kpi => {
+            if (kpi.score !== null) {
+              staffScores[kpi.id] = kpi.score;
+            }
+            if (kpi.evidence) {
+              staffEvidence[kpi.id] = kpi.evidence;
+            }
+          });
+        });
+      });
+
+      updates.staff_scores = staffScores;
+      updates.staff_evidence = staffEvidence;
+    }
+
+    const { error } = await api.updateAssessment(assessment.id, updates);
 
     setSaving(false);
 
@@ -269,30 +272,28 @@ export function useAssessment(assessmentId?: string) {
     if (!assessment) return;
 
     setSaving(true);
-    const staffScores: Record<string, number> = {};
+    const staffScores: Record<string, number | 'X'> = {};
     const staffEvidence: Record<string, string | EvidenceItem[]> = {};
 
-    sections.forEach(section => {
-      section.indicators.forEach(indicator => {
-        if (indicator.score !== null) {
-          staffScores[indicator.id] = indicator.score;
-        }
-        if (indicator.evidence) {
-          staffEvidence[indicator.id] = indicator.evidence;
-        }
+    domains.forEach(domain => {
+      domain.standards.forEach(standard => {
+        standard.kpis.forEach(kpi => {
+          if (kpi.score !== null) {
+            staffScores[kpi.id] = kpi.score;
+          }
+          if (kpi.evidence) {
+            staffEvidence[kpi.id] = kpi.evidence;
+          }
+        });
       });
     });
 
-    const { error } = await supabase
-      .from('assessments')
-      .update({
-        staff_scores: staffScores as never,
-        staff_evidence: staffEvidence as never,
-        status: 'self_submitted',
-        staff_submitted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', assessment.id);
+    const { error } = await api.updateAssessment(assessment.id, {
+      staff_scores: staffScores,
+      staff_evidence: staffEvidence,
+      status: 'self_submitted',
+      staff_submitted_at: new Date().toISOString(),
+    });
 
     setSaving(false);
 
@@ -304,17 +305,128 @@ export function useAssessment(assessmentId?: string) {
     }
   };
 
-  const updateIndicator = (sectionId: string, indicatorId: string, updates: Partial<IndicatorData>) => {
-    setSections(prev => prev.map(section => {
-      if (section.id !== sectionId) return section;
-      return {
-        ...section,
-        indicators: section.indicators.map(indicator => {
-          if (indicator.id !== indicatorId) return indicator;
-          return { ...indicator, ...updates };
+  const submitReview = async () => {
+    if (!assessment) return;
+
+    setSaving(true);
+    const managerScores: Record<string, number | 'X'> = {};
+    const managerEvidence: Record<string, string | EvidenceItem[]> = {};
+
+    domains.forEach(domain => {
+      domain.standards.forEach(standard => {
+        standard.kpis.forEach(kpi => {
+          if (kpi.managerScore !== null && kpi.managerScore !== undefined) {
+            managerScores[kpi.id] = kpi.managerScore;
+          }
+          if (kpi.managerEvidence) {
+            managerEvidence[kpi.id] = kpi.managerEvidence;
+          }
+        });
+      });
+    });
+
+    // Calculate final score for performance review
+    const finalScore = calculateWeightedScore(domains, 'manager');
+
+    if (!managerFeedback || !managerFeedback.trim()) {
+      toast({
+        title: "Feedback Required",
+        description: "Please provide overall feedback before submitting the review.",
+        variant: "destructive"
+      });
+      setSaving(false);
+      return;
+    }
+
+    const { error } = await api.updateAssessment(assessment.id, {
+      manager_scores: managerScores,
+      manager_evidence: managerEvidence,
+      manager_notes: managerFeedback,
+      status: 'manager_reviewed',
+      manager_reviewed_at: new Date().toISOString(),
+      final_score: finalScore,
+    });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to submit review", variant: "destructive" });
+    } else {
+      toast({ title: "Submitted", description: "Review submitted successfully" });
+      setAssessment(prev => prev ? { ...prev, status: 'manager_reviewed' } : null);
+    }
+  };
+
+  const approveAssessment = async () => {
+    if (!assessment) return;
+
+    if (!directorFeedback || !directorFeedback.trim()) {
+      toast({
+        title: "Feedback Required",
+        description: "Please provide final comments before approving.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    const { error } = await api.updateAssessment(assessment.id, {
+      status: 'director_approved',
+      director_comments: directorFeedback,
+      director_approved_at: new Date().toISOString(),
+    });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to approve assessment", variant: "destructive" });
+    } else {
+      toast({ title: "Approved", description: "Assessment approved successfully" });
+      setAssessment(prev => prev ? { ...prev, status: 'director_approved' } : null);
+    }
+  };
+
+  const acknowledgeAssessment = async () => {
+    if (!assessment) return;
+
+    if (!staffAcknowledgement || !staffAcknowledgement.trim()) {
+      toast({
+        title: "Feedback Required",
+        description: "Please provide your final comments/feedback before acknowledging.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    const { error } = await api.updateAssessment(assessment.id, {
+      status: 'acknowledged',
+      staff_notes: staffAcknowledgement,
+    });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to acknowledge assessment", variant: "destructive" });
+    } else {
+      toast({ title: "Acknowledged", description: "Assessment acknowledged successfully" });
+      setAssessment(prev => prev ? { ...prev, status: 'acknowledged' } : null);
+    }
+  };
+
+  const updateKPI = (kpiId: string, updates: Partial<KPIData>) => {
+    setDomains(prev => prev.map(domain => ({
+      ...domain,
+      standards: domain.standards.map(standard => ({
+        ...standard,
+        kpis: standard.kpis.map(kpi => {
+          if (kpi.id !== kpiId) return kpi;
+          return { ...kpi, ...updates };
         })
-      };
-    }));
+      }))
+    })));
   };
 
   const updateAssessmentStatus = (status: string) => {
@@ -323,13 +435,22 @@ export function useAssessment(assessmentId?: string) {
 
   return {
     assessment,
-    sections,
+    domains,
     loading,
     saving,
     saveDraft,
     submitAssessment,
-    updateIndicator,
+    submitReview,
+    updateKPI,
     updateAssessmentStatus,
+    managerFeedback,
+    setManagerFeedback,
+    directorFeedback,
+    setDirectorFeedback,
+    staffAcknowledgement,
+    setStaffAcknowledgement,
+    approveAssessment,
+    acknowledgeAssessment,
   };
 }
 
@@ -345,16 +466,12 @@ export function useMyAssessments() {
     }
 
     async function fetchAssessments() {
-      const { data, error } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('staff_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await api.getAssessments({ staffId: user!.id });
 
       if (error) {
         console.error('Error fetching assessments:', error);
       } else {
-        setAssessments((data || []) as Assessment[]);
+        setAssessments((data as Assessment[]) || []);
       }
       setLoading(false);
     }
@@ -365,24 +482,19 @@ export function useMyAssessments() {
   const createAssessment = async (templateId: string, period: string) => {
     if (!user) return null;
 
-    const { data, error } = await supabase
-      .from('assessments')
-      .insert({
-        staff_id: user.id,
-        template_id: templateId,
-        period,
-        status: 'draft',
-      })
-      .select()
-      .single();
+    const { data, error } = await api.createAssessment({
+      template_id: templateId,
+      period,
+    });
 
     if (error) {
       toast({ title: "Error", description: "Failed to create assessment", variant: "destructive" });
       return null;
     }
 
-    setAssessments(prev => [data as Assessment, ...prev]);
-    return data as Assessment;
+    const newAssessment = data as Assessment;
+    setAssessments(prev => [newAssessment, ...prev]);
+    return newAssessment;
   };
 
   return { assessments, loading, createAssessment };
@@ -400,45 +512,15 @@ export function useTeamAssessments() {
     }
 
     async function fetchTeamAssessments() {
-      // Get assessments where user is manager (any status) or pending review (self_submitted)
-      const { data: managerData } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('manager_id', user.id)
-        .order('created_at', { ascending: false });
+      // API currently handles general listing, we might need more specific filters later
+      // For now, get all assessments and we'll filter them as needed or expect the API to handle permissions
+      const { data, error } = await api.getAssessments();
 
-      const { data: pendingData } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('status', 'self_submitted')
-        .order('created_at', { ascending: false });
-
-      // Combine and dedupe
-      const allData = [...(managerData || []), ...(pendingData || [])];
-      const uniqueData = allData.filter((a, idx, arr) => arr.findIndex(b => b.id === a.id) === idx);
-      
-      if (uniqueData.length === 0) {
-        setAssessments([]);
-        setLoading(false);
-        return;
+      if (error) {
+        console.error('Error fetching team assessments:', error);
+      } else {
+        setAssessments((data as any[]) || []);
       }
-
-      // Fetch staff profiles
-      const staffIds = [...new Set(uniqueData.map(a => a.staff_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email')
-        .in('user_id', staffIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
-
-      const enriched = uniqueData.map(a => ({
-        ...a as Assessment,
-        staff_name: profileMap.get(a.staff_id)?.full_name || 'Unknown',
-        staff_email: profileMap.get(a.staff_id)?.email || '',
-      }));
-
-      setAssessments(enriched);
       setLoading(false);
     }
 
@@ -448,20 +530,52 @@ export function useTeamAssessments() {
   return { assessments, loading };
 }
 
-export function calculateWeightedScore(sections: SectionData[]): number | null {
+export function calculateWeightedScore(domains: DomainData[] | undefined | null, type: 'staff' | 'manager' = 'staff'): number | null {
+  if (!domains || !Array.isArray(domains)) return null;
+
   let totalWeight = 0;
   let weightedSum = 0;
 
-  for (const section of sections) {
-    const scoredIndicators = section.indicators.filter(i => i.score !== null);
-    if (scoredIndicators.length === 0) continue;
+  for (const domain of domains) {
+    let domainKPIs: KPIData[] = [];
+    domain.standards.forEach(s => {
+      domainKPIs = [...domainKPIs, ...s.kpis];
+    });
 
-    const sectionAvg = scoredIndicators.reduce((sum, i) => sum + (i.score || 0), 0) / scoredIndicators.length;
-    weightedSum += sectionAvg * section.weight;
-    totalWeight += section.weight;
+    const scoredKPIs = domainKPIs.filter(kpi => {
+      const score = type === 'staff' ? kpi.score : kpi.managerScore;
+      return score !== null && score !== undefined && score !== 'X';
+    });
+
+    if (scoredKPIs.length === 0) continue;
+
+    const domainAvg = scoredKPIs.reduce((sum, kpi) => {
+      const score = type === 'staff' ? kpi.score : kpi.managerScore;
+      return sum + (Number(score) || 0);
+    }, 0) / scoredKPIs.length;
+
+    weightedSum += domainAvg * domain.weight;
+    totalWeight += domain.weight;
   }
 
-  if (totalWeight === 0) return null;
+  if (totalWeight === 0) {
+    // If no weights defined but there are scored KPIs, return simple average of all scored KPIs
+    let allScoredKPIs: number[] = [];
+    domains.forEach(d => {
+      d.standards.forEach(s => {
+        s.kpis.forEach(kpi => {
+          const score = type === 'staff' ? kpi.score : kpi.managerScore;
+          if (score !== null && score !== undefined && score !== 'X') {
+            allScoredKPIs.push(Number(score));
+          }
+        });
+      });
+    });
+
+    if (allScoredKPIs.length === 0) return null;
+    return allScoredKPIs.reduce((a, b) => a + b, 0) / allScoredKPIs.length;
+  }
+
   return weightedSum / totalWeight;
 }
 

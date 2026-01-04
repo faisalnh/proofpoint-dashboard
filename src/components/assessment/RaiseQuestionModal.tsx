@@ -5,9 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { MessageSquare, Send, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api-client";
 import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 
 interface Indicator {
   id: string;
@@ -27,18 +26,17 @@ interface RaiseQuestionModalProps {
   sections: Section[];
 }
 
-export function RaiseQuestionModal({ 
-  open, 
-  onOpenChange, 
-  assessmentId, 
-  sections 
+export function RaiseQuestionModal({
+  open,
+  onOpenChange,
+  assessmentId,
+  sections
 }: RaiseQuestionModalProps) {
-  const { user } = useAuth();
   const [selectedIndicator, setSelectedIndicator] = useState<string>("");
   const [question, setQuestion] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const allIndicators = sections.flatMap(section => 
+  const allIndicators = sections.flatMap(section =>
     section.indicators.map(indicator => ({
       ...indicator,
       sectionName: section.name
@@ -55,27 +53,14 @@ export function RaiseQuestionModal({
       return;
     }
 
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to submit a question.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from('assessment_questions')
-        .insert({
-          assessment_id: assessmentId,
-          indicator_id: selectedIndicator || null,
-          asked_by: user.id,
-          question: question.trim(),
-          status: 'pending'
-        });
+      const { error } = await api.createQuestion({
+        assessment_id: assessmentId,
+        indicator_id: selectedIndicator || undefined,
+        question: question.trim(),
+      });
 
       if (error) throw error;
 
@@ -88,11 +73,12 @@ export function RaiseQuestionModal({
       setQuestion("");
       setSelectedIndicator("");
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error submitting question:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to submit question. Please try again.";
       toast({
         title: "Error",
-        description: error.message || "Failed to submit question. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -109,7 +95,7 @@ export function RaiseQuestionModal({
             Raise a Question
           </DialogTitle>
           <DialogDescription>
-            Have a question about your assessment or the manager's review? Submit it here and your manager will respond.
+            Have a question about your assessment or the manager&apos;s review? Submit it here and your manager will respond.
           </DialogDescription>
         </DialogHeader>
 
@@ -144,7 +130,7 @@ export function RaiseQuestionModal({
               className="min-h-[120px] resize-none"
             />
             <p className="text-xs text-muted-foreground">
-              Be specific about what you'd like clarification on.
+              Be specific about what you&apos;d like clarification on.
             </p>
           </div>
         </div>

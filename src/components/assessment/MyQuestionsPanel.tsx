@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, CheckCircle, Clock, UserCheck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api-client";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Question {
@@ -30,20 +30,10 @@ export function MyQuestionsPanel({ assessmentId, indicators = [] }: MyQuestionsP
     if (!user) return;
 
     const fetchQuestions = async () => {
-      const { data, error } = await supabase
-        .from('assessment_questions')
-        .select(`
-          id,
-          indicator_id,
-          question,
-          response,
-          status,
-          created_at,
-          responded_at
-        `)
-        .eq('assessment_id', assessmentId)
-        .eq('asked_by', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await api.getQuestions({
+        assessmentId,
+        askedBy: user.id
+      });
 
       if (error) {
         console.error('Error fetching questions:', error);
@@ -52,7 +42,7 @@ export function MyQuestionsPanel({ assessmentId, indicators = [] }: MyQuestionsP
           indicators.map(i => [i.id, i.name])
         );
 
-        setQuestions((data || []).map(q => ({
+        setQuestions((data as Question[] || []).map(q => ({
           ...q,
           indicator_name: q.indicator_id ? indicatorMap.get(q.indicator_id) : undefined,
         })));
@@ -61,7 +51,7 @@ export function MyQuestionsPanel({ assessmentId, indicators = [] }: MyQuestionsP
     };
 
     fetchQuestions();
-  }, [assessmentId, user]);
+  }, [assessmentId, user, indicators]);
 
   if (loading) {
     return null;
@@ -110,7 +100,7 @@ export function MyQuestionsPanel({ assessmentId, indicators = [] }: MyQuestionsP
               <div className="p-2.5 bg-primary/5 border border-primary/20 rounded-md">
                 <div className="flex items-center gap-1.5 text-xs text-primary font-medium mb-1">
                   <UserCheck className="h-3 w-3" />
-                  Manager's Response
+                  Manager&apos;s Response
                 </div>
                 <p className="text-sm">{question.response}</p>
               </div>

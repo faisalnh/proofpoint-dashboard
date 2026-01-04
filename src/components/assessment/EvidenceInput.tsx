@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Plus, Trash2, Link, FileText, Upload, Loader2, ExternalLink, Info } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 
 export interface EvidenceItem {
   evidence: string;
+  name?: string;
   notes: string;
   type?: "link" | "file";
   fileName?: string;
@@ -28,7 +28,7 @@ interface EvidenceInputProps {
 function parseEvidenceValue(value: string | EvidenceItem[]): EvidenceItem[] {
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return [{ evidence: "", notes: "", inputMode: "initial" }];
+      return [{ evidence: "", name: "", notes: "", inputMode: "initial" }];
     }
     // Ensure existing items with evidence show the correct input mode
     return value.map(item => ({
@@ -38,9 +38,9 @@ function parseEvidenceValue(value: string | EvidenceItem[]): EvidenceItem[] {
   }
   // Legacy string format - convert to new format
   if (typeof value === "string" && value.trim()) {
-    return [{ evidence: value, notes: "", type: "link", inputMode: "link" }];
+    return [{ evidence: value, name: "Link", notes: "", type: "link", inputMode: "link" }];
   }
-  return [{ evidence: "", notes: "", inputMode: "initial" }];
+  return [{ evidence: "", name: "", notes: "", inputMode: "initial" }];
 }
 
 function isEvidenceRequired(score: number | null): boolean {
@@ -71,7 +71,7 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
   };
 
   const addItem = () => {
-    onChange([...items, { evidence: "", notes: "", inputMode: "initial" }]);
+    onChange([...items, { evidence: "", name: "", notes: "", inputMode: "initial" }]);
   };
 
   const setInputMode = (index: number, mode: "initial" | "link" | "file") => {
@@ -94,35 +94,38 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
     }
 
     setUploadingIndex(index);
-    
+
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${file.name}`;
-      const filePath = `${user.id}/${fileName}`;
+      const formData = new FormData();
+      formData.append('file', file);
 
-      const { data, error } = await supabase.storage
-        .from('evidence')
-        .upload(filePath, file);
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
 
-      const { data: urlData } = supabase.storage
-        .from('evidence')
-        .getPublicUrl(filePath);
+      const result = await response.json();
 
       const newItems = [...items];
       newItems[index] = {
         ...newItems[index],
-        evidence: urlData.publicUrl,
+        evidence: result.url,
         type: "file",
-        fileName: file.name
+        fileName: result.fileName,
+        name: result.fileName // Default name to filename
       };
       onChange(newItems);
-      
+
       toast({ title: "Success", description: "File uploaded successfully" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Upload error:', error);
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      toast({ title: "Upload failed", description: errorMessage, variant: "destructive" });
     } finally {
       setUploadingIndex(null);
     }
@@ -157,7 +160,7 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
             Supporting Evidence
           </span>
         </div>
-        
+
         <span className={cn(
           "text-xs font-mono px-2 py-0.5 rounded-full",
           required ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
@@ -165,7 +168,7 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
           {required ? "Required" : "N/A"}
         </span>
       </div>
-      
+
       {/* Evidence Items */}
       <div className="p-3 space-y-3">
         {/* Evidence guidance */}
@@ -192,35 +195,43 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
         ) : (
           <>
             {/* Table Header */}
-            <div className="grid grid-cols-[40px_1fr_1fr_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
-              <span>#</span>
-              <span className="flex items-center gap-1">
-                Evidence (Link or File)
-              </span>
-              <span>Notes</span>
+            <div className="grid grid-cols-[30px_1fr_1fr_1fr_30px] gap-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+              <span className="text-center">#</span>
+              <span>Title / Name</span>
+              <span>Evidence (Link or File)</span>
+              <span>Additional Notes</span>
               <span></span>
             </div>
 
             {/* Evidence Rows */}
             {items.map((item, index) => (
-              <div 
+              <div
                 key={index}
-                className="grid grid-cols-[40px_1fr_1fr_40px] gap-2 items-start"
+                className="grid grid-cols-[30px_1fr_1fr_1fr_30px] gap-3 items-start p-2 rounded-lg bg-muted/20 border border-transparent hover:border-border/50 hover:bg-muted/30 transition-all duration-200"
               >
-                <span className="flex items-center justify-center h-9 text-sm font-mono text-muted-foreground">
+                <span className="flex items-center justify-center h-9 text-xs font-mono text-muted-foreground/60">
                   {index + 1}
                 </span>
-                
+
+                {/* Name / Title */}
+                <Input
+                  value={item.name || ""}
+                  onChange={(e) => updateItem(index, "name", e.target.value)}
+                  placeholder="e.g. Sales Report"
+                  disabled={isDisabled}
+                  className="h-9 text-sm bg-background/50"
+                />
+
                 {/* Evidence Input */}
                 <div className="space-y-2">
                   {/* Show uploaded file info if exists */}
                   {item.type === "file" && item.fileName && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm border border-border/50 shadow-sm">
                       <FileText className="h-4 w-4 text-primary shrink-0" />
-                      <span className="truncate flex-1">{item.fileName}</span>
-                      <a 
-                        href={item.evidence} 
-                        target="_blank" 
+                      <span className="truncate flex-1 font-medium">{item.name || item.fileName}</span>
+                      <a
+                        href={item.evidence}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:text-primary/80"
                         title="Open file"
@@ -232,12 +243,12 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
 
                   {/* Show link evidence if exists */}
                   {item.type === "link" && item.evidence.trim() && item.inputMode !== "link" && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-sm border border-border/50 shadow-sm">
                       <Link className="h-4 w-4 text-primary shrink-0" />
-                      <span className="truncate flex-1">{item.evidence}</span>
-                      <a 
-                        href={item.evidence} 
-                        target="_blank" 
+                      <span className="truncate flex-1 font-medium">{item.name || item.evidence}</span>
+                      <a
+                        href={item.evidence}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:text-primary/80"
                         title="Open link"
@@ -246,7 +257,7 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
                       </a>
                     </div>
                   )}
-                  
+
                   {/* Initial state: Two icon buttons */}
                   {item.inputMode === "initial" && !item.evidence.trim() && (
                     <div className="flex items-center gap-1">
@@ -304,8 +315,8 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
                         value={item.evidence}
                         onChange={(e) => {
                           const newItems = [...items];
-                          newItems[index] = { 
-                            ...newItems[index], 
+                          newItems[index] = {
+                            ...newItems[index],
                             evidence: e.target.value,
                             type: "link",
                             fileName: undefined
@@ -422,13 +433,13 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
                     </div>
                   )}
                 </div>
-                
+
                 <Textarea
                   value={item.notes}
                   onChange={(e) => updateItem(index, "notes", e.target.value)}
-                  placeholder="Additional notes..."
+                  placeholder="Short explanation..."
                   disabled={isDisabled}
-                  className="min-h-[36px] h-9 resize-none py-2"
+                  className="min-h-[36px] h-9 resize-none py-2 text-sm bg-background/50"
                   rows={1}
                 />
                 <Button
@@ -437,7 +448,7 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
                   size="icon"
                   onClick={() => removeItem(index)}
                   disabled={isDisabled || items.length <= 1}
-                  className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                  className="h-9 w-9 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -459,7 +470,7 @@ export function EvidenceInput({ score, value, onChange, disabled, evidenceGuidan
           </>
         )}
       </div>
-      
+
       {/* Footer warning */}
       {showWarning && (
         <div className="px-3 py-2 text-xs border-t border-evidence-alert-border text-evidence-alert">
