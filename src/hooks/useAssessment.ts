@@ -433,6 +433,22 @@ export function useAssessment(assessmentId?: string) {
     setAssessment(prev => prev ? { ...prev, status } : null);
   };
 
+  const deleteAssessment = async () => {
+    if (!assessment) return;
+
+    setSaving(true);
+    const { error } = await api.deleteAssessment(assessment.id);
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: error.message || "Failed to delete assessment", variant: "destructive" });
+      return false;
+    } else {
+      toast({ title: "Deleted", description: "Assessment deleted successfully" });
+      return true;
+    }
+  };
+
   return {
     assessment,
     domains,
@@ -451,6 +467,7 @@ export function useAssessment(assessmentId?: string) {
     setStaffAcknowledgement,
     approveAssessment,
     acknowledgeAssessment,
+    deleteAssessment,
   };
 }
 
@@ -497,7 +514,18 @@ export function useMyAssessments() {
     return newAssessment;
   };
 
-  return { assessments, loading, createAssessment };
+  const deleteAssessment = async (id: string) => {
+    const { error } = await api.deleteAssessment(id);
+    if (error) {
+      toast({ title: "Error", description: error.message || "Failed to delete", variant: "destructive" });
+      return false;
+    }
+    setAssessments(prev => prev.filter(a => a.id !== id));
+    toast({ title: "Deleted", description: "Assessment deleted" });
+    return true;
+  };
+
+  return { assessments, loading, createAssessment, deleteAssessment };
 }
 
 export function useTeamAssessments() {

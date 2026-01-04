@@ -17,7 +17,10 @@ import { Badge } from '@/components/ui/badge';
 import {
     useAssessment,
     useTeamAssessments,
-    calculateWeightedScore
+    calculateWeightedScore,
+    DomainData,
+    StandardData,
+    KPIData
 } from '@/hooks/useAssessment';
 import {
     Users,
@@ -28,11 +31,13 @@ import {
     Clock,
     AlertCircle,
     Search,
-    FileText
+    FileText,
+    Trash2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/useAuth';
 
 function ManagerContent() {
     const router = useRouter();
@@ -44,15 +49,18 @@ function ManagerContent() {
     const { assessments, loading: listLoading } = useTeamAssessments();
     const {
         assessment,
-        sections,
+        domains,
         loading: assessmentLoading,
         updateIndicator,
         saveDraft,
         submitReview,
         saving,
         managerFeedback,
-        setManagerFeedback
+        setManagerFeedback,
+        deleteAssessment
     } = useAssessment(assessmentId || undefined);
+
+    const { isAdmin } = useAuth();
 
     useEffect(() => {
         if (isPrintMode && !assessmentLoading && assessment) {
@@ -119,8 +127,8 @@ function ManagerContent() {
         window.open(url, '_blank');
     };
 
-    const staffWeightedScore = calculateWeightedScore(sections, 'staff');
-    const managerWeightedScore = calculateWeightedScore(sections, 'manager');
+    const staffWeightedScore = calculateWeightedScore(domains, 'staff');
+    const managerWeightedScore = calculateWeightedScore(domains, 'manager');
     const isReadOnly = assessment?.status === 'manager_reviewed' ||
         assessment?.status === 'director_approved' ||
         assessment?.status === 'acknowledged';
@@ -163,23 +171,44 @@ function ManagerContent() {
                         </Button>
                     </div>
                 )}
+
+                {isAdmin && (
+                    <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-10 w-10 rounded-xl shadow-lg hover:shadow-destructive/20 ml-2"
+                        onClick={async () => {
+                            if (window.confirm("Are you sure you want to delete this assessment? This action cannot be undone.")) {
+                                if (await deleteAssessment()) {
+                                    router.push('/manager');
+                                }
+                            }
+                        }}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
-                    {sections.map((section) => (
+                    {domains.map((domain: DomainData) => (
                         <ReviewComparisonSection
-                            key={section.id}
+                            key={domain.id}
                             onIndicatorChange={updateIndicator}
                             readonly={isReadOnly}
                             section={{
-                                ...section,
-                                indicators: section.indicators.map(i => ({
-                                    ...i,
-                                    staffScore: i.score,
-                                    staffEvidence: i.evidence,
-                                    managerScore: i.managerScore ?? null,
-                                    managerEvidence: i.managerEvidence ?? ''
+                                ...domain,
+                                standards: domain.standards.map((s: StandardData) => ({
+                                    ...s,
+                                    kpis: s.kpis.map((i: KPIData) => ({
+                                        ...i,
+                                        description: i.description || '',
+                                        staffScore: i.score,
+                                        staffEvidence: i.evidence,
+                                        managerScore: i.managerScore ?? null,
+                                        managerEvidence: i.managerEvidence ?? ''
+                                    }))
                                 }))
                             }}
                         />
@@ -245,13 +274,13 @@ function ManagerContent() {
                         </Card>
 
                         <WeightedScoreDisplay
-                            sections={sections}
+                            domains={domains}
                             score={staffWeightedScore}
                             label="Staff Self-Grade"
                             type="staff"
                         />
                         <WeightedScoreDisplay
-                            sections={sections}
+                            domains={domains}
                             score={managerWeightedScore}
                             label="Manager Review Grade"
                             type="manager"

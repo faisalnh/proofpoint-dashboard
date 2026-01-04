@@ -13,7 +13,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
     useAssessment,
-    calculateWeightedScore
+    calculateWeightedScore,
+    DomainData,
+    StandardData,
+    KPIData
 } from '@/hooks/useAssessment';
 import {
     Building2,
@@ -23,6 +26,7 @@ import {
     CheckCircle2,
     Search,
     ShieldCheck,
+    Trash2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,19 +44,20 @@ function DirectorContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const assessmentId = searchParams.get('id');
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
 
     const [assessments, setAssessments] = useState<any[]>([]);
     const [loadingList, setLoadingList] = useState(true);
     const {
         assessment,
-        sections,
+        domains,
         loading: assessmentLoading,
         saving,
         approveAssessment,
         managerFeedback,
         directorFeedback,
-        setDirectorFeedback
+        setDirectorFeedback,
+        deleteAssessment
     } = useAssessment(assessmentId || undefined);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -100,8 +105,8 @@ function DirectorContent() {
             );
         }
 
-        const staffScore = calculateWeightedScore(sections, 'staff');
-        const managerScore = calculateWeightedScore(sections, 'manager');
+        const staffScore = calculateWeightedScore(domains, 'staff');
+        const managerScore = calculateWeightedScore(domains, 'manager');
         const isApproved = assessment?.status === 'director_approved' || assessment?.status === 'acknowledged';
 
         return (
@@ -132,23 +137,44 @@ function DirectorContent() {
                                 Approve Assessment
                             </Button>
                         )}
+
+                        {isAdmin && (
+                            <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-10 w-10 rounded-xl shadow-lg hover:shadow-destructive/20"
+                                onClick={async () => {
+                                    if (window.confirm("Are you sure you want to delete this assessment? This action cannot be undone.")) {
+                                        if (await deleteAssessment()) {
+                                            router.push('/director');
+                                        }
+                                    }
+                                }}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        )}
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        {sections.map((section) => (
+                        {domains.map((domain: DomainData) => (
                             <ReviewComparisonSection
-                                key={section.id}
+                                key={domain.id}
                                 readonly={true}
                                 section={{
-                                    ...section,
-                                    indicators: section.indicators.map(i => ({
-                                        ...i,
-                                        staffScore: i.score,
-                                        staffEvidence: i.evidence,
-                                        managerScore: i.managerScore ?? null,
-                                        managerEvidence: i.managerEvidence ?? ''
+                                    ...domain,
+                                    standards: domain.standards.map((s: StandardData) => ({
+                                        ...s,
+                                        kpis: s.kpis.map((i: KPIData) => ({
+                                            ...i,
+                                            description: i.description || '',
+                                            staffScore: i.score,
+                                            staffEvidence: i.evidence,
+                                            managerScore: i.managerScore ?? null,
+                                            managerEvidence: i.managerEvidence ?? ''
+                                        }))
                                     }))
                                 }}
                             />
@@ -227,8 +253,10 @@ function DirectorContent() {
                             </Card>
 
                             <WeightedScoreDisplay
+                                domains={domains}
                                 score={managerScore}
                                 label="Confirmed Final Grade"
+                                type="manager"
                             />
 
                             <Alert className="bg-emerald-500/5 border-emerald-500/10">
