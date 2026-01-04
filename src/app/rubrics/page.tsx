@@ -29,6 +29,16 @@ import {
     Award,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function RubricsContent() {
     const { templates, loading, refreshTemplates } = useRubricTemplates() as any;
@@ -38,6 +48,7 @@ function RubricsContent() {
     const [editData, setEditData] = useState<any>(null);
     const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
     const [expandedStandards, setExpandedStandards] = useState<Set<string>>(new Set());
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
     const handleSelectTemplate = async (template: any) => {
         if (selectedTemplate?.id === template.id) return;
@@ -89,6 +100,24 @@ function RubricsContent() {
         setIsEditMode(false);
         setIsDetailLoading(false);
         if (refreshTemplates) refreshTemplates();
+    };
+
+    const handleDeleteRubric = async () => {
+        if (!selectedTemplate) return;
+
+        setIsDetailLoading(true);
+        const { error } = await api.deleteRubric(selectedTemplate.id);
+
+        if (error) {
+            toast({ title: "Error", description: "Failed to delete rubric. It might be in use by existing assessments.", variant: "destructive" });
+        } else {
+            toast({ title: "Success", description: "Rubric deleted successfully" });
+            setSelectedTemplate(null);
+            setIsEditMode(false);
+            if (refreshTemplates) refreshTemplates();
+        }
+        setIsDetailLoading(false);
+        setDeleteConfirmOpen(false);
     };
 
     const toggleDomain = (domainId: string) => {
@@ -400,10 +429,21 @@ function RubricsContent() {
                                                     </Button>
                                                 </>
                                             ) : (
-                                                <Button variant="outline" size="sm" onClick={handleEditToggle}>
-                                                    <Edit3 className="h-4 w-4 mr-2" />
-                                                    Edit
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                        onClick={() => setDeleteConfirmOpen(true)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 mr-2" />
+                                                        Delete
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" onClick={handleEditToggle}>
+                                                        <Edit3 className="h-4 w-4 mr-2" />
+                                                        Edit
+                                                    </Button>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -680,6 +720,37 @@ function RubricsContent() {
                     )}
                 </div>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <AlertDialogContent className="glass-panel-strong border-destructive/20">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                            Rubric Deletion - Danger Zone
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-4 pt-2">
+                            <p className="font-bold text-foreground">
+                                Are you absolutely sure you want to delete the "{selectedTemplate?.name}" rubric?
+                            </p>
+                            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive-foreground space-y-2">
+                                <p>• This will permanently remove all associated Domains, Standards, and KPIs.</p>
+                                <p>• This action <strong>cannot be undone</strong>.</p>
+                                <p>• If this rubric is linked to active or historical assessments, deletion may be blocked by the system.</p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="glass-panel">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteRubric}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete Rubric Permanently
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
