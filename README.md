@@ -1,73 +1,88 @@
-# Welcome to your Lovable project
+# ProofPoint Dashboard
 
-## Project info
+**Performance Command Center** — A data-driven appraisal platform built for accountability and transparency.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+ProofPoint revolutionizes organizational hierarchy and employee appraisals with an evidence-based approach: **No Evidence, No Score.**
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🚀 Overview
 
-**Use Lovable**
+ProofPoint Dashboard is a premium performance assessment platform designed for MAD Labs at Millennia World School. It features a hierarchical role system and multi-step approval workflows ensuring every rating is backed by documented proof.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Key Features
+- **Hierarchical Role System**: Global (Director/Admin), Department (Manager), and Sub-department (Supervisor) levels.
+- **Evidence-Driven Appraisals**: Mandatory documentation for performance ratings.
+- **Visual Org Structure**: Interactive department tree with real-time role holder visualization.
+- **Live Scoring Engine**: Weighted calculations and letter grades that update as you assess.
+- **Multi-step Workflows**: Customizable approval chains based on the organizational hierarchy.
+- **Premium UI**: Modern glassmorphism aesthetic with high-performance dark/light modes.
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## 🛠️ Technology Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Core**: [Next.js](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database**: [PostgreSQL](https://www.postgresql.org/) (Dockerized)
+- **Authentication**: [NextAuth.js](https://next-auth.js.org/)
+- **Storage**: [MinIO](https://min.io/) (S3-Compatible Evidence Storage)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Inspiration**: AI Assisted Codes
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## ⚙️ Getting Started
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Prerequisites
+- Node.js 18+
+- Docker & Docker Compose
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Fast Track Local Setup
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd proofpoint-dashboard
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+2. **Environment Configuration**
+   Copy `.env.example` to `.env` and fill in the required secrets.
+   ```bash
+   cp .env.example .env
+   ```
 
-**Edit a file directly in GitHub**
+3. **Start Infrastructure (Databases & Storage)**
+   ```bash
+   docker-compose up -d
+   ```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+4. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-**Use GitHub Codespaces**
+5. **Run Development Server**
+   ```bash
+   npm run dev
+   ```
+   Visit [http://localhost:3000](http://localhost:3000) to see the dashboard.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## 🏛️ Organizational Hierarchy
 
-This project is built with:
+The system enforces a strict hierarchy for role availability:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+| Context | Available Roles |
+|---------|-----------------|
+| **Global** | Director, Admin |
+| **Root Department** | Manager, Staff |
+| **Sub-Department** | Supervisor, Staff |
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## 🛡️ License
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Copyright by MAD Labs, Millennia World School. All rights reserved.
