@@ -21,11 +21,14 @@ export async function GET(request: Request) {
                 `SELECT a.*, 
                 rt.name as template_name,
                 sp.full_name as staff_name,
+                sp.job_title as staff_job_title,
+                d.name as staff_department,
                 mp.full_name as manager_name,
                 dp.full_name as director_name
          FROM assessments a
          LEFT JOIN rubric_templates rt ON a.template_id = rt.id
          LEFT JOIN profiles sp ON a.staff_id = sp.user_id
+         LEFT JOIN departments d ON sp.department_id = d.id
          LEFT JOIN profiles mp ON a.manager_id = mp.user_id
          LEFT JOIN profiles dp ON a.director_id = dp.user_id
          WHERE a.id = $1`,
@@ -39,10 +42,13 @@ export async function GET(request: Request) {
       SELECT a.*, 
              rt.name as template_name,
              sp.full_name as staff_name,
+             sp.job_title as staff_job_title,
+             d.name as staff_department,
              mp.full_name as manager_name
       FROM assessments a
       LEFT JOIN rubric_templates rt ON a.template_id = rt.id
       LEFT JOIN profiles sp ON a.staff_id = sp.user_id
+      LEFT JOIN departments d ON sp.department_id = d.id
       LEFT JOIN profiles mp ON a.manager_id = mp.user_id
       WHERE 1=1
     `;

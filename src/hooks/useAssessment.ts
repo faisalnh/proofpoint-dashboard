@@ -63,6 +63,12 @@ export interface Assessment {
   manager_reviewed_at: string | null;
   director_approved_at: string | null;
   created_at: string;
+  staff_name?: string;
+  staff_email?: string;
+  manager_name?: string;
+  director_name?: string;
+  staff_department?: string;
+  staff_job_title?: string;
 }
 
 interface RubricTemplate {

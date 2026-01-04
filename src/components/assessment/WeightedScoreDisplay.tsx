@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { SectionData } from "./AssessmentSection";
+import { SectionData } from "@/hooks/useAssessment";
 import { EvidenceItem } from "./EvidenceInput";
 import { TrendingUp, Award, AlertTriangle } from "lucide-react";
 

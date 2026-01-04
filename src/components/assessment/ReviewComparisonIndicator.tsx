@@ -16,7 +16,7 @@ export interface ReviewIndicatorData {
   name: string;
   description: string;
   score_options?: ScoreOption[];
-  evidence_guidance?: string;
+  evidence_guidance?: string | null;
   // Staff data
   staffScore: number | null;
   staffEvidence: string | EvidenceItem[];

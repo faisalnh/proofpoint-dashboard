@@ -34,9 +34,9 @@ async function seed() {
         const directorId = uuidv4();
 
         const users = [
-            { id: staffId, email: 'staff@example.com', name: 'Test Staff', role: 'staff', deptId },
-            { id: managerId, email: 'manager@example.com', name: 'Test Manager', role: 'manager', deptId },
-            { id: directorId, email: 'director@example.com', name: 'Test Director', role: 'director', deptId: null },
+            { id: staffId, email: 'staff@example.com', name: 'Test Staff', role: 'staff', deptId, title: 'Senior QA Engineer' },
+            { id: managerId, email: 'manager@example.com', name: 'Test Manager', role: 'manager', deptId, title: 'QA Manager' },
+            { id: directorId, email: 'director@example.com', name: 'Test Director', role: 'director', deptId: null, title: 'Director of Engineering' },
         ];
 
         for (const u of users) {
@@ -48,8 +48,8 @@ async function seed() {
 
             // Create profile
             await client.query(
-                'INSERT INTO profiles (user_id, email, full_name, department_id) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id) DO UPDATE SET full_name = $3, department_id = $4',
-                [u.id, u.email, u.name, u.deptId]
+                'INSERT INTO profiles (user_id, email, full_name, department_id, job_title) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (user_id) DO UPDATE SET full_name = $3, department_id = $4, job_title = $5',
+                [u.id, u.email, u.name, u.deptId, u.title]
             );
 
             // Create role
