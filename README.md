@@ -2,7 +2,7 @@
 
 **Performance Command Center** — A data-driven appraisal platform built for accountability and transparency.
 
-ProofPoint revolutionizes organizational hierarchy and employee appraisals with an evidence-based approach: **No Evidence, No Score.**
+ProofPoint simplify organizational hierarchy and employee appraisals with an evidence-based approach: **No Evidence, No Score.**
 
 ---
 
