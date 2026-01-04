@@ -29,6 +29,7 @@ import { api } from '@/lib/api-client';
 interface Department {
     id: string;
     name: string;
+    hierarchy_level?: 'root' | 'department' | 'subdepartment';
 }
 
 interface DepartmentRole {
@@ -116,7 +117,7 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
         const { data, error } = await api.createApprovalWorkflow({
             department_role_id: selectedDeptRoleId,
             step_order: nextOrder,
-            approver_role: 'manager',
+            approver_role: 'director', // Default to director as a safe high-level fallback
             step_type: 'review',
         });
 
@@ -238,11 +239,15 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
                                     </SelectTrigger>
                                     <SelectContent className="glass-panel-strong">
                                         <SelectItem value="none|director">Global - Director</SelectItem>
-                                        <SelectItem value="none|manager">Global - Manager</SelectItem>
-                                        <SelectItem value="none|staff">Global - Staff</SelectItem>
                                         <SelectItem value="none|admin">Global - Admin</SelectItem>
-                                        {departments.flatMap(dept =>
-                                            ROLES
+
+                                        {departments.flatMap(dept => {
+                                            const level = dept.hierarchy_level || 'root';
+                                            const rolesForLevel = level === 'subdepartment'
+                                                ? ['supervisor', 'staff']
+                                                : ['manager', 'staff'];
+
+                                            return rolesForLevel
                                                 .filter(role =>
                                                     !departmentRoles.some(dr =>
                                                         dr.department_id === dept.id && dr.role === role
@@ -255,8 +260,8 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
                                                     >
                                                         {dept.name} - <span className="capitalize">{role}</span>
                                                     </SelectItem>
-                                                ))
-                                        )}
+                                                ));
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -422,6 +427,7 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
                                                         </SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="manager">Manager</SelectItem>
+                                                            <SelectItem value="supervisor">Supervisor</SelectItem>
                                                             <SelectItem value="director">Director</SelectItem>
                                                             <SelectItem value="staff">Staff (Self)</SelectItem>
                                                         </SelectContent>
