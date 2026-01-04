@@ -8,7 +8,7 @@ function isAdmin(session: { user: { roles?: string[] } }) {
     return roles.includes("admin");
 }
 
-// GET /api/departments - List all departments
+// GET /api/departments - List all departments with hierarchy and role holders
 export async function GET() {
     try {
         const session = await auth();
@@ -16,15 +16,50 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        // Get departments with parent info and user count
         const departments = await query(
             `SELECT d.*, p.name as parent_name,
-                    (SELECT COUNT(*) FROM profiles WHERE department_id = d.id) as user_count
+                    (SELECT COUNT(*) FROM profiles WHERE department_id = d.id) as user_count,
+                    CASE 
+                        WHEN d.parent_id IS NULL THEN 'root'
+                        WHEN EXISTS (SELECT 1 FROM departments child WHERE child.parent_id = d.id) THEN 'department'
+                        ELSE 'subdepartment'
+                    END as hierarchy_level
              FROM departments d
              LEFT JOIN departments p ON d.parent_id = p.id
              ORDER BY d.name`
         );
 
-        return NextResponse.json({ data: departments });
+        // Get role holders for each department
+        const roleHolders = await query(
+            `SELECT p.department_id, p.user_id, p.full_name, p.email, ur.role
+             FROM profiles p
+             JOIN user_roles ur ON p.user_id = ur.user_id
+             WHERE p.department_id IS NOT NULL
+             ORDER BY p.department_id, ur.role`
+        );
+
+        // Build a map of department_id -> role holders
+        const roleHolderMap: Record<string, Array<{ user_id: string; full_name: string; email: string; role: string }>> = {};
+        for (const holder of roleHolders as any[]) {
+            if (!roleHolderMap[holder.department_id]) {
+                roleHolderMap[holder.department_id] = [];
+            }
+            roleHolderMap[holder.department_id].push({
+                user_id: holder.user_id,
+                full_name: holder.full_name,
+                email: holder.email,
+                role: holder.role
+            });
+        }
+
+        // Attach role holders to departments
+        const departmentsWithRoles = (departments as any[]).map(dept => ({
+            ...dept,
+            role_holders: roleHolderMap[dept.id] || []
+        }));
+
+        return NextResponse.json({ data: departmentsWithRoles });
     } catch (error) {
         console.error("Departments error:", error);
         return NextResponse.json({ error: "Failed to fetch departments" }, { status: 500 });

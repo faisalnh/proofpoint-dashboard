@@ -239,7 +239,7 @@ export default function Home() {
                         <span className="font-medium">ProofPoint Performance OS</span>
                     </div>
                     <div className="flex items-center gap-6">
-                        <span>© 2024 All rights reserved</span>
+                        <span>Copyright by MAD Labs, Millennia World School</span>
                     </div>
                 </div>
             </footer>

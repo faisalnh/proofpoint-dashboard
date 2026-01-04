@@ -64,7 +64,7 @@ const STEP_TYPES = [
     { value: 'acknowledge', label: 'Acknowledge', icon: User, color: 'text-amber-500' },
 ] as const;
 
-const ROLES = ['staff', 'manager', 'director'] as const;
+const ROLES = ['staff', 'supervisor', 'manager', 'director'] as const;
 
 export function WorkflowEditor({ departments }: WorkflowEditorProps) {
     const [departmentRoles, setDepartmentRoles] = useState<DepartmentRole[]>([]);

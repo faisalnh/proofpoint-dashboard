@@ -25,6 +25,9 @@ export const metadata: Metadata = {
     twitter: {
         card: "summary_large_image",
     },
+    icons: {
+        icon: "/favicon.svg",
+    },
 };
 
 export default function RootLayout({
@@ -34,8 +37,30 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            (function() {
+                                try {
+                                    var theme = localStorage.getItem('theme');
+                                    if (!theme) {
+                                      theme = 'dark';
+                                      localStorage.setItem('theme', 'dark');
+                                    }
+                                    if (theme === 'dark') {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                    }
+                                } catch (e) {}
+                            })();
+                        `,
+                    }}
+                />
+            </head>
             <body
-                className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+                className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-background text-foreground`}
                 suppressHydrationWarning
             >
                 <Providers>{children}</Providers>

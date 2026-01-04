@@ -19,9 +19,20 @@ export function Header({ className }: HeaderProps) {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    // Check initial theme
-    const isDarkMode = document.documentElement.classList.contains('dark');
+    // Check initial theme from localStorage or document
+    const savedTheme = localStorage.getItem('theme');
+    const isDarkMode = savedTheme
+      ? savedTheme === 'dark'
+      : document.documentElement.classList.contains('dark');
+
     setIsDark(isDarkMode);
+
+    // Ensure class is applied if it was missing
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, []);
 
   const toggleTheme = () => {

@@ -124,7 +124,7 @@ export async function POST(request: Request) {
         }
 
         // Final sanitization against valid roles
-        const VALID_APP_ROLES = ["admin", "staff", "manager", "director"];
+        const VALID_APP_ROLES = ["admin", "staff", "manager", "director", "supervisor"];
         rolesArray = rolesArray.filter(r => VALID_APP_ROLES.includes(r));
 
         if (rolesArray.length === 0) rolesArray = ["staff"];
@@ -215,7 +215,7 @@ export async function PUT(request: Request) {
             }
 
             // Final sanitization against valid roles
-            const VALID_APP_ROLES = ["admin", "staff", "manager", "director"];
+            const VALID_APP_ROLES = ["admin", "staff", "manager", "director", "supervisor"];
             rolesArray = rolesArray.filter(r => VALID_APP_ROLES.includes(r));
 
             if (rolesArray.length > 0) {

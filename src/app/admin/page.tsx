@@ -72,12 +72,21 @@ interface User {
     status: string;
 }
 
+interface RoleHolder {
+    user_id: string;
+    full_name: string;
+    email: string;
+    role: string;
+}
+
 interface Department {
     id: string;
     name: string;
     parent_id: string | null;
     parent_name: string | null;
     user_count: string;
+    hierarchy_level: 'root' | 'department' | 'subdepartment';
+    role_holders: RoleHolder[];
 }
 
 function AdminContent() {
@@ -195,57 +204,124 @@ function AdminContent() {
         );
     };
 
+    // Get available roles based on hierarchy level
+    const getAvailableRoles = (level: string): string[] => {
+        switch (level) {
+            case 'root': return ['manager', 'staff'];
+            case 'department': return ['manager', 'staff'];
+            case 'subdepartment': return ['supervisor', 'staff'];
+            default: return ['staff'];
+        }
+    };
+
+    const getRoleBadgeStyle = (role: string) => {
+        switch (role) {
+            case 'director': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            case 'manager': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'supervisor': return 'bg-purple-100 text-purple-700 border-purple-200';
+            case 'staff': return 'bg-blue-50 text-blue-600 border-blue-100';
+            default: return 'bg-muted text-muted-foreground';
+        }
+    };
+
     // Build department tree structure
     const getDeptTree = () => {
         const rootDepts = departments.filter(d => !d.parent_id);
         const getChildren = (parentId: string): Department[] =>
             departments.filter(d => d.parent_id === parentId);
 
-        const renderDept = (dept: Department, level: number = 0): JSX.Element => (
-            <div key={dept.id}>
-                <div
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group"
-                    style={{ paddingLeft: `${level * 24 + 12}px` }}
-                >
-                    {getChildren(dept.id).length > 0 && (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    {getChildren(dept.id).length === 0 && (
-                        <div className="w-4" />
-                    )}
-                    <Building className="h-4 w-4 text-primary" />
-                    <span className="flex-1 font-medium">{dept.name}</span>
-                    <Badge variant="outline" className="text-xs">
-                        {dept.user_count} users
-                    </Badge>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => {
-                                setEditingDept(dept);
-                                setDeptModalOpen(true);
-                            }}
-                        >
-                            <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => {
-                                setItemToDelete({ type: 'department', item: dept });
-                                setDeleteConfirmOpen(true);
-                            }}
-                        >
-                            <Trash2 className="h-3 w-3" />
-                        </Button>
+        const renderDept = (dept: Department, level: number = 0): JSX.Element => {
+            const availableRoles = getAvailableRoles(dept.hierarchy_level);
+            const roleHoldersByRole: Record<string, RoleHolder[]> = {};
+            for (const holder of dept.role_holders) {
+                if (!roleHoldersByRole[holder.role]) roleHoldersByRole[holder.role] = [];
+                roleHoldersByRole[holder.role].push(holder);
+            }
+
+            return (
+                <div key={dept.id} className="border-l-2 border-muted/50 ml-4">
+                    <div
+                        className="flex items-start gap-3 p-4 rounded-lg hover:bg-muted/30 transition-colors group"
+                        style={{ marginLeft: `${level * 16}px` }}
+                    >
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                                {getChildren(dept.id).length > 0 && (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <Building className="h-4 w-4 text-primary" />
+                                <span className="font-bold text-foreground">{dept.name}</span>
+                                <Badge variant="outline" className="text-[10px] uppercase">
+                                    {dept.hierarchy_level}
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                    {dept.user_count} users
+                                </Badge>
+                            </div>
+
+                            {/* Role Holders Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">
+                                {availableRoles.map(role => {
+                                    const holders = roleHoldersByRole[role] || [];
+                                    return (
+                                        <div key={role} className="p-2 rounded-lg bg-muted/20 border border-border/50">
+                                            <div className="flex items-center gap-1 mb-1">
+                                                <Badge variant="outline" className={`text-[10px] uppercase ${getRoleBadgeStyle(role)}`}>
+                                                    {role}
+                                                </Badge>
+                                            </div>
+                                            {holders.length > 0 ? (
+                                                <div className="space-y-1">
+                                                    {holders.slice(0, 3).map(h => (
+                                                        <div key={h.user_id} className="flex items-center gap-2 text-xs">
+                                                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold">
+                                                                {h.full_name?.charAt(0) || '?'}
+                                                            </div>
+                                                            <span className="truncate text-foreground">{h.full_name || h.email}</span>
+                                                        </div>
+                                                    ))}
+                                                    {holders.length > 3 && (
+                                                        <span className="text-[10px] text-muted-foreground">+{holders.length - 3} more</span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] text-muted-foreground italic">No assignee</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 shrink-0">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                    setEditingDept(dept);
+                                    setDeptModalOpen(true);
+                                }}
+                            >
+                                <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => {
+                                    setItemToDelete({ type: 'department', item: dept });
+                                    setDeleteConfirmOpen(true);
+                                }}
+                            >
+                                <Trash2 className="h-3 w-3" />
+                            </Button>
+                        </div>
                     </div>
+                    {getChildren(dept.id).map(child => renderDept(child, level + 1))}
                 </div>
-                {getChildren(dept.id).map(child => renderDept(child, level + 1))}
-            </div>
-        );
+            );
+        };
 
         return rootDepts.map(dept => renderDept(dept));
     };
@@ -495,8 +571,65 @@ function AdminContent() {
                                     <p className="text-muted-foreground">Create your first department to get started.</p>
                                 </div>
                             ) : (
-                                <div className="rounded-md border border-border/50 overflow-hidden">
-                                    {getDeptTree()}
+                                <div className="space-y-6">
+                                    {/* Global Level - Director */}
+                                    <div className="p-4 rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <ShieldAlert className="h-5 w-5 text-emerald-500" />
+                                            <span className="font-bold text-lg">Global Level</span>
+                                            <Badge variant="outline" className="text-[10px] uppercase bg-emerald-100 text-emerald-700 border-emerald-200">
+                                                Organization Wide
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mb-4">
+                                            Global roles apply across all departments. Director provides final approval, Admin manages system configuration.
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* Director */}
+                                            <div className="p-3 rounded-lg bg-background border">
+                                                <Badge variant="outline" className="text-[10px] uppercase bg-emerald-100 text-emerald-700 border-emerald-200 mb-2">
+                                                    Director
+                                                </Badge>
+                                                <div className="space-y-1">
+                                                    {users.filter(u => u.roles?.includes('director')).slice(0, 3).map(u => (
+                                                        <div key={u.id} className="flex items-center gap-2 text-xs">
+                                                            <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 text-[10px] font-bold">
+                                                                {u.full_name?.charAt(0) || '?'}
+                                                            </div>
+                                                            <span className="truncate">{u.full_name || u.email}</span>
+                                                        </div>
+                                                    ))}
+                                                    {users.filter(u => u.roles?.includes('director')).length === 0 && (
+                                                        <span className="text-[10px] text-muted-foreground italic">No director assigned</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {/* Admin */}
+                                            <div className="p-3 rounded-lg bg-background border">
+                                                <Badge variant="outline" className="text-[10px] uppercase bg-rose-100 text-rose-700 border-rose-200 mb-2">
+                                                    Admin
+                                                </Badge>
+                                                <div className="space-y-1">
+                                                    {users.filter(u => u.roles?.includes('admin')).slice(0, 3).map(u => (
+                                                        <div key={u.id} className="flex items-center gap-2 text-xs">
+                                                            <div className="w-5 h-5 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-600 text-[10px] font-bold">
+                                                                {u.full_name?.charAt(0) || '?'}
+                                                            </div>
+                                                            <span className="truncate">{u.full_name || u.email}</span>
+                                                        </div>
+                                                    ))}
+                                                    {users.filter(u => u.roles?.includes('admin')).length === 0 && (
+                                                        <span className="text-[10px] text-muted-foreground italic">No admin assigned</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Department Tree */}
+                                    <div className="rounded-md border border-border/50 overflow-hidden">
+                                        {getDeptTree()}
+                                    </div>
                                 </div>
                             )}
                         </CardContent>
