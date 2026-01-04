@@ -2,38 +2,37 @@ import { cn } from "@/lib/utils";
 import { Info, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Award } from "lucide-react";
 
 interface ScoreOption {
-  score: number;
+  score: number | 'X';
   label: string;
-  enabled: boolean;
+  description?: string;
 }
 
 interface ScoreSelectorProps {
-  value: number | null;
-  onChange: (score: number) => void;
+  value: number | 'X' | null;
+  onChange: (score: number | 'X') => void;
   disabled?: boolean;
-  scoreOptions?: ScoreOption[];
+  rubricDescriptions?: {
+    1: string;
+    2: string;
+    3: string;
+    4: string;
+  };
   hideEvidenceRequirement?: boolean;
 }
 
-const defaultScoreOptions: ScoreOption[] = [
-  { score: 0, label: "Critical Failure", enabled: true },
-  { score: 1, label: "Below Expectations", enabled: true },
-  { score: 2, label: "Meets Standard", enabled: true },
-  { score: 3, label: "Exceeds Standard", enabled: true },
-  { score: 4, label: "Outstanding", enabled: true },
-];
+const getScoreConfig = (score: number | 'X') => {
+  if (score === 'X') {
+    return {
+      bg: 'bg-slate-500',
+      border: 'border-slate-500',
+      text: 'text-white',
+      glow: 'shadow-[0_0_20px_rgba(100,116,139,0.4)]',
+      icon: Info,
+      gradient: 'from-slate-500/20 to-slate-400/20'
+    };
+  }
 
-const getScoreConfig = (score: number) => {
   switch (score) {
-    case 0:
-      return {
-        bg: 'bg-score-0',
-        border: 'border-score-0',
-        text: 'text-white',
-        glow: 'shadow-[0_0_20px_hsl(var(--score-0)/0.4)]',
-        icon: AlertTriangle,
-        gradient: 'from-red-500/20 to-orange-500/20'
-      };
     case 1:
       return {
         bg: 'bg-score-1',
@@ -81,18 +80,27 @@ const getScoreConfig = (score: number) => {
       };
   }
 };
-export function ScoreSelector({ value, onChange, disabled, scoreOptions, hideEvidenceRequirement }: ScoreSelectorProps) {
-  const options = scoreOptions?.filter(o => o.enabled) || defaultScoreOptions;
+
+export function ScoreSelector({ value, onChange, disabled, rubricDescriptions, hideEvidenceRequirement }: ScoreSelectorProps) {
+  const options: ScoreOption[] = [
+    { score: 1, label: "Beginning", description: rubricDescriptions?.[1] },
+    { score: 2, label: "Developing", description: rubricDescriptions?.[2] },
+    { score: 3, label: "Proficient", description: rubricDescriptions?.[3] },
+    { score: 4, label: "Exemplary", description: rubricDescriptions?.[4] },
+    { score: 'X', label: "Not Implemented Yet", description: "This KPI is not yet active or applicable for this period. It will not be factored into the final score." },
+  ];
+
   const selectedOption = options.find(o => o.score === value);
   const selectedConfig = selectedOption ? getScoreConfig(selectedOption.score) : null;
 
   return (
     <div className="space-y-4">
       {/* Score Buttons */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap items-center">
         {options.map((option) => {
           const isSelected = value === option.score;
           const config = getScoreConfig(option.score);
+          const isX = option.score === 'X';
 
           return (
             <button
@@ -116,10 +124,13 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions, hideEvi
               {/* Button */}
               <div
                 className={cn(
-                  "relative w-14 h-14 rounded-xl border-2 flex flex-col items-center justify-center font-mono font-bold text-lg transition-all duration-300",
+                  "relative w-14 h-14 rounded-xl border-2 flex flex-col items-center justify-center font-mono font-bold transition-all duration-300",
                   isSelected
                     ? cn(config.bg, config.border, config.text, config.glow, "scale-110")
-                    : "bg-card border-border hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground hover:scale-105 hover:shadow-lg"
+                    : isX
+                      ? "bg-slate-100 border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-600 hover:scale-105"
+                      : "bg-card border-border hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground hover:scale-105 hover:shadow-lg",
+                  isX ? "text-xl" : "text-lg"
                 )}
               >
                 {option.score}
@@ -134,9 +145,10 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions, hideEvi
               <div className={cn(
                 "absolute top-full mt-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg text-xs text-center font-medium",
                 "bg-foreground text-background opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-20",
-                "w-max max-w-[180px] shadow-xl"
+                "w-max max-w-[220px] shadow-xl"
               )}>
-                {option.label}
+                <div className="font-bold mb-1">{option.label}</div>
+                {option.description && <div className="text-[10px] leading-tight opacity-80">{option.description}</div>}
                 {/* Arrow */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-foreground" />
               </div>
@@ -149,7 +161,8 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions, hideEvi
       {selectedOption && selectedConfig && (
         <div className={cn(
           "relative overflow-hidden rounded-xl border p-4 transition-all duration-300",
-          selectedOption.score <= 1 && "bg-evidence-alert-bg border-evidence-alert-border",
+          selectedOption.score === 'X' && "bg-slate-50 border-slate-200",
+          selectedOption.score === 1 && "bg-evidence-alert-bg border-evidence-alert-border",
           selectedOption.score === 2 && "bg-muted/50 border-border",
           selectedOption.score >= 3 && "bg-evidence-success-bg border-evidence-success-border"
         )}>
@@ -161,32 +174,42 @@ export function ScoreSelector({ value, onChange, disabled, scoreOptions, hideEvi
 
           <div className="relative flex items-start gap-3">
             <div className={cn(
-              "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-              selectedOption.score <= 1 && "bg-evidence-alert/10",
-              selectedOption.score === 2 && "bg-muted",
-              selectedOption.score >= 3 && "bg-evidence-success/10"
+              "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+              selectedOption.score === 'X' && "bg-slate-500 text-white",
+              selectedOption.score === 1 && "bg-evidence-alert/10 text-evidence-alert",
+              selectedOption.score === 2 && "bg-muted text-muted-foreground",
+              selectedOption.score >= 3 && "bg-evidence-success/10 text-evidence-success"
             )}>
-              <selectedConfig.icon className={cn(
-                "h-5 w-5",
-                selectedOption.score <= 1 && "text-evidence-alert",
-                selectedOption.score === 2 && "text-muted-foreground",
-                selectedOption.score >= 3 && "text-evidence-success"
-              )} />
+              {selectedOption.score === 'X' ? (
+                <span className="text-xl font-mono font-bold">X</span>
+              ) : (
+                <selectedConfig.icon className="h-6 w-6" />
+              )}
             </div>
             <div>
               <p className={cn(
-                "font-semibold text-base",
-                selectedOption.score <= 1 && "text-evidence-alert",
+                "font-bold text-base",
+                selectedOption.score === 'X' && "text-slate-700",
+                selectedOption.score === 1 && "text-evidence-alert",
                 selectedOption.score === 2 && "text-foreground",
                 selectedOption.score >= 3 && "text-evidence-success"
               )}>
-                Score {selectedOption.score}: {selectedOption.label}
+                {selectedOption.score === 'X' ? 'Not Implemented Yet' : selectedOption.label}
               </p>
-              {!hideEvidenceRequirement && (
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {selectedOption.score === 0 && "No evidence required for this rating"}
-                  {selectedOption.score >= 1 && "Evidence required to support this rating"}
-                </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {selectedOption.description}
+              </p>
+              {!hideEvidenceRequirement && selectedOption.score !== 'X' && (
+                <div className="mt-2 flex items-center gap-2 text-xs font-medium text-muted-foreground border-t pt-2">
+                  <Info className="h-3.5 w-3.5" />
+                  Evidence required to support this rating
+                </div>
+              )}
+              {selectedOption.score === 'X' && (
+                <div className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500 border-t border-slate-200 pt-2">
+                  <Info className="h-3.5 w-3.5" />
+                  Will be excluded from total score calculation
+                </div>
               )}
             </div>
           </div>

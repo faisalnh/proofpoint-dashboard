@@ -171,6 +171,69 @@ class ApiClient {
         });
     }
 
+    // KPI Domains
+    async createDomain(data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/domains", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateDomain(id: string, data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/domains", {
+            method: "PATCH",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteDomain(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/rubrics/domains?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
+    // KPI Standards
+    async createStandard(data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/standards", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateStandard(id: string, data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/standards", {
+            method: "PATCH",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteStandard(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/rubrics/standards?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
+    // KPIs
+    async createKPI(data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/kpis", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateKPI(id: string, data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/kpis", {
+            method: "PATCH",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteKPI(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/rubrics/kpis?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
     // Questions
     async getQuestions(params?: QueryParams): Promise<ApiResponse<unknown[]>> {
         const searchParams = new URLSearchParams();

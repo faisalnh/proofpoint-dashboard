@@ -6,7 +6,8 @@ export { WeightedScoreDisplay } from "./WeightedScoreDisplay";
 export { ReviewComparisonIndicator } from "./ReviewComparisonIndicator";
 export { ReviewComparisonSection } from "./ReviewComparisonSection";
 export { AssessmentProgress } from "./AssessmentProgress";
-export type { IndicatorData } from "./AssessmentIndicator";
-export type { SectionData } from "./AssessmentSection";
+
+export type { KPIData } from "./AssessmentIndicator";
+export type { DomainData, StandardData } from "./AssessmentSection";
 export type { ReviewIndicatorData } from "./ReviewComparisonIndicator";
-export type { ReviewSectionData } from "./ReviewComparisonSection";
+export type { DomainReviewData, ReviewStandardData } from "./ReviewComparisonSection";

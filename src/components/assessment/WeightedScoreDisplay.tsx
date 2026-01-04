@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
-import { SectionData } from "@/hooks/useAssessment";
+import { DomainData, KPIData } from "@/hooks/useAssessment";
 import { EvidenceItem } from "./EvidenceInput";
-import { TrendingUp, Award, AlertTriangle } from "lucide-react";
+import { TrendingUp, Award, AlertTriangle, Percent } from "lucide-react";
 
 interface WeightedScoreDisplayProps {
-  sections?: SectionData[];
+  domains?: DomainData[];
   score?: number | null;
   label?: string;
   type?: 'staff' | 'manager';
@@ -17,65 +17,116 @@ function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
   return typeof evidence === 'string' && evidence.trim().length > 0;
 }
 
-function calculateWeightedScore(sections: SectionData[] | undefined | null): number | null {
-  if (!sections || !Array.isArray(sections)) return null;
+function calculateWeightedScore(domains: DomainData[] | undefined | null, type: 'staff' | 'manager' = 'staff'): number | null {
+  if (!domains || !Array.isArray(domains)) return null;
 
   let totalWeight = 0;
   let weightedSum = 0;
 
-  for (const section of sections) {
-    const scoredIndicators = section.indicators?.filter(i => i.score !== null) || [];
-    if (scoredIndicators.length === 0) continue;
+  for (const domain of domains) {
+    let allKPIs: KPIData[] = [];
+    domain.standards.forEach(s => {
+      allKPIs = [...allKPIs, ...s.kpis];
+    });
 
-    const sectionAvg = scoredIndicators.reduce((acc, i) => acc + (i.score ?? 0), 0) / scoredIndicators.length;
-    weightedSum += sectionAvg * section.weight;
-    totalWeight += section.weight;
+    const scoredKPIs = allKPIs.filter(k => {
+      const s = type === 'staff' ? k.score : k.managerScore;
+      return s !== null && s !== undefined && s !== 'X';
+    });
+
+    if (scoredKPIs.length === 0) continue;
+
+    const domainAvg = scoredKPIs.reduce((acc, k) => {
+      const s = type === 'staff' ? k.score : k.managerScore;
+      return acc + (Number(s) || 0);
+    }, 0) / scoredKPIs.length;
+
+    weightedSum += domainAvg * domain.weight;
+    totalWeight += domain.weight;
   }
 
   if (totalWeight === 0) return null;
   return weightedSum / totalWeight;
 }
 
-function getLetterGrade(score: number): { grade: string; label: string } {
-  if (score > 3.71) return { grade: "A+", label: "Exceptional" };
-  if (score > 3.41) return { grade: "A", label: "Outstanding" };
-  if (score > 3.11) return { grade: "A-", label: "Excellent" };
-  if (score > 2.71) return { grade: "B+", label: "Very Good" };
-  if (score > 2.41) return { grade: "B", label: "Good" };
-  if (score > 2.11) return { grade: "B-", label: "Above Average" };
-  if (score > 1.71) return { grade: "C+", label: "Satisfactory" };
-  if (score > 1.41) return { grade: "C", label: "Adequate" };
-  if (score > 1.11) return { grade: "C-", label: "Needs Improvement" };
-  if (score > 0.71) return { grade: "D", label: "Below Standard" };
-  return { grade: "F", label: "Unsatisfactory" };
+function getLetterGrade(score: number): { grade: string; label: string; description: string; bonusPayout: number } {
+  if (score >= 3.9) return {
+    grade: "★",
+    label: "Exemplary",
+    description: "Outstanding performance that exceeds expectations across all domains. Recognizes employees who consistently demonstrate innovation, leadership, and exceptional contributions.",
+    bonusPayout: 100
+  };
+  if (score >= 3.6) return {
+    grade: "◆",
+    label: "Trail Blazers",
+    description: "High-performing individuals who go beyond role expectations and actively contribute to team and organizational success. Strong candidates for leadership development.",
+    bonusPayout: 90
+  };
+  if (score >= 3.4) return {
+    grade: "▲",
+    label: "Rising Star",
+    description: "Employees showing significant growth and potential. Consistently meets expectations with notable areas of excellence. On track for advancement with continued development.",
+    bonusPayout: 80
+  };
+  if (score >= 3.2) return {
+    grade: "●",
+    label: "Solid Foundation",
+    description: "Reliably meets role expectations and demonstrates competence across key performance areas. A stable contributor who forms the backbone of the team.",
+    bonusPayout: 65
+  };
+  if (score >= 3.0) return {
+    grade: "◐",
+    label: "Developing Under Guidance",
+    description: "Entry level grade. Contract employees are expected to progress to Solid Foundation within 1 year, permanent employees within 2 years, or risk being bumped down to Needs Improvement.",
+    bonusPayout: 50
+  };
+  if (score >= 2.8) return {
+    grade: "○",
+    label: "Needs Improvement",
+    description: "This grade can be given a maximum of two times. By the third PA, staff must have progressed to the next grade, or they will be bumped down to Performance Management.",
+    bonusPayout: 40
+  };
+  if (score >= 2.6) return {
+    grade: "!",
+    label: "Performance Management",
+    description: "At least 6 months, but no more than 1 year, depending on urgency. If staff does not improve, they will likely be let go from their role in the school.",
+    bonusPayout: 10
+  };
+  return {
+    grade: "—",
+    label: "Below Threshold",
+    description: "Performance is critically below acceptable standards. Immediate intervention and a formal performance improvement plan are required.",
+    bonusPayout: 0
+  };
 }
 
-export function WeightedScoreDisplay({ sections, score, label, type = 'staff' }: WeightedScoreDisplayProps) {
-  const calculatedScore = calculateWeightedScore(sections);
-  const weightedScore = score !== undefined ? score : calculatedScore;
+export function WeightedScoreDisplay({ domains, score, label, type = 'staff' }: WeightedScoreDisplayProps) {
+  const calculatedScore = calculateWeightedScore(domains, type);
+  const weightedScore = score !== undefined && score !== null ? score : calculatedScore;
   const gradeInfo = weightedScore !== null ? getLetterGrade(weightedScore) : null;
 
-  // Calculate completion if sections are provided
-  const hasSections = sections && Array.isArray(sections) && sections.length > 0;
-  const totalIndicators = hasSections ? sections!.reduce((acc, s) => acc + (s.indicators?.length || 0), 0) : 0;
+  // Calculate completion if domains are provided
+  const hasDomains = domains && Array.isArray(domains) && domains.length > 0;
+  let totalKPIs = 0;
+  let completedKPIs = 0;
 
-  const completedIndicators = hasSections ? sections!.reduce(
-    (acc, s) => acc + (s.indicators?.filter(i => {
-      // Cast to any to access manager properties if needed, or assume data structure matches
-      const ind = i as any;
+  if (hasDomains) {
+    domains!.forEach(d => {
+      d.standards.forEach(s => {
+        s.kpis.forEach(k => {
+          totalKPIs++;
+          const val = type === 'manager' ? k.managerScore : k.score;
+          if (type === 'manager') {
+            if (val !== null && val !== undefined) completedKPIs++;
+          } else {
+            if (val !== null && (val === 'X' || hasValidEvidence(k.evidence))) completedKPIs++;
+          }
+        });
+      });
+    });
+  }
 
-      if (type === 'manager') {
-        // Manager only needs to provide a score
-        return ind.managerScore !== undefined && ind.managerScore !== null;
-      }
-
-      // Staff needs score AND valid evidence (unless score is 0)
-      return i.score !== null && (i.score === 0 || hasValidEvidence(i.evidence));
-    }).length || 0),
-    0
-  ) : 0;
-
-  const completionPercent = totalIndicators > 0 ? (completedIndicators / totalIndicators) * 100 : 0;
+  const completionPercent = totalKPIs > 0 ? (completedKPIs / totalKPIs) * 100 : 0;
 
   const Icon = weightedScore !== null
     ? (weightedScore >= 3 ? Award : weightedScore >= 2 ? TrendingUp : AlertTriangle)
@@ -83,104 +134,131 @@ export function WeightedScoreDisplay({ sections, score, label, type = 'staff' }:
 
 
   return (
-    <div className="bg-card border rounded-xl overflow-hidden">
+    <div className="bg-card border rounded-xl overflow-hidden shadow-md">
       {/* Main Score */}
-      <div className="p-6 text-center border-b">
-        <div className="flex items-center justify-center gap-2 mb-2">
+      <div className="p-6 text-center border-b bg-gradient-to-b from-muted/30 to-background">
+        <div className="flex items-center justify-center gap-2 mb-3">
           <Icon className={cn(
             "h-5 w-5",
             weightedScore === null && "text-muted-foreground",
             weightedScore !== null && weightedScore < 2 && "text-evidence-alert",
-            weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-muted-foreground",
+            weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-amber-500",
             weightedScore !== null && weightedScore >= 3 && "text-evidence-success"
           )} />
-          <span className="text-sm font-medium text-muted-foreground">{label || "Weighted Score"}</span>
+          <span className="text-xs uppercase font-bold tracking-widest text-muted-foreground">{label || "Performance Score"}</span>
         </div>
 
         <div className={cn(
-          "text-5xl font-mono font-bold tracking-tight",
+          "text-5xl font-mono font-black tracking-tighter transition-all duration-500",
           weightedScore === null && "text-muted-foreground/30",
           weightedScore !== null && weightedScore < 2 && "text-evidence-alert",
-          weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-foreground",
+          weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-amber-500",
           weightedScore !== null && weightedScore >= 3 && "text-evidence-success"
         )}>
           {weightedScore !== null ? weightedScore.toFixed(2) : "—.——"}
         </div>
 
         {gradeInfo && (
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <span className={cn(
-              "text-2xl font-bold",
-              weightedScore! < 2 && "text-evidence-alert",
-              weightedScore! >= 2 && weightedScore! < 3 && "text-foreground",
-              weightedScore! >= 3 && "text-evidence-success"
-            )}>
-              {gradeInfo.grade}
-            </span>
-            <span className="text-sm text-muted-foreground">• {gradeInfo.label}</span>
+          <div className="mt-4">
+            <div className="flex items-center justify-center gap-3">
+              <span className={cn(
+                "text-2xl font-bold px-3 py-0.5 rounded-lg bg-background border shadow-sm",
+                weightedScore! < 2.6 && "text-evidence-alert border-evidence-alert/30",
+                weightedScore! >= 2.6 && weightedScore! < 3 && "text-amber-500 border-amber-500/30",
+                weightedScore! >= 3 && "text-evidence-success border-evidence-success/30"
+              )}>
+                {gradeInfo.grade}
+              </span>
+              <div className="text-left">
+                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Performance Tier</div>
+                <div className="text-sm font-bold">{gradeInfo.label}</div>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground leading-relaxed text-center px-2">
+              {gradeInfo.description}
+            </p>
+            <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Bonus Payout</span>
+                <span className={cn(
+                  "text-lg font-mono font-black",
+                  gradeInfo.bonusPayout >= 80 && "text-evidence-success",
+                  gradeInfo.bonusPayout >= 50 && gradeInfo.bonusPayout < 80 && "text-amber-500",
+                  gradeInfo.bonusPayout < 50 && "text-evidence-alert"
+                )}>
+                  {gradeInfo.bonusPayout}%
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       {/* Completion Progress */}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground">Completion</span>
-          <span className="text-sm font-mono font-medium">
-            {completedIndicators}/{totalIndicators}
+      <div className="p-4 border-b">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Framework Coverage</span>
+          <span className="text-sm font-mono font-bold">
+            {completedKPIs}/{totalKPIs}
           </span>
         </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden border">
           <div
             className={cn(
-              "h-full transition-all duration-500 rounded-full",
+              "h-full transition-all duration-700 rounded-full",
               completionPercent < 50 && "bg-evidence-alert",
-              completionPercent >= 50 && completionPercent < 100 && "bg-primary",
+              completionPercent >= 50 && completionPercent < 100 && "bg-amber-400",
               completionPercent === 100 && "bg-evidence-success"
             )}
             style={{ width: `${completionPercent}%` }}
           />
         </div>
+        {completionPercent < 100 && (
+          <p className="text-[10px] text-muted-foreground mt-2 text-center">
+            {totalKPIs - completedKPIs} KPIs remaining to complete assessment
+          </p>
+        )}
       </div>
 
-      {/* Section Breakdown */}
-      {hasSections && (
-        <div className="px-4 pb-4 space-y-2">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Section Weights
+      {/* Domain Breakdown */}
+      {hasDomains && (
+        <div className="px-4 py-3 space-y-2">
+          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center justify-between">
+            <span>Domain Averages</span>
+            <span>Avg Score</span>
           </div>
-          {sections!.map(section => {
-            const isManager = type === 'manager';
-            // Filter indicators that have a score (either staff or manager depending on type)
-            const sectionScore = section.indicators?.filter(i => {
-              const ind = i as any;
-              const val = isManager ? ind.managerScore : i.score;
-              return val !== null && val !== undefined;
-            }) || [];
+          {domains!.map(domain => {
+            let domainKPIs: KPIData[] = [];
+            domain.standards.forEach(s => {
+              domainKPIs = [...domainKPIs, ...s.kpis];
+            });
 
-            const avg = sectionScore.length > 0
-              ? sectionScore.reduce((a, i) => {
-                const ind = i as any;
-                const val = isManager ? ind.managerScore : i.score;
-                return a + (val ?? 0);
-              }, 0) / sectionScore.length
+            const scoredKPIs = domainKPIs.filter(k => {
+              const val = type === 'manager' ? k.managerScore : k.score;
+              return val !== null && val !== undefined && val !== 'X';
+            });
+
+            const avg = scoredKPIs.length > 0
+              ? scoredKPIs.reduce((a, k) => {
+                const val = type === 'manager' ? k.managerScore : k.score;
+                return a + (Number(val) || 0);
+              }, 0) / scoredKPIs.length
               : null;
 
             return (
-              <div key={section.id} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-primary">{section.weight}%</span>
-                  <span className="text-muted-foreground">{section.name}</span>
-                </div>
-                {avg !== null && (
+              <div key={domain.id} className="flex items-center justify-between text-sm group">
+                <span className="text-muted-foreground truncate hover:text-foreground transition-colors flex-1 mr-2" title={domain.name}>{domain.name}</span>
+                {avg !== null ? (
                   <span className={cn(
-                    "font-mono font-medium",
+                    "font-mono font-bold text-base px-2 py-0.5 rounded bg-muted/30 min-w-[3rem] text-center",
                     avg < 2 && "text-evidence-alert",
-                    avg >= 2 && avg < 3 && "text-foreground",
+                    avg >= 2 && avg < 3 && "text-amber-500",
                     avg >= 3 && "text-evidence-success"
                   )}>
-                    {avg.toFixed(2)}
+                    {avg.toFixed(1)}
                   </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-tighter italic">Pending</span>
                 )}
               </div>
             );

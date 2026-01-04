@@ -1,14 +1,14 @@
-
-import { Assessment, SectionData } from "@/hooks/useAssessment";
+import { Assessment } from "@/hooks/useAssessment";
+import { DomainData } from "@/components/assessment/AssessmentSection";
 import { format } from "date-fns";
 
 interface AssessmentPrintViewProps {
     assessment: Assessment;
-    sections: SectionData[];
+    domains: DomainData[];
     staffName?: string;
 }
 
-export function AssessmentPrintView({ assessment, sections, staffName }: AssessmentPrintViewProps) {
+export function AssessmentPrintView({ assessment, domains, staffName }: AssessmentPrintViewProps) {
     const managerScore = Number(assessment.final_score) || 0;
 
     // Helper to get grade label and color
@@ -28,94 +28,89 @@ export function AssessmentPrintView({ assessment, sections, staffName }: Assessm
 
     const gradeInfo = getGradeInfo(managerScore);
 
-    // Score badge helper
-    const getScoreBadge = (score: number | null) => {
-        if (score === null) return <span className="text-slate-400">-</span>;
-        let bgColor = "bg-slate-100 text-slate-600";
-        if (score >= 3.5) bgColor = "bg-blue-100 text-blue-700";
-        else if (score >= 2.5) bgColor = "bg-emerald-100 text-emerald-700";
-        else if (score >= 1.5) bgColor = "bg-amber-100 text-amber-700";
-        else bgColor = "bg-red-100 text-red-700";
-        return <span className={`inline-flex items-center justify-center w-9 h-9 rounded-lg font-mono font-bold ${bgColor}`}>{score}</span>;
-    };
-
     return (
         <div className="fixed inset-0 z-[9999] bg-white text-slate-900 overflow-auto print:static print:p-0 print:overflow-visible font-sans leading-normal">
             {/* Header: Slimmer & More Professional */}
             <div className="bg-gradient-to-r from-blue-700 via-violet-700 to-indigo-700 text-white px-8 py-4">
                 <div className="flex justify-between items-end max-w-5xl mx-auto">
                     <div>
-                        <h1 className="text-xl font-bold tracking-tight uppercase">Performance Appraisal</h1>
+                        <h1 className="text-xl font-bold tracking-tight uppercase">Performance Framework Report</h1>
                         <p className="text-blue-100 text-[10px] font-medium opacity-80 mt-0.5">Confidential • Generated {format(new Date(), 'MMM d, yyyy h:mm a')}</p>
                     </div>
                     <div className="text-right">
-                        <div className="text-[11px] font-bold text-blue-100/90">{assessment.period}</div>
+                        <div className="text-[11px] font-bold text-blue-100/90 tracking-widest uppercase">{assessment.period}</div>
                     </div>
                 </div>
             </div>
 
-            <div className="max-w-5xl mx-auto p-8 pt-6 space-y-6">
-                {/* Employee Info: De-containerized & Airy */}
-                <div className="border-b border-slate-200 pb-4 mb-2">
-                    <div className="grid grid-cols-12 gap-8 items-end">
+            <div className="max-w-5xl mx-auto p-10 pt-8 space-y-10">
+                {/* Employee Info */}
+                <div className="border-b-2 border-slate-200 pb-6">
+                    <div className="grid grid-cols-12 gap-10 items-end">
                         <div className="col-span-4">
-                            <div className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1">Employee</div>
-                            <div className="text-lg font-bold text-slate-900 leading-none">{staffName || assessment.staff_name || "Staff Member"}</div>
-                            <div className="text-[11px] font-medium text-slate-500 mt-1">{assessment.staff_job_title || "Position not set"}</div>
+                            <div className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1.5">Employee Details</div>
+                            <div className="text-2xl font-black text-slate-900 leading-none">{staffName || assessment.staff_name || "Staff Member"}</div>
+                            <div className="text-[11px] font-bold text-slate-500 mt-2 uppercase tracking-wide tracking-tighter">{assessment.staff_job_title || "Position not set"}</div>
                         </div>
-                        <div className="col-span-3 border-l border-slate-100 pl-6">
-                            <div className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1">Department</div>
-                            <div className="text-sm font-semibold text-slate-700">{assessment.staff_department || "General"}</div>
+                        <div className="col-span-3 border-l border-slate-100 pl-8">
+                            <div className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1.5">Functional Unit</div>
+                            <div className="text-sm font-bold text-slate-700">{assessment.staff_department || "General"}</div>
                         </div>
-                        <div className="col-span-2 border-l border-slate-100 pl-6">
-                            <div className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1">Status</div>
-                            <div className="text-sm font-semibold text-emerald-600 capitalize">{assessment.status.replace('_', ' ')}</div>
+                        <div className="col-span-2 border-l border-slate-100 pl-8">
+                            <div className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1.5">Cycle Phase</div>
+                            <div className="text-sm font-bold text-emerald-600 uppercase tracking-tight">{assessment.status.replace('_', ' ')}</div>
                         </div>
-                        <div className="col-span-3 border-l border-slate-100 pl-6 text-right">
-                            <div className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1">Period Ending</div>
-                            <div className="text-sm font-semibold text-slate-700">{assessment.period}</div>
+                        <div className="col-span-3 border-l border-slate-100 pl-8 text-right">
+                            <div className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1.5">Reporting Period</div>
+                            <div className="text-sm font-bold text-slate-700 uppercase tracking-tighter">{assessment.period}</div>
                         </div>
                     </div>
                 </div>
 
                 {/* Executive Summary */}
-                <section className="space-y-4 break-inside-avoid shadow-none">
-                    <div className="flex items-center gap-2 border-b border-slate-900 pb-2">
-                        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-900">Executive Summary</h2>
+                <section className="space-y-6 break-inside-avoid">
+                    <div className="flex items-center gap-2 border-b-2 border-slate-900 pb-2">
+                        <h2 className="text-sm font-black uppercase tracking-widest text-slate-900">I. Executive Summary</h2>
                     </div>
 
-                    <div className="grid grid-cols-12 gap-8 items-start pt-2">
-                        {/* Rating Block */}
-                        <div className="col-span-4 bg-slate-50 p-4 border border-slate-200">
+                    <div className="grid grid-cols-12 gap-10 items-start pt-2">
+                        <div className="col-span-4 bg-slate-50 p-6 border-2 border-slate-200 rounded-xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-blue-600/5 rounded-bl-full pointer-events-none" />
                             <div className="flex items-baseline gap-2">
-                                <span className={`text-4xl font-mono font-bold ${gradeInfo.color}`}>{managerScore.toFixed(2)}</span>
-                                <span className={`text-xl font-bold ${gradeInfo.color}`}>{gradeInfo.grade}</span>
+                                <span className={`text-5xl font-mono font-black ${gradeInfo.color}`}>{managerScore.toFixed(2)}</span>
+                                <span className={`text-2xl font-black ${gradeInfo.color}`}>{gradeInfo.grade}</span>
                             </div>
-                            <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mt-1">{gradeInfo.label}</div>
-                            <div className="text-[9px] text-slate-400 mt-4 leading-tight italic">Combined performance score across all weighted sections</div>
+                            <div className="text-[11px] uppercase font-black text-slate-500 tracking-widest mt-2">{gradeInfo.label}</div>
+                            <div className="text-[9px] text-slate-400 mt-6 leading-relaxed italic font-medium">Framework-wide weighted performance score adjusted for implementation status.</div>
                         </div>
 
-                        {/* Breakdown block */}
-                        <div className="col-span-8">
-                            <div className="text-[10px] font-bold uppercase text-slate-400 mb-3 tracking-widest">Section Results</div>
-                            <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                                {sections.map(section => {
-                                    const sectionIndicators = section.indicators.filter((i: any) => i.managerScore !== null && i.managerScore !== undefined);
-                                    const sectionAvg = sectionIndicators.length > 0
-                                        ? sectionIndicators.reduce((acc: number, i: any) => acc + (i.managerScore ?? 0), 0) / sectionIndicators.length
+                        <div className="col-span-8 space-y-4">
+                            <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Domain Performance Breakdown</div>
+                            <div className="grid grid-cols-2 gap-x-10 gap-y-3">
+                                {domains.map(domain => {
+                                    let allKPIs: any[] = [];
+                                    domain.standards.forEach(s => allKPIs = [...allKPIs, ...s.kpis]);
+
+                                    const scoredKPIs = allKPIs.filter(k => k.managerScore !== null && k.managerScore !== undefined && k.managerScore !== 'X');
+                                    const avg = scoredKPIs.length > 0
+                                        ? scoredKPIs.reduce((acc, k) => acc + Number(k.managerScore), 0) / scoredKPIs.length
                                         : null;
-                                    const sectionGrade = sectionAvg !== null ? getGradeInfo(sectionAvg) : null;
+
+                                    const domainGrade = avg !== null ? getGradeInfo(avg) : null;
 
                                     return (
-                                        <div key={section.id} className="flex items-center justify-between text-[11px] border-b border-slate-100 pb-1">
-                                            <span className="text-slate-600 font-medium">{section.name}</span>
-                                            {sectionAvg !== null ? (
-                                                <div className="flex items-center gap-1.5 font-mono">
-                                                    <span className={`font-bold ${sectionGrade?.color}`}>{sectionAvg.toFixed(2)}</span>
-                                                    <span className={`font-bold opacity-70 ${sectionGrade?.color}`}>{sectionGrade?.grade}</span>
+                                        <div key={domain.id} className="flex items-center justify-between text-[11px] border-b border-slate-100 pb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-400 font-mono font-bold w-6">{domain.weight}%</span>
+                                                <span className="text-slate-800 font-bold uppercase tracking-tight">{domain.name}</span>
+                                            </div>
+                                            {avg !== null ? (
+                                                <div className="flex items-center gap-2 font-mono">
+                                                    <span className={`font-black ${domainGrade?.color}`}>{avg.toFixed(2)}</span>
+                                                    <span className={`font-bold opacity-50 ${domainGrade?.color}`}>{domainGrade?.grade}</span>
                                                 </div>
                                             ) : (
-                                                <span className="text-slate-300">-</span>
+                                                <span className="text-slate-300 font-bold">-</span>
                                             )}
                                         </div>
                                     );
@@ -123,130 +118,159 @@ export function AssessmentPrintView({ assessment, sections, staffName }: Assessm
                             </div>
                         </div>
                     </div>
+                </section>
 
-                    <div className="grid grid-cols-2 gap-8 pt-4">
-                        <div className="space-y-2">
-                            <h3 className="text-[10px] font-bold uppercase text-slate-900 tracking-wider">Manager's Feedback</h3>
-                            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                {assessment.manager_notes || "No feedback provided."}
+                {/* Comments Section */}
+                <section className="grid grid-cols-2 gap-10 break-inside-avoid border-t-2 border-slate-100 pt-8">
+                    <div className="space-y-4">
+                        <h3 className="text-[10px] font-black uppercase text-slate-900 tracking-widest flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+                            Manager Narrative
+                        </h3>
+                        <div className="text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50/50 p-4 rounded-xl border border-slate-100 italic">
+                            {assessment.manager_notes || "No narrative feedback provided for this cycle."}
+                        </div>
+                    </div>
+                    {assessment.director_comments && (
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase text-slate-900 tracking-widest flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 bg-violet-600 rounded-full" />
+                                Director Oversight
+                            </h3>
+                            <div className="text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                                {assessment.director_comments}
                             </div>
                         </div>
-                        {assessment.director_comments && (
-                            <div className="space-y-2">
-                                <h3 className="text-[10px] font-bold uppercase text-slate-900 tracking-wider">Director's Comments</h3>
-                                <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                    {assessment.director_comments}
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    )}
                 </section>
 
-                {/* Detailed Assessment */}
-                <section className="pt-4 space-y-6">
-                    <div className="flex items-center gap-2 border-b border-slate-900 pb-2">
-                        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-900">Breakdown</h2>
+                {/* Detailed Framework Breakdown */}
+                <section className="pt-6 space-y-8">
+                    <div className="flex items-center gap-2 border-b-2 border-slate-900 pb-2">
+                        <h2 className="text-sm font-black uppercase tracking-widest text-slate-900">II. Detailed Framework Breakdown</h2>
                     </div>
 
-                    <div className="space-y-10">
-                        {sections.map(section => {
-                            const sectionIndicators = section.indicators.filter((i: any) => i.managerScore !== null && i.managerScore !== undefined);
-                            const sectionAvg = sectionIndicators.length > 0
-                                ? sectionIndicators.reduce((acc: number, i: any) => acc + (i.managerScore ?? 0), 0) / sectionIndicators.length
-                                : null;
-                            const sectionGrade = sectionAvg !== null ? getGradeInfo(sectionAvg) : null;
-
-                            return (
-                                <div key={section.id} className="break-inside-avoid">
-                                    <div className="flex justify-between items-baseline border-b border-slate-600 pb-1 mb-4">
-                                        <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800">{section.name}</h3>
-                                        {sectionAvg !== null && (
-                                            <span className={`text-[11px] font-mono font-bold ${sectionGrade?.color}`}>
-                                                Average Score: {sectionAvg.toFixed(2)} {sectionGrade?.grade}
-                                            </span>
-                                        )}
+                    <div className="space-y-12">
+                        {domains.map(domain => (
+                            <div key={domain.id} className="space-y-8 break-inside-avoid-page">
+                                <div className="bg-slate-900 text-white px-6 py-3 rounded-lg flex justify-between items-center shadow-lg">
+                                    <h3 className="font-black text-sm uppercase tracking-widest">{domain.name}</h3>
+                                    <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest opacity-80">
+                                        <span>Contribution: {domain.weight}%</span>
+                                        <span>{domain.standards.length} Standards</span>
                                     </div>
+                                </div>
 
-                                    <div className="space-y-2">
-                                        <div className="grid grid-cols-12 gap-4 px-1 py-1 text-[9px] font-bold uppercase text-slate-400 border-b border-slate-100">
-                                            <div className="col-span-8">Indicator</div>
-                                            <div className="col-span-1 text-center">Score</div>
-                                            <div className="col-span-3 text-right">Performance Level</div>
-                                        </div>
-                                        {section.indicators.map((ind: any) => {
-                                            const scoreLabel = ind.score_options?.find((opt: any) => opt.score === ind.managerScore)?.label;
-                                            const scoreColor = ind.managerScore >= 3.5 ? 'text-blue-700 bg-blue-50/50' :
-                                                ind.managerScore >= 2.5 ? 'text-emerald-700 bg-emerald-50/50' :
-                                                    ind.managerScore >= 1.5 ? 'text-amber-700 bg-amber-50/50' :
-                                                        'text-red-700 bg-red-50/50';
+                                <div className="space-y-10 pl-4 border-l-4 border-slate-100">
+                                    {domain.standards.map((standard, stdIdx) => (
+                                        <div key={standard.id} className="space-y-4 break-inside-avoid">
+                                            <div className="flex items-center gap-3 border-b border-slate-300 pb-2">
+                                                <div className="bg-slate-200 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STD {stdIdx + 1}</div>
+                                                <h4 className="font-black text-xs uppercase text-slate-800 tracking-wide italic">{standard.name}</h4>
+                                            </div>
 
-                                            return (
-                                                <div key={ind.id} className="py-3 border-b border-slate-100 break-inside-avoid">
-                                                    <div className="grid grid-cols-12 gap-4 items-start">
-                                                        <div className="col-span-8">
-                                                            <div className="font-bold text-slate-800 text-xs">{ind.name}</div>
-                                                            <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{ind.description}</div>
-                                                        </div>
-                                                        <div className="col-span-1 text-center font-mono font-bold text-sm text-slate-700">
-                                                            {ind.managerScore ?? '-'}
-                                                        </div>
-                                                        <div className="col-span-3 text-right">
-                                                            {scoreLabel && (
-                                                                <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded ${scoreColor} tracking-tight`}>
-                                                                    {scoreLabel}
-                                                                </span>
+                                            <div className="space-y-1">
+                                                <div className="grid grid-cols-12 gap-6 px-4 py-2 text-[9px] font-black uppercase text-slate-400 border-b border-slate-100 bg-slate-50/30">
+                                                    <div className="col-span-8">Key Performance Indicator (KPI)</div>
+                                                    <div className="col-span-1 text-center">Score</div>
+                                                    <div className="col-span-3 text-right">Rubric Alignment</div>
+                                                </div>
+
+                                                {standard.kpis.map((kpi) => {
+                                                    const score = kpi.managerScore;
+                                                    const isX = score === 'X';
+                                                    const numericScore = typeof score === 'number' ? score : null;
+
+                                                    const labels: Record<number, string> = {
+                                                        1: "BEGINNING",
+                                                        2: "DEVELOPING",
+                                                        3: "PROFICIENT",
+                                                        4: "EXEMPLARY"
+                                                    };
+
+                                                    const scoreLabel = isX ? "NOT IMPLEMENTED" : (numericScore ? labels[numericScore] : "NOT RATED");
+                                                    const scoreColor = isX ? 'text-slate-500 bg-slate-100' :
+                                                        (numericScore && numericScore >= 3.5 ? 'text-blue-700 bg-blue-50' :
+                                                            numericScore && numericScore >= 2.5 ? 'text-emerald-700 bg-emerald-50' :
+                                                                numericScore && numericScore >= 1.5 ? 'text-amber-700 bg-amber-50' :
+                                                                    'text-red-700 bg-red-50');
+
+                                                    return (
+                                                        <div key={kpi.id} className="py-5 px-4 border-b border-slate-100 break-inside-avoid hover:bg-slate-50/20 transition-colors">
+                                                            <div className="grid grid-cols-12 gap-6 items-start">
+                                                                <div className="col-span-8">
+                                                                    <div className="font-black text-slate-900 text-[13px] leading-tight mb-1">{kpi.name}</div>
+                                                                    <p className="text-[11px] text-slate-500 leading-relaxed font-medium">{kpi.description}</p>
+                                                                </div>
+                                                                <div className="col-span-1 text-center">
+                                                                    <div className="font-mono font-black text-lg text-slate-900">
+                                                                        {score ?? '-'}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="col-span-3 text-right">
+                                                                    <span className={`inline-block text-[9px] font-black px-3 py-1 rounded-full ${scoreColor} tracking-widest`}>
+                                                                        {scoreLabel}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            {kpi.managerEvidence && (
+                                                                <div className="mt-4 text-[11px] text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100 border-l-4 border-l-blue-400">
+                                                                    <span className="font-black text-blue-600 uppercase text-[8px] tracking-widest block mb-1">Assessor Rationale:</span>
+                                                                    {typeof kpi.managerEvidence === 'string' ? kpi.managerEvidence : ''}
+                                                                </div>
                                                             )}
                                                         </div>
-                                                    </div>
-                                                    {ind.managerEvidence && (
-                                                        <div className="mt-2 text-[11px] text-slate-600 whitespace-pre-wrap leading-snug">
-                                                            <span className="font-bold text-slate-400 uppercase text-[8px] tracking-wide mr-2">Manager Obs:</span>
-                                                            {typeof ind.managerEvidence === 'string' ? ind.managerEvidence :
-                                                                Array.isArray(ind.managerEvidence) ? ind.managerEvidence[0]?.notes : ''}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            );
-                        })}
+                            </div>
+                        ))}
                     </div>
                 </section>
 
-                {/* Approval History */}
-                <section className="pt-8 border-t border-slate-900 mt-12 break-inside-avoid">
-                    <div className="grid grid-cols-2 gap-16">
+                {/* Final Acknowledgement and Signatures */}
+                <section className="pt-12 border-t-2 border-slate-900 mt-16 break-inside-avoid">
+                    <div className="mb-12 space-y-4">
+                        <h3 className="text-[10px] font-black uppercase text-slate-900 tracking-widest">III. Staff Acknowledgement</h3>
+                        <div className="text-[11px] text-slate-700 leading-relaxed bg-slate-50 p-6 rounded-xl border border-slate-200 min-h-[100px] italic">
+                            {assessment.staff_notes || "Performance review results acknowledged via electronic framework signature."}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-20">
                         {/* Manager */}
-                        <div className="space-y-4">
-                            <div className="text-[9px] font-bold uppercase text-slate-400 tracking-widest">Appraiser Approval</div>
-                            <div className="pt-8 border-b border-slate-200 pb-2 relative">
-                                <div className="text-xl font-bold text-slate-900 italic serif">{assessment.manager_name || "Manager Signature"}</div>
-                                <div className="text-[10px] text-slate-500 mt-2">
-                                    Signed at <span className="font-semibold">{assessment.manager_reviewed_at ? format(new Date(assessment.manager_reviewed_at), 'MMM d, yyyy h:mm a') : 'Pending'}</span>
+                        <div className="space-y-6">
+                            <div className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Assessing Authority</div>
+                            <div className="pt-8 border-b-2 border-slate-200 pb-3 relative">
+                                <div className="text-2xl font-black text-slate-900 italic serif tracking-tight">{assessment.manager_name || "Assessor Name"}</div>
+                                <div className="text-[10px] text-slate-500 mt-3 font-bold uppercase tracking-wider">
+                                    Timestamp: <span className="text-slate-800">{assessment.manager_reviewed_at ? format(new Date(assessment.manager_reviewed_at), 'MMM d, yyyy h:mm a') : 'Verification Pending'}</span>
                                 </div>
                             </div>
-                            <div className="text-[10px] font-bold text-slate-500 uppercase">Manager</div>
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manager / Primary Evaluator</div>
                         </div>
 
                         {/* Director */}
-                        <div className="space-y-4">
-                            <div className="text-[9px] font-bold uppercase text-slate-400 tracking-widest">Management Oversight</div>
-                            <div className="pt-8 border-b border-slate-200 pb-2 relative">
-                                <div className="text-xl font-bold text-slate-900 italic serif">{assessment.director_name || "Director Signature"}</div>
-                                <div className="text-[10px] text-slate-500 mt-2">
-                                    Approved at <span className="font-semibold">{assessment.director_approved_at ? format(new Date(assessment.director_approved_at), 'MMM d, yyyy h:mm a') : 'Pending'}</span>
+                        <div className="space-y-6">
+                            <div className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Oversight Approval</div>
+                            <div className="pt-8 border-b-2 border-slate-200 pb-3 relative">
+                                <div className="text-2xl font-black text-slate-900 italic serif tracking-tight">{assessment.director_name || "Director Name"}</div>
+                                <div className="text-[10px] text-slate-500 mt-3 font-bold uppercase tracking-wider">
+                                    Timestamp: <span className="text-slate-800">{assessment.director_approved_at ? format(new Date(assessment.director_approved_at), 'MMM d, yyyy h:mm a') : 'Verification Pending'}</span>
                                 </div>
                             </div>
-                            <div className="text-[10px] font-bold text-slate-500 uppercase">Director / HR Manager</div>
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Management Sign-Off</div>
                         </div>
                     </div>
                 </section>
 
                 {/* Footer */}
-                <div className="text-center text-[9px] text-slate-300 pt-12">
-                    ProofPoint Performance Management System • Official Document
+                <div className="flex justify-between items-center text-[9px] text-slate-400 pt-16 border-t border-slate-100">
+                    <div className="font-bold uppercase tracking-widest">ProofPoint Performance Management System • Framework v2.0</div>
+                    <div className="font-mono">REF: {assessment.id.substring(0, 8).toUpperCase()}</div>
                 </div>
             </div>
         </div>

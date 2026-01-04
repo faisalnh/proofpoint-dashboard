@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { query, queryOne } from "@/lib/db";
 
-// GET /api/rubrics - List rubric templates with sections and indicators
+// GET /api/rubrics - List rubric templates with domains, standards, and KPIs
 export async function GET(request: Request) {
     try {
         const session = await auth();
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
         const templateId = searchParams.get("id");
 
         if (templateId) {
-            // Get single template with sections and indicators
+            // Get single template
             const template = await queryOne(
                 `SELECT * FROM rubric_templates WHERE id = $1`,
                 [templateId]
@@ -24,12 +24,39 @@ export async function GET(request: Request) {
                 return NextResponse.json({ error: "Template not found" }, { status: 404 });
             }
 
+            // Fetch domains with standards and KPIs (new structure)
+            const domains = await query(
+                `SELECT * FROM kpi_domains WHERE template_id = $1 ORDER BY sort_order`,
+                [templateId]
+            );
+
+            const domainsWithStandards = await Promise.all(
+                (domains as { id: string }[]).map(async (domain) => {
+                    const standards = await query(
+                        `SELECT * FROM kpi_standards WHERE domain_id = $1 ORDER BY sort_order`,
+                        [domain.id]
+                    );
+
+                    const standardsWithKPIs = await Promise.all(
+                        (standards as { id: string }[]).map(async (standard) => {
+                            const kpis = await query(
+                                `SELECT * FROM kpis WHERE standard_id = $1 ORDER BY sort_order`,
+                                [standard.id]
+                            );
+                            return { ...standard, kpis };
+                        })
+                    );
+
+                    return { ...domain, standards: standardsWithKPIs };
+                })
+            );
+
+            // Also fetch legacy sections for backwards compatibility
             const sections = await query(
                 `SELECT * FROM rubric_sections WHERE template_id = $1 ORDER BY sort_order`,
                 [templateId]
             );
 
-            // Get indicators for each section
             const sectionsWithIndicators = await Promise.all(
                 (sections as { id: string }[]).map(async (section) => {
                     const indicators = await query(
@@ -41,7 +68,11 @@ export async function GET(request: Request) {
             );
 
             return NextResponse.json({
-                data: { ...template, sections: sectionsWithIndicators }
+                data: {
+                    ...template,
+                    domains: domainsWithStandards,
+                    sections: sectionsWithIndicators  // Legacy support
+                }
             });
         }
 

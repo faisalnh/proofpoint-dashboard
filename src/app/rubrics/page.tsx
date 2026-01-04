@@ -18,12 +18,15 @@ import {
     Layout,
     Layers,
     ChevronRight,
+    ChevronDown,
     Info,
     Target,
     Edit3,
     Trash2,
     Save,
     X,
+    BookOpen,
+    Award,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -33,22 +36,31 @@ function RubricsContent() {
     const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [editData, setEditData] = useState<any>(null);
+    const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
+    const [expandedStandards, setExpandedStandards] = useState<Set<string>>(new Set());
 
     const handleSelectTemplate = async (template: any) => {
         if (selectedTemplate?.id === template.id) return;
 
         setIsEditMode(false);
-        // If it's a template from the list, it might not have sections
-        if (!template.sections) {
+        setExpandedDomains(new Set());
+        setExpandedStandards(new Set());
+
+        if (!template.domains) {
             setIsDetailLoading(true);
             setSelectedTemplate(template);
             const { data, error } = await api.getRubric(template.id);
             if (!error && data) {
                 setSelectedTemplate(data);
+                // Auto-expand all domains
+                const allDomainIds = ((data as any).domains || []).map((d: any) => d.id);
+                setExpandedDomains(new Set(allDomainIds));
             }
             setIsDetailLoading(false);
         } else {
             setSelectedTemplate(template);
+            const allDomainIds = (template.domains || []).map((d: any) => d.id);
+            setExpandedDomains(new Set(allDomainIds));
         }
     };
 
@@ -61,7 +73,6 @@ function RubricsContent() {
 
     const handleSaveTemplate = async () => {
         setIsDetailLoading(true);
-        // Save template metadata
         const { error: templateError } = await api.updateRubric(editData.id, {
             name: editData.name,
             description: editData.description
@@ -80,98 +91,199 @@ function RubricsContent() {
         if (refreshTemplates) refreshTemplates();
     };
 
-    const handleUpdateSection = async (sectionId: string, updates: any) => {
-        const { data, error } = await api.updateSection(sectionId, updates);
-        if (error) {
-            toast({ title: "Error", description: "Failed to update section", variant: "destructive" });
-        } else {
-            setEditData((prev: any) => ({
-                ...prev,
-                sections: prev.sections.map((s: any) => s.id === sectionId ? { ...s, ...data } : s)
-            }));
-        }
+    const toggleDomain = (domainId: string) => {
+        setExpandedDomains(prev => {
+            const next = new Set(prev);
+            if (next.has(domainId)) {
+                next.delete(domainId);
+            } else {
+                next.add(domainId);
+            }
+            return next;
+        });
     };
 
-    const handleAddSection = async () => {
-        const { data, error } = await api.createSection({
+    const toggleStandard = (standardId: string) => {
+        setExpandedStandards(prev => {
+            const next = new Set(prev);
+            if (next.has(standardId)) {
+                next.delete(standardId);
+            } else {
+                next.add(standardId);
+            }
+            return next;
+        });
+    };
+
+    // Domain CRUD handlers
+    const handleAddDomain = async () => {
+        const { data, error } = await api.createDomain({
             template_id: selectedTemplate.id,
-            name: "New Section",
-            weight: 0,
-            sort_order: (editData.sections?.length || 0)
+            name: "New Domain",
+            sort_order: (editData.domains?.length || 0)
         });
 
         if (error) {
-            toast({ title: "Error", description: "Failed to add section", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to add domain", variant: "destructive" });
         } else {
             setEditData((prev: any) => ({
                 ...prev,
-                sections: [...(prev.sections || []), { ...data, indicators: [] }]
+                domains: [...(prev.domains || []), { ...data, standards: [] }]
+            }));
+            setExpandedDomains(prev => new Set([...prev, (data as any).id]));
+        }
+    };
+
+    const handleUpdateDomain = async (domainId: string, updates: any) => {
+        const { data, error } = await api.updateDomain(domainId, updates);
+        if (error) {
+            toast({ title: "Error", description: "Failed to update domain", variant: "destructive" });
+        } else {
+            setEditData((prev: any) => ({
+                ...prev,
+                domains: prev.domains.map((d: any) => d.id === domainId ? { ...d, ...data } : d)
             }));
         }
     };
 
-    const handleDeleteSection = async (sectionId: string) => {
-        if (!confirm("Are you sure you want to delete this section and all its indicators?")) return;
+    const handleDeleteDomain = async (domainId: string) => {
+        if (!confirm("Are you sure you want to delete this domain and all its standards and KPIs?")) return;
 
-        const { error } = await api.deleteSection(sectionId);
+        const { error } = await api.deleteDomain(domainId);
         if (error) {
-            toast({ title: "Error", description: "Failed to delete section", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to delete domain", variant: "destructive" });
         } else {
             setEditData((prev: any) => ({
                 ...prev,
-                sections: prev.sections.filter((s: any) => s.id !== sectionId)
+                domains: prev.domains.filter((d: any) => d.id !== domainId)
             }));
         }
     };
 
-    const handleUpdateIndicator = async (indicatorId: string, updates: any) => {
-        const { data, error } = await api.updateIndicator(indicatorId, updates);
+    // Standard CRUD handlers
+    const handleAddStandard = async (domainId: string) => {
+        const domain = editData.domains.find((d: any) => d.id === domainId);
+        const { data, error } = await api.createStandard({
+            domain_id: domainId,
+            name: "New Standard",
+            sort_order: (domain.standards?.length || 0)
+        });
+
         if (error) {
-            toast({ title: "Error", description: "Failed to update indicator", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to add standard", variant: "destructive" });
         } else {
             setEditData((prev: any) => ({
                 ...prev,
-                sections: prev.sections.map((s: any) => ({
-                    ...s,
-                    indicators: s.indicators.map((i: any) => i.id === indicatorId ? { ...i, ...data } : i)
+                domains: prev.domains.map((d: any) => d.id === domainId ? {
+                    ...d,
+                    standards: [...(d.standards || []), { ...data, kpis: [] }]
+                } : d)
+            }));
+            setExpandedStandards(prev => new Set([...prev, (data as any).id]));
+        }
+    };
+
+    const handleUpdateStandard = async (standardId: string, updates: any) => {
+        const { data, error } = await api.updateStandard(standardId, updates);
+        if (error) {
+            toast({ title: "Error", description: "Failed to update standard", variant: "destructive" });
+        } else {
+            setEditData((prev: any) => ({
+                ...prev,
+                domains: prev.domains.map((d: any) => ({
+                    ...d,
+                    standards: d.standards.map((s: any) => s.id === standardId ? { ...s, ...data } : s)
                 }))
             }));
         }
     };
 
-    const handleAddIndicator = async (sectionId: string) => {
-        const section = editData.sections.find((s: any) => s.id === sectionId);
-        const { data, error } = await api.createIndicator({
-            section_id: sectionId,
-            name: "New Indicator",
-            description: "",
-            sort_order: (section.indicators?.length || 0)
-        });
+    const handleDeleteStandard = async (standardId: string, domainId: string) => {
+        if (!confirm("Are you sure you want to delete this standard and all its KPIs?")) return;
 
+        const { error } = await api.deleteStandard(standardId);
         if (error) {
-            toast({ title: "Error", description: "Failed to add indicator", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to delete standard", variant: "destructive" });
         } else {
             setEditData((prev: any) => ({
                 ...prev,
-                sections: prev.sections.map((s: any) => s.id === sectionId ? {
-                    ...s,
-                    indicators: [...(s.indicators || []), data]
-                } : s)
+                domains: prev.domains.map((d: any) => d.id === domainId ? {
+                    ...d,
+                    standards: d.standards.filter((s: any) => s.id !== standardId)
+                } : d)
             }));
         }
     };
 
-    const handleDeleteIndicator = async (indicatorId: string, sectionId: string) => {
-        const { error } = await api.deleteIndicator(indicatorId);
+    // KPI CRUD handlers
+    const handleAddKPI = async (standardId: string) => {
+        let standard: any = null;
+        editData.domains.forEach((d: any) => {
+            const found = d.standards.find((s: any) => s.id === standardId);
+            if (found) standard = found;
+        });
+
+        const { data, error } = await api.createKPI({
+            standard_id: standardId,
+            name: "New KPI",
+            description: "",
+            evidence_guidance: "",
+            trainings: "",
+            sort_order: (standard?.kpis?.length || 0),
+            rubric_4: "≥95%",
+            rubric_3: "80-94%",
+            rubric_2: "60-79%",
+            rubric_1: "<60%"
+        });
+
         if (error) {
-            toast({ title: "Error", description: "Failed to delete indicator", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to add KPI", variant: "destructive" });
         } else {
             setEditData((prev: any) => ({
                 ...prev,
-                sections: prev.sections.map((s: any) => s.id === sectionId ? {
-                    ...s,
-                    indicators: s.indicators.filter((i: any) => i.id !== indicatorId)
-                } : s)
+                domains: prev.domains.map((d: any) => ({
+                    ...d,
+                    standards: d.standards.map((s: any) => s.id === standardId ? {
+                        ...s,
+                        kpis: [...(s.kpis || []), data]
+                    } : s)
+                }))
+            }));
+        }
+    };
+
+    const handleUpdateKPI = async (kpiId: string, updates: any) => {
+        const { data, error } = await api.updateKPI(kpiId, updates);
+        if (error) {
+            toast({ title: "Error", description: "Failed to update KPI", variant: "destructive" });
+        } else {
+            setEditData((prev: any) => ({
+                ...prev,
+                domains: prev.domains.map((d: any) => ({
+                    ...d,
+                    standards: d.standards.map((s: any) => ({
+                        ...s,
+                        kpis: s.kpis.map((k: any) => k.id === kpiId ? { ...k, ...data } : k)
+                    }))
+                }))
+            }));
+        }
+    };
+
+    const handleDeleteKPI = async (kpiId: string, standardId: string) => {
+        const { error } = await api.deleteKPI(kpiId);
+        if (error) {
+            toast({ title: "Error", description: "Failed to delete KPI", variant: "destructive" });
+        } else {
+            setEditData((prev: any) => ({
+                ...prev,
+                domains: prev.domains.map((d: any) => ({
+                    ...d,
+                    standards: d.standards.map((s: any) => s.id === standardId ? {
+                        ...s,
+                        kpis: s.kpis.filter((k: any) => k.id !== kpiId)
+                    } : s)
+                }))
             }));
         }
     };
@@ -187,12 +299,25 @@ function RubricsContent() {
 
     const currentData = isEditMode ? editData : selectedTemplate;
 
+    // Count KPIs across all domains and standards
+    const countKPIs = (domains: any[]) => {
+        if (!domains) return 0;
+        return domains.reduce((acc, d) =>
+            acc + (d.standards || []).reduce((sacc: number, s: any) =>
+                sacc + (s.kpis?.length || 0), 0), 0);
+    };
+
+    const countStandards = (domains: any[]) => {
+        if (!domains) return 0;
+        return domains.reduce((acc, d) => acc + (d.standards?.length || 0), 0);
+    };
+
     return (
         <div className="max-w-7xl mx-auto py-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-4xl font-bold tracking-tight mb-2">Performance Rubrics</h1>
-                    <p className="text-muted-foreground">Standardized criteria for organizational performance evaluation.</p>
+                    <h1 className="text-4xl font-bold tracking-tight mb-2">KPI Framework</h1>
+                    <p className="text-muted-foreground">Domain → Standard → KPI structure for performance evaluation.</p>
                 </div>
                 {!isEditMode && (
                     <Button className="glow-primary">
@@ -277,7 +402,7 @@ function RubricsContent() {
                                             ) : (
                                                 <Button variant="outline" size="sm" onClick={handleEditToggle}>
                                                     <Edit3 className="h-4 w-4 mr-2" />
-                                                    Edit Rubric
+                                                    Edit
                                                 </Button>
                                             )}
                                         </div>
@@ -287,19 +412,21 @@ function RubricsContent() {
                                     {isDetailLoading && !isEditMode ? (
                                         <div className="flex items-center gap-2">
                                             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                            <span className="text-sm text-muted-foreground">Loading sections...</span>
+                                            <span className="text-sm text-muted-foreground">Loading...</span>
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-6">
                                             <div className="flex items-center gap-2">
-                                                <Layers className="h-4 w-4 text-primary" />
-                                                <span className="text-sm font-medium">{currentData.sections?.length || 0} Sections</span>
+                                                <BookOpen className="h-4 w-4 text-primary" />
+                                                <span className="text-sm font-medium">{currentData.domains?.length || 0} Domains</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Award className="h-4 w-4 text-primary" />
+                                                <span className="text-sm font-medium">{countStandards(currentData.domains)} Standards</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Target className="h-4 w-4 text-primary" />
-                                                <span className="text-sm font-medium">
-                                                    {(currentData.sections || []).reduce((acc: number, s: any) => acc + (s.indicators?.length || 0), 0)} Indicators
-                                                </span>
+                                                <span className="text-sm font-medium">{countKPIs(currentData.domains)} KPIs</span>
                                             </div>
                                         </div>
                                     )}
@@ -310,131 +437,231 @@ function RubricsContent() {
                                 {isDetailLoading && !isEditMode ? (
                                     <div className="flex flex-col items-center justify-center h-full">
                                         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                                        <p className="text-muted-foreground">Loading evaluation criteria...</p>
+                                        <p className="text-muted-foreground">Loading KPI framework...</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-8 p-1">
-                                        {(currentData.sections || []).map((section: any) => (
-                                            <div key={section.id} className="space-y-4">
-                                                <div className="flex items-center gap-3 sticky top-0 bg-background/80 backdrop-blur-md py-2 z-10 transition-all">
+                                    <div className="space-y-6 p-1">
+                                        {(currentData.domains || []).map((domain: any, domainIdx: number) => (
+                                            <div key={domain.id} className="rounded-xl border border-border/50 bg-background overflow-hidden">
+                                                {/* Domain Header */}
+                                                <div
+                                                    className="flex items-center gap-3 p-4 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
+                                                    onClick={() => toggleDomain(domain.id)}
+                                                >
+                                                    {expandedDomains.has(domain.id) ? (
+                                                        <ChevronDown className="h-5 w-5 text-primary" />
+                                                    ) : (
+                                                        <ChevronRight className="h-5 w-5 text-primary" />
+                                                    )}
+                                                    <Badge variant="secondary" className="font-mono">D{domainIdx + 1}</Badge>
                                                     {isEditMode ? (
-                                                        <div className="flex items-center gap-2 flex-1">
+                                                        <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
                                                             <Input
-                                                                value={section.weight}
-                                                                type="number"
-                                                                onChange={(e) => handleUpdateSection(section.id, { weight: Number(e.target.value) })}
-                                                                className="w-20 font-mono text-primary h-8 px-2"
-                                                            />
-                                                            <span className="text-primary mr-1">%</span>
-                                                            <Input
-                                                                value={section.name}
-                                                                onChange={(e) => handleUpdateSection(section.id, { name: e.target.value })}
+                                                                value={domain.name}
+                                                                onChange={(e) => handleUpdateDomain(domain.id, { name: e.target.value })}
                                                                 className="flex-1 font-bold h-8 px-2"
                                                             />
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                                                onClick={() => handleDeleteSection(section.id)}
+                                                                onClick={() => handleDeleteDomain(domain.id)}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </div>
                                                     ) : (
-                                                        <>
-                                                            <Badge variant="outline" className="font-mono text-primary border-primary/20">{section.weight}%</Badge>
-                                                            <h4 className="text-lg font-bold">{section.name}</h4>
-                                                            <div className="h-px flex-1 bg-border/50" />
-                                                        </>
+                                                        <h3 className="font-bold text-lg flex-1">{domain.name}</h3>
                                                     )}
+                                                    <span className="text-xs text-muted-foreground">{domain.standards?.length || 0} standards</span>
                                                 </div>
 
-                                                <div className="grid gap-4">
-                                                    {(section.indicators || []).map((indicator: any) => (
-                                                        <div
-                                                            key={indicator.id}
-                                                            className="group p-4 rounded-xl bg-background border border-border/50 hover:border-primary/30 hover:bg-primary/[0.01] transition-all"
-                                                        >
-                                                            <div className="flex items-start gap-4">
-                                                                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-xs font-mono font-bold group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-                                                                    {(indicator.sort_order || 0) + 1}
-                                                                </div>
-                                                                <div className="flex-1">
+                                                {/* Domain Content (Standards) */}
+                                                {expandedDomains.has(domain.id) && (
+                                                    <div className="p-4 space-y-4">
+                                                        {(domain.standards || []).map((standard: any, stdIdx: number) => (
+                                                            <div key={standard.id} className="rounded-lg border border-border/30 overflow-hidden">
+                                                                {/* Standard Header */}
+                                                                <div
+                                                                    className="flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                                                                    onClick={() => toggleStandard(standard.id)}
+                                                                >
+                                                                    {expandedStandards.has(standard.id) ? (
+                                                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                                                    ) : (
+                                                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                                                    )}
+                                                                    <Badge variant="outline" className="font-mono text-xs">S{stdIdx + 1}</Badge>
                                                                     {isEditMode ? (
-                                                                        <div className="space-y-3">
-                                                                            <div className="flex items-start justify-between gap-2">
-                                                                                <Input
-                                                                                    value={indicator.name}
-                                                                                    onChange={(e) => handleUpdateIndicator(indicator.id, { name: e.target.value })}
-                                                                                    className="font-semibold h-8 px-2"
-                                                                                />
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                                                                    onClick={() => handleDeleteIndicator(indicator.id, section.id)}
-                                                                                >
-                                                                                    <Trash2 className="h-4 w-4" />
-                                                                                </Button>
-                                                                            </div>
-                                                                            <Textarea
-                                                                                value={indicator.description || ''}
-                                                                                onChange={(e) => handleUpdateIndicator(indicator.id, { description: e.target.value })}
-                                                                                placeholder="Indicator Description"
-                                                                                className="text-sm min-h-[60px]"
+                                                                        <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
+                                                                            <Input
+                                                                                value={standard.name}
+                                                                                onChange={(e) => handleUpdateStandard(standard.id, { name: e.target.value })}
+                                                                                className="flex-1 text-sm h-7 px-2"
                                                                             />
-                                                                            <div className="flex items-start gap-2 p-2 rounded-lg bg-muted/50 border border-border/30">
-                                                                                <Info className="h-3.5 w-3.5 text-primary mt-2" />
-                                                                                <Input
-                                                                                    value={indicator.evidence_guidance || ''}
-                                                                                    onChange={(e) => handleUpdateIndicator(indicator.id, { evidence_guidance: e.target.value })}
-                                                                                    placeholder="Evidence Guidance..."
-                                                                                    className="bg-transparent border-none text-xs h-7 p-0 focus-visible:ring-0"
-                                                                                />
-                                                                            </div>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                                                                onClick={() => handleDeleteStandard(standard.id, domain.id)}
+                                                                            >
+                                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                            </Button>
                                                                         </div>
                                                                     ) : (
-                                                                        <>
-                                                                            <h5 className="font-semibold text-foreground mb-1">{indicator.name}</h5>
-                                                                            <p className="text-sm text-muted-foreground leading-relaxed">{indicator.description}</p>
-
-                                                                            {indicator.evidence_guidance && (
-                                                                                <div className="mt-3 flex items-start gap-2 p-2 rounded-lg bg-muted/50 border border-border/30">
-                                                                                    <Info className="h-3.5 w-3.5 text-primary mt-0.5" />
-                                                                                    <p className="text-xs text-muted-foreground">
-                                                                                        <span className="font-semibold text-foreground mr-1">Evidence Guidance:</span>
-                                                                                        {indicator.evidence_guidance}
-                                                                                    </p>
-                                                                                </div>
-                                                                            )}
-                                                                        </>
+                                                                        <span className="text-sm font-medium flex-1">{standard.name}</span>
                                                                     )}
+                                                                    <span className="text-xs text-muted-foreground">{standard.kpis?.length || 0} KPIs</span>
                                                                 </div>
+
+                                                                {/* Standard Content (KPIs) */}
+                                                                {expandedStandards.has(standard.id) && (
+                                                                    <div className="p-3 space-y-3">
+                                                                        {(standard.kpis || []).map((kpi: any, kpiIdx: number) => (
+                                                                            <div key={kpi.id} className="p-3 rounded-lg bg-background border border-border/30 hover:border-primary/30 transition-colors">
+                                                                                <div className="flex items-start gap-3">
+                                                                                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-xs font-mono font-bold text-primary">
+                                                                                        {kpiIdx + 1}
+                                                                                    </div>
+                                                                                    <div className="flex-1 space-y-2">
+                                                                                        {isEditMode ? (
+                                                                                            <>
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <Input
+                                                                                                        value={kpi.name}
+                                                                                                        onChange={(e) => handleUpdateKPI(kpi.id, { name: e.target.value })}
+                                                                                                        className="font-semibold text-sm h-7 px-2"
+                                                                                                        placeholder="KPI Name"
+                                                                                                    />
+                                                                                                    <Button
+                                                                                                        variant="ghost"
+                                                                                                        size="icon"
+                                                                                                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                                                                                        onClick={() => handleDeleteKPI(kpi.id, standard.id)}
+                                                                                                    >
+                                                                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                                                                    </Button>
+                                                                                                </div>
+                                                                                                <Textarea
+                                                                                                    value={kpi.description || ''}
+                                                                                                    onChange={(e) => handleUpdateKPI(kpi.id, { description: e.target.value })}
+                                                                                                    placeholder="KPI Description / Measurement"
+                                                                                                    className="text-xs min-h-[50px]"
+                                                                                                />
+                                                                                                <div className="grid grid-cols-4 gap-2">
+                                                                                                    <div>
+                                                                                                        <label className="text-xs text-muted-foreground block mb-1">4 - Exemplary</label>
+                                                                                                        <Input
+                                                                                                            value={kpi.rubric_4 || ''}
+                                                                                                            onChange={(e) => handleUpdateKPI(kpi.id, { rubric_4: e.target.value })}
+                                                                                                            className="text-xs h-7 px-2"
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                    <div>
+                                                                                                        <label className="text-xs text-muted-foreground block mb-1">3 - Proficient</label>
+                                                                                                        <Input
+                                                                                                            value={kpi.rubric_3 || ''}
+                                                                                                            onChange={(e) => handleUpdateKPI(kpi.id, { rubric_3: e.target.value })}
+                                                                                                            className="text-xs h-7 px-2"
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                    <div>
+                                                                                                        <label className="text-xs text-muted-foreground block mb-1">2 - Developing</label>
+                                                                                                        <Input
+                                                                                                            value={kpi.rubric_2 || ''}
+                                                                                                            onChange={(e) => handleUpdateKPI(kpi.id, { rubric_2: e.target.value })}
+                                                                                                            className="text-xs h-7 px-2"
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                    <div>
+                                                                                                        <label className="text-xs text-muted-foreground block mb-1">1 - Beginning</label>
+                                                                                                        <Input
+                                                                                                            value={kpi.rubric_1 || ''}
+                                                                                                            onChange={(e) => handleUpdateKPI(kpi.id, { rubric_1: e.target.value })}
+                                                                                                            className="text-xs h-7 px-2"
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                <div className="flex items-start gap-2 p-2 rounded bg-muted/30">
+                                                                                                    <Info className="h-3.5 w-3.5 text-primary mt-1" />
+                                                                                                    <Input
+                                                                                                        value={kpi.evidence_guidance || ''}
+                                                                                                        onChange={(e) => handleUpdateKPI(kpi.id, { evidence_guidance: e.target.value })}
+                                                                                                        placeholder="Evidence guidance..."
+                                                                                                        className="bg-transparent border-none text-xs h-6 p-0 focus-visible:ring-0"
+                                                                                                    />
+                                                                                                </div>
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                <h5 className="font-semibold text-sm">{kpi.name}</h5>
+                                                                                                {kpi.description && (
+                                                                                                    <p className="text-xs text-muted-foreground">{kpi.description}</p>
+                                                                                                )}
+                                                                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                                                    <Badge variant="default" className="text-xs py-0 px-1.5">4-Exemplary: {kpi.rubric_4}</Badge>
+                                                                                                    <Badge variant="secondary" className="text-xs py-0 px-1.5">3-Proficient: {kpi.rubric_3}</Badge>
+                                                                                                    <Badge variant="outline" className="text-xs py-0 px-1.5">2-Developing: {kpi.rubric_2}</Badge>
+                                                                                                    <Badge variant="outline" className="text-xs py-0 px-1.5 text-muted-foreground">1-Beginning: {kpi.rubric_1}</Badge>
+                                                                                                </div>
+                                                                                                {kpi.evidence_guidance && (
+                                                                                                    <div className="mt-2 flex items-start gap-1.5 p-1.5 rounded bg-muted/30">
+                                                                                                        <Info className="h-3 w-3 text-primary mt-0.5" />
+                                                                                                        <p className="text-xs text-muted-foreground">{kpi.evidence_guidance}</p>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                        {isEditMode && (
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className="w-full border-dashed"
+                                                                                onClick={() => handleAddKPI(standard.id)}
+                                                                            >
+                                                                                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                                                                                Add KPI
+                                                                            </Button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        </div>
-                                                    ))}
-                                                    {isEditMode && (
-                                                        <Button
-                                                            variant="outline"
-                                                            className="border-dashed border-2 py-6 rounded-xl hover:border-primary/50 hover:bg-primary/[0.02]"
-                                                            onClick={() => handleAddIndicator(section.id)}
-                                                        >
-                                                            <Plus className="h-4 w-4 mr-2" />
-                                                            Add Indicator
-                                                        </Button>
-                                                    )}
-                                                </div>
+                                                        ))}
+                                                        {isEditMode && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="w-full border-dashed"
+                                                                onClick={() => handleAddStandard(domain.id)}
+                                                            >
+                                                                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                                                                Add Standard
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                         {isEditMode && (
                                             <Button
-                                                className="w-full py-8 border-dashed border-2 rounded-xl text-lg font-bold"
+                                                className="w-full py-6 border-dashed border-2 rounded-xl"
                                                 variant="outline"
-                                                onClick={handleAddSection}
+                                                onClick={handleAddDomain}
                                             >
-                                                <Plus className="h-6 w-6 mr-2" />
-                                                Add New Section
+                                                <Plus className="h-5 w-5 mr-2" />
+                                                Add New Domain
                                             </Button>
+                                        )}
+                                        {(!currentData.domains || currentData.domains.length === 0) && !isEditMode && (
+                                            <div className="text-center py-12 text-muted-foreground">
+                                                <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                                                <p>No domains defined yet.</p>
+                                                <p className="text-sm">Click "Edit" to add domains, standards, and KPIs.</p>
+                                            </div>
                                         )}
                                     </div>
                                 )}
@@ -447,7 +674,7 @@ function RubricsContent() {
                             </div>
                             <h3 className="text-xl font-semibold text-muted-foreground">Select a Template</h3>
                             <p className="text-muted-foreground max-w-xs text-center mt-2">
-                                Click on a rubric template from the list to view its sections and evaluation criteria.
+                                Click on a rubric template to view its KPI framework.
                             </p>
                         </Card>
                     )}

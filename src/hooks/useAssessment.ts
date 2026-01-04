@@ -3,35 +3,34 @@ import { api } from "@/lib/api-client";
 import { useAuth } from "./useAuth";
 import { toast } from "./use-toast";
 
-export interface ScoreOption {
-  score: number;
-  label: string;
-  enabled: boolean;
-}
-
-export interface EvidenceItem {
-  evidence: string;
-  notes: string;
-}
-
-export interface IndicatorData {
+export interface KPIData {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   evidence_guidance: string | null;
-  score_options: ScoreOption[];
-  score: number | null;
+  trainings: string | null;
+  rubric_4: string;
+  rubric_3: string;
+  rubric_2: string;
+  rubric_1: string;
+  score: number | 'X' | null;
   evidence: string | EvidenceItem[];
   // Manager data for review comparison
-  managerScore?: number | null;
+  managerScore?: number | 'X' | null;
   managerEvidence?: string | EvidenceItem[];
 }
 
-export interface SectionData {
+export interface StandardData {
+  id: string;
+  name: string;
+  kpis: KPIData[];
+}
+
+export interface DomainData {
   id: string;
   name: string;
   weight: number;
-  indicators: IndicatorData[];
+  standards: StandardData[];
 }
 
 // Helper to check if indicator has valid evidence
@@ -50,9 +49,9 @@ export interface Assessment {
   staff_id: string;
   manager_id: string | null;
   director_id: string | null;
-  staff_scores: Record<string, number>;
+  staff_scores: Record<string, number | 'X'>;
   staff_evidence: Record<string, string>;
-  manager_scores: Record<string, number>;
+  manager_scores: Record<string, number | 'X'>;
   manager_evidence: Record<string, string>;
   final_score: number | null;
   final_grade: string | null;
@@ -75,18 +74,27 @@ interface RubricTemplate {
   id: string;
   name: string;
   description: string | null;
-  sections: {
+  domains: {
     id: string;
     name: string;
     weight: number;
     sort_order: number;
-    indicators: {
+    standards: {
       id: string;
       name: string;
-      description: string | null;
-      evidence_guidance: string | null;
-      score_options: ScoreOption[];
       sort_order: number;
+      kpis: {
+        id: string;
+        name: string;
+        description: string | null;
+        evidence_guidance: string | null;
+        trainings: string | null;
+        rubric_4: string;
+        rubric_3: string;
+        rubric_2: string;
+        rubric_1: string;
+        sort_order: number;
+      }[];
     }[];
   }[];
 }
@@ -118,7 +126,7 @@ export function useRubricTemplates() {
 
 export function useAssessment(assessmentId?: string) {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
-  const [sections, setSections] = useState<SectionData[]>([]);
+  const [domains, setDomains] = useState<DomainData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [managerFeedback, setManagerFeedback] = useState("");
@@ -145,7 +153,7 @@ export function useAssessment(assessmentId?: string) {
       setDirectorFeedback((assessmentData as any).director_comments || "");
       setStaffAcknowledgement((assessmentData as any).staff_notes || "");
 
-      // Fetch rubric template with sections and indicators
+      // Fetch rubric template with new hierarchy
       const template_id = (assessmentData as any).template_id;
       if (template_id) {
         const { data: rubricData, error: rubricError } = await api.getRubric(template_id);
@@ -156,31 +164,40 @@ export function useAssessment(assessmentId?: string) {
           const data = assessmentData as any;
           const template = rubricData as any;
 
-          const staffScores = (data.staff_scores || {}) as Record<string, number>;
+          const staffScores = (data.staff_scores || {}) as Record<string, number | 'X'>;
           const staffEvidence = (data.staff_evidence || {}) as Record<string, string | EvidenceItem[]>;
-          const managerScores = (data.manager_scores || {}) as Record<string, number>;
+          const managerScores = (data.manager_scores || {}) as Record<string, number | 'X'>;
           const managerEvidence = (data.manager_evidence || {}) as Record<string, string | EvidenceItem[]>;
 
-          const formattedSections = (template.sections || [])
-            .map((s: any) => ({
-              id: s.id,
-              name: s.name,
-              weight: Number(s.weight),
-              indicators: (s.indicators || [])
-                .map((i: any) => ({
-                  id: i.id,
-                  name: i.name,
-                  description: i.description || '',
-                  evidence_guidance: i.evidence_guidance,
-                  score_options: i.score_options as ScoreOption[],
-                  score: staffScores[i.id] ?? null,
-                  evidence: staffEvidence[i.id] || '',
-                  managerScore: managerScores[i.id] ?? null,
-                  managerEvidence: managerEvidence[i.id] || '',
+          const formattedDomains = (template.domains || [])
+            .map((d: any) => ({
+              id: d.id,
+              name: d.name,
+              weight: Number(d.weight || 0),
+              standards: (d.standards || [])
+                .map((s: any) => ({
+                  id: s.id,
+                  name: s.name,
+                  kpis: (s.kpis || [])
+                    .map((k: any) => ({
+                      id: k.id,
+                      name: k.name,
+                      description: k.description,
+                      evidence_guidance: k.evidence_guidance,
+                      trainings: k.trainings,
+                      rubric_4: k.rubric_4,
+                      rubric_3: k.rubric_3,
+                      rubric_2: k.rubric_2,
+                      rubric_1: k.rubric_1,
+                      score: staffScores[k.id] ?? null,
+                      evidence: staffEvidence[k.id] || '',
+                      managerScore: managerScores[k.id] ?? null,
+                      managerEvidence: managerEvidence[k.id] || '',
+                    }))
                 }))
             }));
 
-          setSections(formattedSections);
+          setDomains(formattedDomains);
         }
       }
 
@@ -200,17 +217,19 @@ export function useAssessment(assessmentId?: string) {
     const isManagerView = assessment.status === 'self_submitted' || assessment.status === 'manager_reviewed';
 
     if (isManagerView) {
-      const managerScores: Record<string, number> = {};
+      const managerScores: Record<string, number | 'X'> = {};
       const managerEvidence: Record<string, string | EvidenceItem[]> = {};
 
-      sections.forEach(section => {
-        section.indicators.forEach(indicator => {
-          if (indicator.managerScore !== null && indicator.managerScore !== undefined) {
-            managerScores[indicator.id] = indicator.managerScore;
-          }
-          if (indicator.managerEvidence) {
-            managerEvidence[indicator.id] = indicator.managerEvidence;
-          }
+      domains.forEach(domain => {
+        domain.standards.forEach(standard => {
+          standard.kpis.forEach(kpi => {
+            if (kpi.managerScore !== null && kpi.managerScore !== undefined) {
+              managerScores[kpi.id] = kpi.managerScore;
+            }
+            if (kpi.managerEvidence) {
+              managerEvidence[kpi.id] = kpi.managerEvidence;
+            }
+          });
         });
       });
 
@@ -218,17 +237,19 @@ export function useAssessment(assessmentId?: string) {
       updates.manager_evidence = managerEvidence;
       updates.manager_notes = managerFeedback;
     } else {
-      const staffScores: Record<string, number> = {};
+      const staffScores: Record<string, number | 'X'> = {};
       const staffEvidence: Record<string, string | EvidenceItem[]> = {};
 
-      sections.forEach(section => {
-        section.indicators.forEach(indicator => {
-          if (indicator.score !== null) {
-            staffScores[indicator.id] = indicator.score;
-          }
-          if (indicator.evidence) {
-            staffEvidence[indicator.id] = indicator.evidence;
-          }
+      domains.forEach(domain => {
+        domain.standards.forEach(standard => {
+          standard.kpis.forEach(kpi => {
+            if (kpi.score !== null) {
+              staffScores[kpi.id] = kpi.score;
+            }
+            if (kpi.evidence) {
+              staffEvidence[kpi.id] = kpi.evidence;
+            }
+          });
         });
       });
 
@@ -251,17 +272,19 @@ export function useAssessment(assessmentId?: string) {
     if (!assessment) return;
 
     setSaving(true);
-    const staffScores: Record<string, number> = {};
+    const staffScores: Record<string, number | 'X'> = {};
     const staffEvidence: Record<string, string | EvidenceItem[]> = {};
 
-    sections.forEach(section => {
-      section.indicators.forEach(indicator => {
-        if (indicator.score !== null) {
-          staffScores[indicator.id] = indicator.score;
-        }
-        if (indicator.evidence) {
-          staffEvidence[indicator.id] = indicator.evidence;
-        }
+    domains.forEach(domain => {
+      domain.standards.forEach(standard => {
+        standard.kpis.forEach(kpi => {
+          if (kpi.score !== null) {
+            staffScores[kpi.id] = kpi.score;
+          }
+          if (kpi.evidence) {
+            staffEvidence[kpi.id] = kpi.evidence;
+          }
+        });
       });
     });
 
@@ -286,22 +309,24 @@ export function useAssessment(assessmentId?: string) {
     if (!assessment) return;
 
     setSaving(true);
-    const managerScores: Record<string, number> = {};
+    const managerScores: Record<string, number | 'X'> = {};
     const managerEvidence: Record<string, string | EvidenceItem[]> = {};
 
-    sections.forEach(section => {
-      section.indicators.forEach(indicator => {
-        if (indicator.managerScore !== null && indicator.managerScore !== undefined) {
-          managerScores[indicator.id] = indicator.managerScore;
-        }
-        if (indicator.managerEvidence) {
-          managerEvidence[indicator.id] = indicator.managerEvidence;
-        }
+    domains.forEach(domain => {
+      domain.standards.forEach(standard => {
+        standard.kpis.forEach(kpi => {
+          if (kpi.managerScore !== null && kpi.managerScore !== undefined) {
+            managerScores[kpi.id] = kpi.managerScore;
+          }
+          if (kpi.managerEvidence) {
+            managerEvidence[kpi.id] = kpi.managerEvidence;
+          }
+        });
       });
     });
 
     // Calculate final score for performance review
-    const finalScore = calculateWeightedScore(sections, 'manager');
+    const finalScore = calculateWeightedScore(domains, 'manager');
 
     if (!managerFeedback || !managerFeedback.trim()) {
       toast({
@@ -391,13 +416,16 @@ export function useAssessment(assessmentId?: string) {
     }
   };
 
-  const updateIndicator = (indicatorId: string, updates: Partial<IndicatorData>) => {
-    setSections(prev => prev.map(section => ({
-      ...section,
-      indicators: section.indicators.map(indicator => {
-        if (indicator.id !== indicatorId) return indicator;
-        return { ...indicator, ...updates };
-      })
+  const updateKPI = (kpiId: string, updates: Partial<KPIData>) => {
+    setDomains(prev => prev.map(domain => ({
+      ...domain,
+      standards: domain.standards.map(standard => ({
+        ...standard,
+        kpis: standard.kpis.map(kpi => {
+          if (kpi.id !== kpiId) return kpi;
+          return { ...kpi, ...updates };
+        })
+      }))
     })));
   };
 
@@ -407,13 +435,13 @@ export function useAssessment(assessmentId?: string) {
 
   return {
     assessment,
-    sections,
+    domains,
     loading,
     saving,
     saveDraft,
     submitAssessment,
     submitReview,
-    updateIndicator,
+    updateKPI,
     updateAssessmentStatus,
     managerFeedback,
     setManagerFeedback,
@@ -502,22 +530,52 @@ export function useTeamAssessments() {
   return { assessments, loading };
 }
 
-export function calculateWeightedScore(sections: SectionData[] | undefined | null, type: 'staff' | 'manager' = 'staff'): number | null {
-  if (!sections || !Array.isArray(sections)) return null;
+export function calculateWeightedScore(domains: DomainData[] | undefined | null, type: 'staff' | 'manager' = 'staff'): number | null {
+  if (!domains || !Array.isArray(domains)) return null;
 
   let totalWeight = 0;
   let weightedSum = 0;
 
-  for (const section of sections) {
-    const scoredIndicators = section.indicators?.filter(i => (type === 'staff' ? i.score : i.managerScore) !== null) || [];
-    if (scoredIndicators.length === 0) continue;
+  for (const domain of domains) {
+    let domainKPIs: KPIData[] = [];
+    domain.standards.forEach(s => {
+      domainKPIs = [...domainKPIs, ...s.kpis];
+    });
 
-    const sectionAvg = scoredIndicators.reduce((sum, i) => sum + ((type === 'staff' ? i.score : i.managerScore) || 0), 0) / scoredIndicators.length;
-    weightedSum += sectionAvg * section.weight;
-    totalWeight += section.weight;
+    const scoredKPIs = domainKPIs.filter(kpi => {
+      const score = type === 'staff' ? kpi.score : kpi.managerScore;
+      return score !== null && score !== undefined && score !== 'X';
+    });
+
+    if (scoredKPIs.length === 0) continue;
+
+    const domainAvg = scoredKPIs.reduce((sum, kpi) => {
+      const score = type === 'staff' ? kpi.score : kpi.managerScore;
+      return sum + (Number(score) || 0);
+    }, 0) / scoredKPIs.length;
+
+    weightedSum += domainAvg * domain.weight;
+    totalWeight += domain.weight;
   }
 
-  if (totalWeight === 0) return null;
+  if (totalWeight === 0) {
+    // If no weights defined but there are scored KPIs, return simple average of all scored KPIs
+    let allScoredKPIs: number[] = [];
+    domains.forEach(d => {
+      d.standards.forEach(s => {
+        s.kpis.forEach(kpi => {
+          const score = type === 'staff' ? kpi.score : kpi.managerScore;
+          if (score !== null && score !== undefined && score !== 'X') {
+            allScoredKPIs.push(Number(score));
+          }
+        });
+      });
+    });
+
+    if (allScoredKPIs.length === 0) return null;
+    return allScoredKPIs.reduce((a, b) => a + b, 0) / allScoredKPIs.length;
+  }
+
   return weightedSum / totalWeight;
 }
 
