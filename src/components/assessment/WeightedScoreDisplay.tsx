@@ -8,6 +8,7 @@ interface WeightedScoreDisplayProps {
   score?: number | null;
   label?: string;
   type?: 'staff' | 'manager';
+  showAlways?: boolean;
 }
 
 function hasValidEvidence(evidence: string | EvidenceItem[]): boolean {
@@ -100,7 +101,7 @@ function getLetterGrade(score: number): { grade: string; label: string; descript
   };
 }
 
-export function WeightedScoreDisplay({ domains, score, label, type = 'staff' }: WeightedScoreDisplayProps) {
+export function WeightedScoreDisplay({ domains, score, label, type = 'staff', showAlways = false }: WeightedScoreDisplayProps) {
   const calculatedScore = calculateWeightedScore(domains, type);
   const weightedScore = score !== undefined && score !== null ? score : calculatedScore;
   const gradeInfo = weightedScore !== null ? getLetterGrade(weightedScore) : null;
@@ -128,9 +129,9 @@ export function WeightedScoreDisplay({ domains, score, label, type = 'staff' }: 
 
   const completionPercent = totalKPIs > 0 ? (completedKPIs / totalKPIs) * 100 : 0;
 
-  const isComplete = completionPercent === 100;
+  const isComplete = completionPercent === 100 || showAlways;
 
-  const Icon = weightedScore !== null && isComplete
+  const Icon = weightedScore !== null && (isComplete)
     ? (weightedScore >= 3 ? Award : weightedScore >= 2 ? TrendingUp : AlertTriangle)
     : Lock;
 

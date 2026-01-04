@@ -34,9 +34,11 @@ interface ReviewComparisonSectionProps {
   section: DomainReviewData;
   onIndicatorChange?: (indicatorId: string, updates: Partial<KPIData>) => void;
   readonly?: boolean;
+  reviewerLabel?: string;
+  index?: number;
 }
 
-export function ReviewComparisonSection({ section, onIndicatorChange, readonly }: ReviewComparisonSectionProps) {
+export function ReviewComparisonSection({ section, onIndicatorChange, readonly, reviewerLabel = "Manager", index }: ReviewComparisonSectionProps) {
   const staffScore = calculateDomainReviewScore(section, 'staff');
   const managerScore = calculateDomainReviewScore(section, 'manager');
 
@@ -49,8 +51,12 @@ export function ReviewComparisonSection({ section, onIndicatorChange, readonly }
       <div className="px-6 py-5 bg-secondary/20 border-b flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-primary/10 text-primary border border-primary/20 min-w-[60px]">
-            <Percent className="h-4 w-4 mb-0.5" />
-            <span className="font-mono font-bold text-sm">{section.weight}%</span>
+            {index !== undefined ? (
+              <span className="font-black text-sm">D{index + 1}</span>
+            ) : (
+              <Percent className="h-4 w-4 mb-0.5" />
+            )}
+            <span className="font-mono font-bold text-[10px] leading-tight mt-0.5">{section.weight}%</span>
           </div>
           <div>
             <h3 className="text-xl font-bold text-foreground">{section.name}</h3>
@@ -92,7 +98,7 @@ export function ReviewComparisonSection({ section, onIndicatorChange, readonly }
               )}>
                 {managerScore.toFixed(2)}
               </div>
-              <div className="text-[10px] uppercase font-bold tracking-widest text-primary/70">Manager</div>
+              <div className="text-[10px] uppercase font-bold tracking-widest text-primary/70">{reviewerLabel}</div>
             </div>
           )}
         </div>
@@ -118,6 +124,7 @@ export function ReviewComparisonSection({ section, onIndicatorChange, readonly }
                   onScoreChange={(score) => onIndicatorChange?.(indicator.id, { managerScore: score })}
                   onEvidenceChange={(evidence) => onIndicatorChange?.(indicator.id, { managerEvidence: evidence })}
                   readonly={readonly}
+                  reviewerLabel={`${reviewerLabel} Review`}
                 />
               ))}
             </div>

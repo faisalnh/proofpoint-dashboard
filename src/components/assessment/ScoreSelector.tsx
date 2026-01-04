@@ -18,6 +18,7 @@ interface ScoreSelectorProps {
     4: string;
   };
   hideEvidenceRequirement?: boolean;
+  hideNotImplemented?: boolean;
 }
 
 const getScoreConfig = (score: number | 'X') => {
@@ -81,14 +82,16 @@ const getScoreConfig = (score: number | 'X') => {
   }
 };
 
-export function ScoreSelector({ value, onChange, disabled, rubricDescriptions, hideEvidenceRequirement }: ScoreSelectorProps) {
-  const options: ScoreOption[] = [
+export function ScoreSelector({ value, onChange, disabled, rubricDescriptions, hideEvidenceRequirement, hideNotImplemented }: ScoreSelectorProps) {
+  const allOptions: ScoreOption[] = [
     { score: 1, label: "Beginning", description: rubricDescriptions?.[1] },
     { score: 2, label: "Developing", description: rubricDescriptions?.[2] },
     { score: 3, label: "Proficient", description: rubricDescriptions?.[3] },
     { score: 4, label: "Exemplary", description: rubricDescriptions?.[4] },
     { score: 'X', label: "Not Implemented Yet", description: "This KPI is not yet active or applicable for this period. It will not be factored into the final score." },
   ];
+
+  const options = hideNotImplemented ? allOptions.filter(o => o.score !== 'X') : allOptions;
 
   const selectedOption = options.find(o => o.score === value);
   const selectedConfig = selectedOption ? getScoreConfig(selectedOption.score) : null;

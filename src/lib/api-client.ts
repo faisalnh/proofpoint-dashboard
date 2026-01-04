@@ -377,6 +377,11 @@ class ApiClient {
         });
     }
 
+    // Public - Workflows (for any authenticated user)
+    async getWorkflows(departmentRoleId: string): Promise<ApiResponse<unknown[]>> {
+        return this.request(`/workflows?departmentRoleId=${departmentRoleId}`);
+    }
+
     // Admin - Approval Workflows
     async getApprovalWorkflows(departmentRoleId?: string): Promise<ApiResponse<unknown[]>> {
         const query = departmentRoleId ? `?departmentRoleId=${departmentRoleId}` : "";

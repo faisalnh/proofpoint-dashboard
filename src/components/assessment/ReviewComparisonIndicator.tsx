@@ -28,6 +28,7 @@ interface ReviewComparisonIndicatorProps {
   onScoreChange?: (score: number | 'X') => void;
   onEvidenceChange?: (evidence: string) => void;
   readonly?: boolean;
+  reviewerLabel?: string;
 }
 
 function getScoreLabel(score: number | 'X' | null): string {
@@ -92,7 +93,8 @@ export function ReviewComparisonIndicator({
   index,
   onScoreChange,
   onEvidenceChange,
-  readonly
+  readonly,
+  reviewerLabel = "Manager Review"
 }: ReviewComparisonIndicatorProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -233,7 +235,7 @@ export function ReviewComparisonIndicator({
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-primary/20">
                 <UserCheck className="h-4 w-4 text-primary" />
-                <span className="text-xs font-bold uppercase tracking-widest text-primary">Manager Review</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-primary">{reviewerLabel}</span>
               </div>
 
               <div className="p-4 rounded-xl bg-primary/[0.02] border border-primary/10 space-y-4">
@@ -246,6 +248,8 @@ export function ReviewComparisonIndicator({
                         onChange={onScoreChange}
                         rubricDescriptions={rubricDescriptions}
                         hideEvidenceRequirement={true}
+                        hideNotImplemented={true}
+                        disabled={indicator.staffScore === 'X'}
                       />
                     </div>
                     <div className="space-y-2">
@@ -282,7 +286,7 @@ export function ReviewComparisonIndicator({
                       )}
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-primary/60 uppercase tracking-widest block mb-2">Manager Feedback</span>
+                      <span className="text-[10px] font-bold text-primary/60 uppercase tracking-widest block mb-2">{reviewerLabel.replace('Review', 'Feedback')}</span>
                       <div className="bg-background/80 rounded-lg border border-primary/10 p-3 shadow-inner min-h-[80px]">
                         {renderEvidenceContent(indicator.managerEvidence)}
                       </div>

@@ -67,6 +67,7 @@ export interface Assessment {
   manager_name?: string;
   director_name?: string;
   staff_department?: string;
+  staff_department_id?: string;
   staff_job_title?: string;
 }
 

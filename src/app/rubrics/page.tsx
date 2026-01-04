@@ -729,14 +729,16 @@ function RubricsContent() {
                             <Trash2 className="h-5 w-5" />
                             Rubric Deletion - Danger Zone
                         </AlertDialogTitle>
-                        <AlertDialogDescription className="space-y-4 pt-2">
-                            <p className="font-bold text-foreground">
-                                Are you absolutely sure you want to delete the "{selectedTemplate?.name}" rubric?
-                            </p>
-                            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive-foreground space-y-2">
-                                <p>• This will permanently remove all associated Domains, Standards, and KPIs.</p>
-                                <p>• This action <strong>cannot be undone</strong>.</p>
-                                <p>• If this rubric is linked to active or historical assessments, deletion may be blocked by the system.</p>
+                        <AlertDialogDescription className="space-y-4 pt-2" asChild>
+                            <div>
+                                <span className="font-bold text-foreground block">
+                                    Are you absolutely sure you want to delete the "{selectedTemplate?.name}" rubric?
+                                </span>
+                                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive-foreground space-y-2">
+                                    <p>• This will permanently remove all associated Domains, Standards, and KPIs.</p>
+                                    <p>• This action <strong>cannot be undone</strong>.</p>
+                                    <p>• If this rubric is linked to active or historical assessments, deletion may be blocked by the system.</p>
+                                </div>
                             </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>

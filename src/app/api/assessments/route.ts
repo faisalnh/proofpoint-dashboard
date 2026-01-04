@@ -22,6 +22,7 @@ export async function GET(request: Request) {
                 rt.name as template_name,
                 sp.full_name as staff_name,
                 sp.job_title as staff_job_title,
+                sp.department_id as staff_department_id,
                 d.name as staff_department,
                 mp.full_name as manager_name,
                 dp.full_name as director_name
