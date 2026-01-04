@@ -95,25 +95,25 @@ export function useRubricTemplates() {
   const [templates, setTemplates] = useState<RubricTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchTemplates() {
-      const { data, error } = await api.getRubrics();
+  const fetchTemplates = async () => {
+    setLoading(true);
+    const { data, error } = await api.getRubrics();
 
-      if (error) {
-        console.error('Error fetching templates:', error);
-        setLoading(false);
-        return;
-      }
-
-      // API already returns enriched data with sections and indicators
-      setTemplates((data as any[]) || []);
+    if (error) {
+      console.error('Error fetching templates:', error);
       setLoading(false);
+      return;
     }
 
+    setTemplates((data as any[]) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchTemplates();
   }, []);
 
-  return { templates, loading };
+  return { templates, loading, refreshTemplates: fetchTemplates };
 }
 
 export function useAssessment(assessmentId?: string) {

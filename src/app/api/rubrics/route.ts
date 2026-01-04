@@ -85,3 +85,65 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Failed to create rubric" }, { status: 500 });
     }
 }
+
+// PATCH /api/rubrics - Update rubric template
+export async function PATCH(request: Request) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const { id, name, description, department_id, is_global } = body;
+
+        if (!id) {
+            return NextResponse.json({ error: "Rubric ID is required" }, { status: 400 });
+        }
+
+        const updatedTemplate = await queryOne(
+            `UPDATE rubric_templates 
+             SET name = COALESCE($1, name), 
+                 description = COALESCE($2, description), 
+                 department_id = $3, 
+                 is_global = COALESCE($4, is_global),
+                 updated_at = now()
+             WHERE id = $5
+             RETURNING *`,
+            [name, description, department_id ?? null, is_global, id]
+        );
+
+        if (!updatedTemplate) {
+            return NextResponse.json({ error: "Template not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ data: updatedTemplate });
+    } catch (error) {
+        console.error("Update rubric error:", error);
+        return NextResponse.json({ error: "Failed to update rubric" }, { status: 500 });
+    }
+}
+
+// DELETE /api/rubrics - Delete rubric template
+export async function DELETE(request: Request) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get("id");
+
+        if (!id) {
+            return NextResponse.json({ error: "Rubric ID is required" }, { status: 400 });
+        }
+
+        await query(`DELETE FROM rubric_templates WHERE id = $1`, [id]);
+
+        return NextResponse.json({ message: "Rubric deleted successfully" });
+    } catch (error) {
+        console.error("Delete rubric error:", error);
+        return NextResponse.json({ error: "Failed to delete rubric" }, { status: 500 });
+    }
+}

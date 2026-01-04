@@ -116,6 +116,61 @@ class ApiClient {
         return this.request(`/rubrics?id=${id}`);
     }
 
+    async updateRubric(id: string, data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics", {
+            method: "PATCH",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteRubric(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/rubrics?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
+    // Rubric Sections
+    async createSection(data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/sections", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateSection(id: string, data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/sections", {
+            method: "PATCH",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteSection(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/rubrics/sections?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
+    // Rubric Indicators
+    async createIndicator(data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/indicators", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateIndicator(id: string, data: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+        return this.request("/rubrics/indicators", {
+            method: "PATCH",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteIndicator(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/rubrics/indicators?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
     // Questions
     async getQuestions(params?: QueryParams): Promise<ApiResponse<unknown[]>> {
         const searchParams = new URLSearchParams();
