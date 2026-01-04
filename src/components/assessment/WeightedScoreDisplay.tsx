@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { DomainData, KPIData } from "@/hooks/useAssessment";
 import { EvidenceItem } from "./EvidenceInput";
-import { TrendingUp, Award, AlertTriangle, Percent } from "lucide-react";
+import { TrendingUp, Award, AlertTriangle, Percent, Lock } from "lucide-react";
 
 interface WeightedScoreDisplayProps {
   domains?: DomainData[];
@@ -128,9 +128,11 @@ export function WeightedScoreDisplay({ domains, score, label, type = 'staff' }: 
 
   const completionPercent = totalKPIs > 0 ? (completedKPIs / totalKPIs) * 100 : 0;
 
-  const Icon = weightedScore !== null
+  const isComplete = completionPercent === 100;
+
+  const Icon = weightedScore !== null && isComplete
     ? (weightedScore >= 3 ? Award : weightedScore >= 2 ? TrendingUp : AlertTriangle)
-    : TrendingUp;
+    : Lock;
 
 
   return (
@@ -140,25 +142,33 @@ export function WeightedScoreDisplay({ domains, score, label, type = 'staff' }: 
         <div className="flex items-center justify-center gap-2 mb-3">
           <Icon className={cn(
             "h-5 w-5",
-            weightedScore === null && "text-muted-foreground",
-            weightedScore !== null && weightedScore < 2 && "text-evidence-alert",
-            weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-amber-500",
-            weightedScore !== null && weightedScore >= 3 && "text-evidence-success"
+            (!isComplete || weightedScore === null) && "text-muted-foreground",
+            isComplete && weightedScore !== null && weightedScore < 2 && "text-evidence-alert",
+            isComplete && weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-amber-500",
+            isComplete && weightedScore !== null && weightedScore >= 3 && "text-evidence-success"
           )} />
-          <span className="text-xs uppercase font-bold tracking-widest text-muted-foreground">{label || "Performance Score"}</span>
+          <span className="text-xs uppercase font-bold tracking-widest text-muted-foreground">
+            {!isComplete ? "Score Locked" : (label || "Performance Score")}
+          </span>
         </div>
 
         <div className={cn(
           "text-5xl font-mono font-black tracking-tighter transition-all duration-500",
-          weightedScore === null && "text-muted-foreground/30",
-          weightedScore !== null && weightedScore < 2 && "text-evidence-alert",
-          weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-amber-500",
-          weightedScore !== null && weightedScore >= 3 && "text-evidence-success"
+          (!isComplete || weightedScore === null) && "text-muted-foreground/30",
+          isComplete && weightedScore !== null && weightedScore < 2 && "text-evidence-alert",
+          isComplete && weightedScore !== null && weightedScore >= 2 && weightedScore < 3 && "text-amber-500",
+          isComplete && weightedScore !== null && weightedScore >= 3 && "text-evidence-success"
         )}>
-          {weightedScore !== null ? weightedScore.toFixed(2) : "—.——"}
+          {isComplete && weightedScore !== null ? weightedScore.toFixed(2) : "—.——"}
         </div>
 
-        {gradeInfo && (
+        {!isComplete && (
+          <p className="mt-3 text-[10px] text-muted-foreground/60 uppercase tracking-widest font-bold">
+            Complete 100% of framework to view
+          </p>
+        )}
+
+        {isComplete && gradeInfo && (
           <div className="mt-4">
             <div className="flex items-center justify-center gap-3">
               <span className={cn(
