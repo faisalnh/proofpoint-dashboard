@@ -26,10 +26,12 @@ import {
     ChevronRight,
     FolderTree,
     Plus,
-    Clock
+    Clock,
+    ChevronDown
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
     DropdownMenu,
@@ -106,6 +108,34 @@ function AdminContent() {
     // Delete confirmation
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<{ type: 'user' | 'department'; item: User | Department; permanent?: boolean } | null>(null);
+    const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set());
+
+    const toggleDept = (id: string) => {
+        setExpandedDepts(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const getDeptColor = (name: string) => {
+        const colors = [
+            'border-slate-200 bg-slate-50/50 text-slate-700 hover:border-slate-300',
+            'border-stone-200 bg-stone-50/50 text-stone-700 hover:border-stone-300',
+            'border-zinc-200 bg-zinc-50/50 text-zinc-700 hover:border-zinc-300',
+            'border-sky-200 bg-sky-50/50 text-sky-700 hover:border-sky-300',
+            'border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:border-indigo-300',
+            'border-amber-200 bg-amber-50/50 text-amber-700 hover:border-amber-300',
+            'border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:border-emerald-300',
+        ];
+        // Simple hash to pick a consistent color
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -231,73 +261,109 @@ function AdminContent() {
             departments.filter(d => d.parent_id === parentId);
 
         const renderDept = (dept: Department, level: number = 0): JSX.Element => {
+            const isExpanded = expandedDepts.has(dept.id);
+            const children = getChildren(dept.id);
+            const hasChildren = children.length > 0;
             const availableRoles = getAvailableRoles(dept.hierarchy_level);
+            const deptStyle = getDeptColor(dept.name);
+
             const roleHoldersByRole: Record<string, RoleHolder[]> = {};
             for (const holder of dept.role_holders) {
                 if (!roleHoldersByRole[holder.role]) roleHoldersByRole[holder.role] = [];
                 roleHoldersByRole[holder.role].push(holder);
             }
 
+            // Stats breakdown
+            const mgrCount = (roleHoldersByRole['manager'] || []).length;
+            const supCount = (roleHoldersByRole['supervisor'] || []).length;
+            const staffCount = (roleHoldersByRole['staff'] || []).length;
+
             return (
-                <div key={dept.id} className="border-l-2 border-muted/50 ml-4">
+                <div key={dept.id} className={`${level > 0 ? 'border-l-2 border-muted/50 ml-6' : ''}`}>
                     <div
-                        className="flex items-start gap-3 p-4 rounded-lg hover:bg-muted/30 transition-colors group"
-                        style={{ marginLeft: `${level * 16}px` }}
+                        className={cn(
+                            "flex items-start gap-3 p-4 rounded-xl border-2 transition-all group mb-2 mx-2",
+                            deptStyle,
+                            isExpanded && "shadow-sm border-opacity-100"
+                        )}
                     >
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                                {getChildren(dept.id).length > 0 && (
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                {hasChildren && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 p-0 hover:bg-black/5"
+                                        onClick={() => toggleDept(dept.id)}
+                                    >
+                                        {isExpanded ? (
+                                            <ChevronDown className="h-4 w-4" />
+                                        ) : (
+                                            <ChevronRight className="h-4 w-4" />
+                                        )}
+                                    </Button>
                                 )}
-                                <Building className="h-4 w-4 text-primary" />
-                                <span className="font-bold text-foreground">{dept.name}</span>
-                                <Badge variant="outline" className="text-[10px] uppercase">
+                                <Building className="h-4 w-4 opacity-70" />
+                                <span className="font-bold text-base">{dept.name}</span>
+                                <Badge variant="outline" className="text-[10px] uppercase font-bold bg-white/50">
                                     {dept.hierarchy_level}
                                 </Badge>
-                                <Badge variant="secondary" className="text-xs">
-                                    {dept.user_count} users
-                                </Badge>
+
+                                <div className="flex gap-1 ml-2">
+                                    {mgrCount > 0 && <Badge variant="outline" className="text-[9px] bg-amber-100/50 text-amber-700 border-amber-200">M: {mgrCount}</Badge>}
+                                    {supCount > 0 && <Badge variant="outline" className="text-[9px] bg-purple-100/50 text-purple-700 border-purple-200">S: {supCount}</Badge>}
+                                    {staffCount > 0 && <Badge variant="outline" className="text-[9px] bg-blue-100/50 text-blue-700 border-blue-200">E: {staffCount}</Badge>}
+                                </div>
                             </div>
 
-                            {/* Role Holders Grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">
-                                {availableRoles.map(role => {
-                                    const holders = roleHoldersByRole[role] || [];
-                                    return (
-                                        <div key={role} className="p-2 rounded-lg bg-muted/20 border border-border/50">
-                                            <div className="flex items-center gap-1 mb-1">
-                                                <Badge variant="outline" className={`text-[10px] uppercase ${getRoleBadgeStyle(role)}`}>
-                                                    {role}
-                                                </Badge>
-                                            </div>
-                                            {holders.length > 0 ? (
-                                                <div className="space-y-1">
-                                                    {holders.slice(0, 3).map(h => (
-                                                        <div key={h.user_id} className="flex items-center gap-2 text-xs">
-                                                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold">
-                                                                {h.full_name?.charAt(0) || '?'}
-                                                            </div>
-                                                            <span className="truncate text-foreground">{h.full_name || h.email}</span>
-                                                        </div>
-                                                    ))}
-                                                    {holders.length > 3 && (
-                                                        <span className="text-[10px] text-muted-foreground">+{holders.length - 3} more</span>
-                                                    )}
+                            {/* Role Holders Grid - Only show if expanded or root */}
+                            {(isExpanded || level === 0) && (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    {availableRoles.map(role => {
+                                        const holders = roleHoldersByRole[role] || [];
+                                        return (
+                                            <div key={role} className="p-3 rounded-lg bg-white/40 border border-black/5 hover:bg-white/60 transition-colors">
+                                                <div className="flex items-center gap-1 mb-2">
+                                                    <Badge variant="outline" className={`text-[9px] uppercase font-bold ${getRoleBadgeStyle(role)}`}>
+                                                        {role}
+                                                    </Badge>
                                                 </div>
-                                            ) : (
-                                                <span className="text-[10px] text-muted-foreground italic">No assignee</span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                                {holders.length > 0 ? (
+                                                    <div className="space-y-1.5">
+                                                        {holders.map(h => (
+                                                            <button
+                                                                key={h.user_id}
+                                                                onClick={() => {
+                                                                    const fullUser = users.find(u => u.id === h.user_id);
+                                                                    if (fullUser) {
+                                                                        setEditingUser(fullUser);
+                                                                        setUserModalOpen(true);
+                                                                    }
+                                                                }}
+                                                                className="flex items-center gap-2 text-xs w-full hover:bg-black/5 p-1 rounded transition-colors text-left"
+                                                            >
+                                                                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
+                                                                    {h.full_name?.charAt(0) || '?'}
+                                                                </div>
+                                                                <span className="truncate flex-1 font-medium">{h.full_name || h.email}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[10px] text-muted-foreground italic">No assignee</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 shrink-0">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 shrink-0 pt-0.5">
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7"
+                                className="h-7 w-7 hover:bg-black/5"
                                 onClick={() => {
                                     setEditingDept(dept);
                                     setDeptModalOpen(true);
@@ -308,7 +374,7 @@ function AdminContent() {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/5"
                                 onClick={() => {
                                     setItemToDelete({ type: 'department', item: dept });
                                     setDeleteConfirmOpen(true);
@@ -318,7 +384,7 @@ function AdminContent() {
                             </Button>
                         </div>
                     </div>
-                    {getChildren(dept.id).map(child => renderDept(child, level + 1))}
+                    {isExpanded && children.map(child => renderDept(child, level + 1))}
                 </div>
             );
         };
@@ -592,12 +658,19 @@ function AdminContent() {
                                                 </Badge>
                                                 <div className="space-y-1">
                                                     {users.filter(u => u.roles?.includes('director')).slice(0, 3).map(u => (
-                                                        <div key={u.id} className="flex items-center gap-2 text-xs">
-                                                            <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 text-[10px] font-bold">
+                                                        <button
+                                                            key={u.id}
+                                                            onClick={() => {
+                                                                setEditingUser(u);
+                                                                setUserModalOpen(true);
+                                                            }}
+                                                            className="flex items-center gap-2 text-xs w-full hover:bg-black/5 p-1 rounded transition-colors text-left"
+                                                        >
+                                                            <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 text-[10px] font-bold shrink-0">
                                                                 {u.full_name?.charAt(0) || '?'}
                                                             </div>
-                                                            <span className="truncate">{u.full_name || u.email}</span>
-                                                        </div>
+                                                            <span className="truncate flex-1 font-medium">{u.full_name || u.email}</span>
+                                                        </button>
                                                     ))}
                                                     {users.filter(u => u.roles?.includes('director')).length === 0 && (
                                                         <span className="text-[10px] text-muted-foreground italic">No director assigned</span>
@@ -611,12 +684,19 @@ function AdminContent() {
                                                 </Badge>
                                                 <div className="space-y-1">
                                                     {users.filter(u => u.roles?.includes('admin')).slice(0, 3).map(u => (
-                                                        <div key={u.id} className="flex items-center gap-2 text-xs">
-                                                            <div className="w-5 h-5 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-600 text-[10px] font-bold">
+                                                        <button
+                                                            key={u.id}
+                                                            onClick={() => {
+                                                                setEditingUser(u);
+                                                                setUserModalOpen(true);
+                                                            }}
+                                                            className="flex items-center gap-2 text-xs w-full hover:bg-black/5 p-1 rounded transition-colors text-left"
+                                                        >
+                                                            <div className="w-5 h-5 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-600 text-[10px] font-bold shrink-0">
                                                                 {u.full_name?.charAt(0) || '?'}
                                                             </div>
-                                                            <span className="truncate">{u.full_name || u.email}</span>
-                                                        </div>
+                                                            <span className="truncate flex-1 font-medium">{u.full_name || u.email}</span>
+                                                        </button>
                                                     ))}
                                                     {users.filter(u => u.roles?.includes('admin')).length === 0 && (
                                                         <span className="text-[10px] text-muted-foreground italic">No admin assigned</span>
