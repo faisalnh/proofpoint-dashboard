@@ -107,6 +107,12 @@ class ApiClient {
         });
     }
 
+    async deleteAssessment(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/assessments?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
     // Rubrics
     async getRubrics(): Promise<ApiResponse<unknown[]>> {
         return this.request("/rubrics");
@@ -280,6 +286,138 @@ class ApiClient {
             method: "DELETE",
         });
     }
+
+    // ========== Admin API ==========
+
+    // Admin - Users
+    async getAdminUsers(userId?: string): Promise<ApiResponse<unknown[]>> {
+        const query = userId ? `?userId=${userId}` : "";
+        return this.request(`/admin/users${query}`);
+    }
+
+    async createUser(data: {
+        email: string;
+        password: string;
+        full_name?: string;
+        job_title?: string;
+        department_id?: string;
+        roles?: string[];
+    }): Promise<ApiResponse<unknown>> {
+        return this.request("/admin/users", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateUser(id: string, data: {
+        full_name?: string;
+        job_title?: string;
+        department_id?: string;
+        roles?: string[];
+        password?: string;
+        status?: string;
+    }): Promise<ApiResponse<unknown>> {
+        return this.request("/admin/users", {
+            method: "PUT",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteUser(userId: string, permanent = false): Promise<ApiResponse<unknown>> {
+        return this.request(`/admin/users?userId=${userId}${permanent ? "&permanent=true" : ""}`, {
+            method: "DELETE",
+        });
+    }
+
+    // Admin - Departments (extended)
+    async updateDepartment(id: string, data: { name?: string; parent_id?: string | null }): Promise<ApiResponse<unknown>> {
+        return this.request("/departments", {
+            method: "PUT",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteDepartment(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/departments?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
+    // Admin - Department Roles
+    async getDepartmentRoles(departmentId?: string): Promise<ApiResponse<unknown[]>> {
+        const query = departmentId ? `?departmentId=${departmentId}` : "";
+        return this.request(`/admin/department-roles${query}`);
+    }
+
+    async createDepartmentRole(data: {
+        department_id: string;
+        role: string;
+        default_template_id?: string;
+        name?: string;
+    }): Promise<ApiResponse<unknown>> {
+        return this.request("/admin/department-roles", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateDepartmentRole(id: string, data: {
+        default_template_id?: string | null;
+        name?: string;
+    }): Promise<ApiResponse<unknown>> {
+        return this.request("/admin/department-roles", {
+            method: "PUT",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteDepartmentRole(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/admin/department-roles?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
+    // Admin - Approval Workflows
+    async getApprovalWorkflows(departmentRoleId?: string): Promise<ApiResponse<unknown[]>> {
+        const query = departmentRoleId ? `?departmentRoleId=${departmentRoleId}` : "";
+        return this.request(`/admin/approval-workflows${query}`);
+    }
+
+    async createApprovalWorkflow(data: {
+        department_role_id: string;
+        step_order: number;
+        approver_role: string;
+        step_type: string;
+    }): Promise<ApiResponse<unknown>> {
+        return this.request("/admin/approval-workflows", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateApprovalWorkflow(id: string, data: {
+        step_order?: number;
+        approver_role?: string;
+        step_type?: string;
+    }): Promise<ApiResponse<unknown>> {
+        return this.request("/admin/approval-workflows", {
+            method: "PUT",
+            body: JSON.stringify({ id, ...data }),
+        });
+    }
+
+    async deleteApprovalWorkflow(id: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/admin/approval-workflows?id=${id}`, {
+            method: "DELETE",
+        });
+    }
+
+    async deleteAllApprovalWorkflows(departmentRoleId: string): Promise<ApiResponse<unknown>> {
+        return this.request(`/admin/approval-workflows?departmentRoleId=${departmentRoleId}`, {
+            method: "DELETE",
+        });
+    }
 }
 
 export const api = new ApiClient();
+

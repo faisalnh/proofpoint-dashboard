@@ -86,6 +86,21 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { template_id, period, manager_id, director_id } = body;
 
+        // Check for existing non-finalized assessment for this period/template
+        const existing = await queryOne(
+            `SELECT id FROM assessments 
+             WHERE staff_id = $1 AND template_id = $2 AND period = $3 
+             AND status != 'acknowledged'`,
+            [session.user.id, template_id, period]
+        );
+
+        if (existing) {
+            return NextResponse.json(
+                { error: "An active assessment already exists for this period and framework." },
+                { status: 400 }
+            );
+        }
+
         const newAssessment = await queryOne(
             `INSERT INTO assessments (staff_id, template_id, period, manager_id, director_id, status)
        VALUES ($1, $2, $3, $4, $5, 'draft')
@@ -151,3 +166,51 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: "Failed to update assessment" }, { status: 500 });
     }
 }
+
+// DELETE /api/assessments - Delete assessment
+export async function DELETE(request: Request) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get("id");
+
+        if (!id) {
+            return NextResponse.json({ error: "Assessment ID required" }, { status: 400 });
+        }
+
+        // Fetch assessment to check ownership and status
+        const assessment = await queryOne(
+            "SELECT staff_id, status FROM assessments WHERE id = $1",
+            [id]
+        );
+
+        if (!assessment) {
+            return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+        }
+
+        const isAdmin = ((session.user as { roles?: string[] }).roles ?? []).includes("admin");
+        const isOwner = assessment.staff_id === session.user.id;
+        const isDraft = assessment.status === 'draft' || assessment.status === 'rejected';
+
+        // Permissions: 
+        // 1. Admin can delete anything
+        // 2. Owner can delete if it's still a draft/rejected
+        if (!isAdmin && !(isOwner && isDraft)) {
+            return NextResponse.json({
+                error: "You don't have permission to delete this assessment. Only drafts can be deleted by staff."
+            }, { status: 403 });
+        }
+
+        await query("DELETE FROM assessments WHERE id = $1", [id]);
+
+        return NextResponse.json({ message: "Assessment deleted successfully" });
+    } catch (error) {
+        console.error("Delete assessment error:", error);
+        return NextResponse.json({ error: "Failed to delete assessment" }, { status: 500 });
+    }
+}
+

@@ -2,7 +2,7 @@
 -- Self-hosted PostgreSQL (migrated from Supabase)
 
 -- Create role enum
-CREATE TYPE public.app_role AS ENUM ('admin', 'staff', 'manager', 'director');
+CREATE TYPE public.app_role AS ENUM ('admin', 'staff', 'manager', 'director', 'supervisor');
 
 -- Create departments table (org tree structure)
 CREATE TABLE public.departments (

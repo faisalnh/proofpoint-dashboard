@@ -22,8 +22,14 @@ import {
     useAssessment,
     useRubricTemplates,
     useMyAssessments,
-    calculateWeightedScore
+    calculateWeightedScore,
+    Assessment,
+    DomainData,
+    StandardData,
+    KPIData
 } from '@/hooks/useAssessment';
+import { useAuth } from '@/hooks/useAuth';
+import { getAutomaticPeriod } from '@/lib/utils';
 import {
     ClipboardList,
     Save,
@@ -35,14 +41,19 @@ import {
     AlertCircle,
     ShieldCheck,
     MessageSquare,
-    Info
+    Info,
+    Trash2
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { useEffect } from 'react';
+import { api } from '@/lib/api-client';
 
 function AssessmentContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const assessmentId = searchParams.get('id');
+    const { profile, roles, isAdmin } = useAuth();
 
     const {
         assessment,
@@ -56,18 +67,106 @@ function AssessmentContent() {
         setStaffAcknowledgement,
         acknowledgeAssessment,
         managerFeedback,
-        directorFeedback
+        directorFeedback,
+        deleteAssessment
     } = useAssessment(assessmentId || undefined);
 
     const { templates, loading: templatesLoading } = useRubricTemplates();
-    const { createAssessment } = useMyAssessments();
+    const { assessments, createAssessment } = useMyAssessments();
 
     const [selectedTemplate, setSelectedTemplate] = useState<string>('');
     const [period, setPeriod] = useState<string>('');
     const [isCreating, setIsCreating] = useState(false);
 
+    // Auto-prefill period and rubric based on assignment
+    useEffect(() => {
+        if (!assessmentId) {
+            setPeriod(getAutomaticPeriod());
+        }
+    }, [assessmentId]);
+
+    useEffect(() => {
+        const fetchAssignedRubric = async () => {
+            if (assessmentId || !profile) return;
+
+            const { data, error } = await api.getDepartmentRoles();
+            if (error) {
+                console.error('Failed to fetch department roles:', error);
+                return;
+            }
+
+            if (data) {
+                const configs = data as any[];
+
+                // Finalize matched role - convert to lowercase for matching
+                const normalizedRoles = roles.map(r => r.toLowerCase());
+                let assignedConfig = null;
+
+                // 1. Try to find a department-specific match for ANY of the user's roles
+                for (const role of normalizedRoles) {
+                    const match = configs.find(c =>
+                        String(c.department_id) === String(profile.department_id) &&
+                        c.role.toLowerCase() === role
+                    );
+                    if (match) {
+                        assignedConfig = match;
+                        break;
+                    }
+                }
+
+                // 2. Fallback: Try global roles for ANY of the user's roles
+                if (!assignedConfig) {
+                    for (const role of normalizedRoles) {
+                        const match = configs.find(c =>
+                            !c.department_id &&
+                            c.role.toLowerCase() === role
+                        );
+                        if (match) {
+                            assignedConfig = match;
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Last fallback: Try any 'staff' configuration for this department
+                if (!assignedConfig) {
+                    assignedConfig = configs.find(c =>
+                        String(c.department_id) === String(profile.department_id) &&
+                        c.role.toLowerCase() === 'staff'
+                    );
+                }
+
+                if (assignedConfig?.default_template_id) {
+                    setSelectedTemplate(assignedConfig.default_template_id);
+                } else {
+                    setSelectedTemplate('');
+                }
+            }
+        };
+
+        if (!assessmentId && profile) {
+            fetchAssignedRubric();
+        }
+    }, [assessmentId, profile, roles]);
+
+    // Track if we have a forced selection
+    const isRubricForced = !!selectedTemplate;
+
     const handleCreate = async () => {
         if (!selectedTemplate || !period) return;
+
+        // Final double check for existing draft to prevent double clicking/race conditions
+        const existingDraft = assessments.find((a: Assessment) =>
+            a.template_id === selectedTemplate &&
+            a.period === period &&
+            (a.status === 'draft' || a.status === 'rejected')
+        );
+
+        if (existingDraft) {
+            router.push(`/assessment?id=${existingDraft.id}`);
+            return;
+        }
+
         setIsCreating(true);
         const newAssessment = await createAssessment(selectedTemplate, period);
         if (newAssessment) {
@@ -119,51 +218,87 @@ function AssessmentContent() {
                             </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <Label htmlFor="template" className="font-bold">Functional Rubric</Label>
-                            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                                <SelectTrigger id="template" className="w-full h-11 bg-muted/30 border-muted-foreground/20 focus-visible:ring-primary/20">
-                                    <div className="flex items-center gap-2">
-                                        <Layout className="h-4 w-4 text-muted-foreground" />
-                                        <SelectValue placeholder="Select a framework template" />
-                                    </div>
-                                </SelectTrigger>
-                                <SelectContent className="glass-panel">
-                                    {templatesLoading ? (
-                                        <div className="flex items-center justify-center p-4">
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        </div>
-                                    ) : (
-                                        templates.map((t) => (
-                                            <SelectItem key={t.id} value={t.id} className="focus:bg-primary focus:text-white">
-                                                <div className="flex flex-col py-1">
-                                                    <span className="font-bold">{t.name}</span>
-                                                    <span className="text-[10px] opacity-70">Comprehensive KPI Framework</span>
-                                                </div>
-                                            </SelectItem>
-                                        ))
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <div className="space-y-4">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold flex items-center gap-2 text-primary">
+                                    <Layout className="h-4 w-4" />
+                                    Functional Rubric
+                                </label>
+                                <Select value={selectedTemplate} onValueChange={setSelectedTemplate} disabled={isCreating}>
+                                    <SelectTrigger className="w-full h-14 bg-background border-primary/20 focus:ring-primary/40 text-lg">
+                                        <SelectValue placeholder="Select the appropriate rubric" />
+                                    </SelectTrigger>
+                                    <SelectContent className="glass-panel-strong">
+                                        {templatesLoading ? (
+                                            <div className="flex items-center justify-center p-4">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            </div>
+                                        ) : (
+                                            templates
+                                                .filter(t => !selectedTemplate || t.id === selectedTemplate)
+                                                .map((t) => (
+                                                    <SelectItem key={t.id} value={t.id} className="focus:bg-primary focus:text-white">
+                                                        <div className="flex flex-col py-1">
+                                                            <span className="font-bold">{t.name}</span>
+                                                            <span className="text-[10px] opacity-70">Comprehensive KPI Framework</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {isRubricForced && (
+                                    <p className="text-[10px] text-primary flex items-center gap-1 mt-1 font-medium animate-pulse">
+                                        <ShieldCheck className="h-3 w-3" />
+                                        This rubric has been assigned to you by an administrator based on your department and role.
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-4 pt-2">
+                                {period && selectedTemplate && assessments.find((a: Assessment) =>
+                                    a.template_id === selectedTemplate &&
+                                    a.period === period &&
+                                    (a.status === 'draft' || a.status === 'rejected')
+                                ) ? (
+                                    <Alert className="bg-primary/5 border-primary/20">
+                                        <Info className="h-4 w-4 text-primary" />
+                                        <AlertTitle className="text-sm font-bold">Existing Draft Found</AlertTitle>
+                                        <AlertDescription className="text-xs">
+                                            You already have an active draft for this period and rubric.
+                                        </AlertDescription>
+                                    </Alert>
+                                ) : null}
 
-                        <Button
-                            className="w-full h-12 text-base font-bold transition-all duration-300 shadow-lg hover:shadow-primary/20"
-                            disabled={!selectedTemplate || !period || isCreating}
-                            onClick={handleCreate}
-                        >
-                            {isCreating ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Initializing...
-                                </>
-                            ) : (
-                                <>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Start Performance Review
-                                </>
-                            )}
-                        </Button>
+                                <Button
+                                    className="w-full h-12 text-base font-bold transition-all duration-300 shadow-lg hover:shadow-primary/20"
+                                    disabled={!selectedTemplate || !period || isCreating}
+                                    onClick={handleCreate}
+                                >
+                                    {isCreating ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Initializing...
+                                        </>
+                                    ) : (
+                                        assessments.find((a: Assessment) =>
+                                            a.template_id === selectedTemplate &&
+                                            a.period === period &&
+                                            (a.status === 'draft' || a.status === 'rejected')
+                                        ) ? (
+                                            <>
+                                                <ClipboardList className="h-4 w-4 mr-2" />
+                                                Continue Previous Draft
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send className="h-4 w-4 mr-2" />
+                                                Start Performance Review
+                                            </>
+                                        )
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -221,6 +356,46 @@ function AssessmentContent() {
                         </Button>
                     </div>
                 )}
+
+                {isReadOnly && isAdmin && (
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="destructive"
+                            onClick={async () => {
+                                if (window.confirm("Are you sure you want to delete this assessment? This action cannot be undone.")) {
+                                    if (await deleteAssessment()) {
+                                        router.push('/dashboard');
+                                    }
+                                }
+                            }}
+                            disabled={saving}
+                            className="h-12 px-6 rounded-xl shadow-lg hover:shadow-destructive/20 transition-all font-bold"
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Assessment
+                        </Button>
+                    </div>
+                )}
+
+                {!isReadOnly && (
+                    <div className="ml-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                                if (window.confirm("Are you sure you want to delete this draft?")) {
+                                    if (await deleteAssessment()) {
+                                        router.push('/dashboard');
+                                    }
+                                }
+                            }}
+                            disabled={saving}
+                            className="h-12 w-12 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                            <Trash2 className="h-5 w-5" />
+                        </Button>
+                    </div>
+                )}
             </div>
 
             <div className="mb-10">
@@ -242,16 +417,17 @@ function AssessmentContent() {
                 <div className="lg:col-span-8 space-y-10">
                     {showComparison ? (
                         <>
-                            {domains.map((domain) => (
+                            {domains.map((domain: DomainData) => (
                                 <ReviewComparisonSection
                                     key={domain.id}
                                     readonly={true}
                                     section={{
                                         ...domain,
-                                        standards: domain.standards.map(s => ({
+                                        standards: domain.standards.map((s: StandardData) => ({
                                             ...s,
-                                            kpis: s.kpis.map(k => ({
+                                            kpis: s.kpis.map((k: KPIData) => ({
                                                 ...k,
+                                                description: k.description || '',
                                                 staffScore: k.score,
                                                 staffEvidence: k.evidence,
                                                 managerScore: k.managerScore ?? null,
