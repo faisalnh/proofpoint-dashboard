@@ -73,19 +73,17 @@ export async function GET(request: Request) {
         const isDirector = roles.includes("director");
         const isManager = roles.includes("manager");
 
-        if (isDirector) {
-            // See all assessments (Directors only)
+        if (isAdmin || isDirector) {
+            // Admins and Directors see all assessments
         } else if (isManager) {
             // Manager sees:
             // 1. Staff in their department
             // 2. Assessments they explicitly manage
             // 3. Their own assessments
-            // Note: Admins who are also Managers will fall into this bucket, 
-            // ensuring they don't see assessments outside their department.
             sql += ` AND (sp.department_id = $${paramIndex++} OR a.manager_id = $${paramIndex++} OR a.staff_id = $${paramIndex++})`;
             params.push(departmentId, userId, userId);
         } else {
-            // Staff (and pure Admins) see only their own assessments
+            // Staff see only their own assessments
             sql += ` AND a.staff_id = $${paramIndex++}`;
             params.push(userId);
         }

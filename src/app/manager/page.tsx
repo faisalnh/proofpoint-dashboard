@@ -13,6 +13,7 @@ import {
 } from '@/components/assessment';
 import { ScoreComparisonWidget } from '@/components/assessment/ScoreComparisonWidget';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Accordion } from '@/components/ui/accordion';
 import { AssessmentPrintView } from '@/components/assessment/AssessmentPrintView';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -245,27 +246,30 @@ function ManagerContent() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Main Content: Domains - 8 columns */}
                 <div className="lg:col-span-8 space-y-10">
-                    {domains.map((domain: DomainData) => (
-                        <ReviewComparisonSection
-                            key={domain.id}
-                            onIndicatorChange={updateIndicator}
-                            readonly={isReadOnly}
-                            section={{
-                                ...domain,
-                                standards: domain.standards.map((s: StandardData) => ({
-                                    ...s,
-                                    kpis: s.kpis.map((i: KPIData) => ({
-                                        ...i,
-                                        description: i.description || '',
-                                        staffScore: i.score,
-                                        staffEvidence: i.evidence,
-                                        managerScore: i.managerScore ?? null,
-                                        managerEvidence: i.managerEvidence ?? ''
+                    <Accordion type="multiple" className="w-full space-y-4">
+                        {domains.map((domain: DomainData, index: number) => (
+                            <ReviewComparisonSection
+                                key={domain.id}
+                                index={index}
+                                onIndicatorChange={updateIndicator}
+                                readonly={isReadOnly}
+                                section={{
+                                    ...domain,
+                                    standards: domain.standards.map((s: StandardData) => ({
+                                        ...s,
+                                        kpis: s.kpis.map((i: KPIData) => ({
+                                            ...i,
+                                            description: i.description || '',
+                                            staffScore: i.score,
+                                            staffEvidence: i.evidence,
+                                            managerScore: i.managerScore ?? null,
+                                            managerEvidence: i.managerEvidence ?? ''
+                                        }))
                                     }))
-                                }))
-                            }}
-                        />
-                    ))}
+                                }}
+                            />
+                        ))}
+                    </Accordion>
 
                     {/* Overall Feedback Section */}
                     <Card className="glass-panel border-border/30 overflow-hidden mt-8">
