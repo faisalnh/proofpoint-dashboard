@@ -7,9 +7,11 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Header } from '@/components/layout/Header';
 import {
+    AssessmentProgress,
     ReviewComparisonSection,
     WeightedScoreDisplay
 } from '@/components/assessment';
+import { ScoreComparisonWidget } from '@/components/assessment/ScoreComparisonWidget';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AssessmentPrintView } from '@/components/assessment/AssessmentPrintView';
 import { Button } from '@/components/ui/button';
@@ -32,12 +34,20 @@ import {
     AlertCircle,
     Search,
     FileText,
-    Trash2
+    Trash2,
+    ShieldCheck,
+    Layout,
+    Info
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
+import {
+    Alert,
+    AlertTitle,
+    AlertDescription
+} from '@/components/ui/alert';
 
 function ManagerContent() {
     const router = useRouter();
@@ -51,7 +61,7 @@ function ManagerContent() {
         assessment,
         domains,
         loading: assessmentLoading,
-        updateIndicator,
+        updateKPI: updateIndicator,
         saveDraft,
         submitReview,
         saving,
@@ -60,13 +70,23 @@ function ManagerContent() {
         deleteAssessment
     } = useAssessment(assessmentId || undefined);
 
-    const { isAdmin } = useAuth();
+    const { isAdmin, user } = useAuth();
+
 
     useEffect(() => {
         if (isPrintMode && !assessmentLoading && assessment) {
+            const originalTitle = document.title;
+            const period = assessment.period || 'Assessment';
+            const name = assessment.staff_name || 'Staff';
+            document.title = `${name} - ${period}`;
+
             setTimeout(() => {
                 window.print();
             }, 500);
+
+            return () => {
+                document.title = originalTitle;
+            };
         }
     }, [isPrintMode, assessmentLoading, assessment]);
 
@@ -74,11 +94,11 @@ function ManagerContent() {
 
     const [searchTerm, setSearchTerm] = useState('');
 
-    if (isPrintMode && assessment && sections) {
+    if (isPrintMode && assessment && domains) {
         return (
             <AssessmentPrintView
                 assessment={assessment}
-                sections={sections}
+                domains={domains}
                 staffName={currentStaffName}
             />
         );
@@ -99,7 +119,10 @@ function ManagerContent() {
         }
     };
 
-    const filteredAssessments = assessments.filter(a =>
+    // Filter out current user's own assessments - they should appear in Self-Assessment page instead
+    const teamAssessments = assessments.filter(a => a.staff_id !== user?.id);
+
+    const filteredAssessments = teamAssessments.filter(a =>
         a.staff_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.staff_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.period.toLowerCase().includes(searchTerm.toLowerCase())
@@ -132,37 +155,49 @@ function ManagerContent() {
     const isReadOnly = assessment?.status === 'manager_reviewed' ||
         assessment?.status === 'director_approved' ||
         assessment?.status === 'acknowledged';
+    const isApproved = assessment?.status === 'director_approved' || assessment?.status === 'acknowledged';
 
     const content = assessmentId ? (
-        // Detailed Assessment View
-        <div className="max-w-5xl mx-auto py-8">
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/manager')}>
-                        <ArrowLeft className="h-5 w-5" />
+        // Detailed Assessment View - matches director page layout
+        <div className="max-w-7xl mx-auto py-8">
+            {/* Status Alert Bar */}
+            {isApproved && (
+                <Alert className="mb-8 border-2 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 bg-emerald-50 border-emerald-500/30">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    <AlertTitle className="font-bold text-lg mb-1">
+                        {assessment?.status === 'acknowledged' ? "Cycle Complete" : "Director Approved"}
+                    </AlertTitle>
+                    <AlertDescription className="text-base">
+                        {assessment?.status === 'acknowledged'
+                            ? "This assessment cycle is complete. Final results have been archived."
+                            : "This assessment has been approved by the director and is awaiting staff acknowledgement."}
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {/* Header Actions - matches director page */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                <div className="flex items-center gap-6">
+                    <Button variant="outline" size="icon" onClick={() => router.push('/manager')} className="h-12 w-12 rounded-xl shadow-sm hover:bg-muted/50 border-muted-foreground/20">
+                        <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="secondary" className="font-mono">{assessment?.period}</Badge>
-                            {getStatusBadge(assessment?.status || '')}
+                            <h1 className="text-4xl font-black tracking-tight">Manager Review</h1>
+                            {isReadOnly && <Badge variant="secondary" className="bg-muted-foreground/10 text-muted-foreground font-mono">READ ONLY</Badge>}
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight">Review: {assessment?.staff_name || 'Staff Assessment'}</h1>
-                        <p className="text-muted-foreground">{assessment?.staff_email}</p>
+                        <p className="text-muted-foreground text-lg">{assessment?.staff_name} • {assessment?.period}</p>
                     </div>
                 </div>
 
                 {!isReadOnly && (
-                    <div className="flex items-center gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={saveDraft}
-                            disabled={saving}
-                        >
+                    <div className="flex items-center gap-4">
+                        <Button variant="outline" onClick={saveDraft} disabled={saving} className="h-12 px-6 rounded-xl border-primary/20 hover:bg-primary/5 transition-all">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                             Save Draft
                         </Button>
                         <Button
-                            className="glow-primary"
+                            className="h-12 px-8 rounded-xl font-bold glow-primary transition-all duration-300"
                             onClick={submitReview}
                             disabled={saving || !managerFeedback.trim()}
                         >
@@ -172,11 +207,9 @@ function ManagerContent() {
                     </div>
                 )}
 
-                {isAdmin && (
+                {isReadOnly && isAdmin && (
                     <Button
                         variant="destructive"
-                        size="icon"
-                        className="h-10 w-10 rounded-xl shadow-lg hover:shadow-destructive/20 ml-2"
                         onClick={async () => {
                             if (window.confirm("Are you sure you want to delete this assessment? This action cannot be undone.")) {
                                 if (await deleteAssessment()) {
@@ -184,14 +217,34 @@ function ManagerContent() {
                                 }
                             }
                         }}
+                        disabled={saving}
+                        className="h-12 px-6 rounded-xl shadow-lg hover:shadow-destructive/20 transition-all font-bold"
                     >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Assessment
                     </Button>
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
+            {/* Cycle Progress Panel - matches director page */}
+            <div className="mb-10">
+                <Card className="glass-panel border-border/30 shadow-lg overflow-hidden">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-xl font-bold flex items-center gap-2">
+                            <Layout className="h-5 w-5 text-primary" />
+                            Cycle Progress
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-8">
+                        <AssessmentProgress status={assessment?.status || 'self_submitted'} />
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Main Content Grid - 12 column layout like director page */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Main Content: Domains - 8 columns */}
+                <div className="lg:col-span-8 space-y-10">
                     {domains.map((domain: DomainData) => (
                         <ReviewComparisonSection
                             key={domain.id}
@@ -253,46 +306,37 @@ function ManagerContent() {
                     </Card>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="sticky top-24 space-y-6">
-                        <Card className="glass-panel border-border/30">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Staff Summary</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Self-Rating Score</span>
-                                    <div className="text-3xl font-mono font-bold text-foreground mt-1">
-                                        {staffWeightedScore?.toFixed(2) || '-.--'}
-                                    </div>
-                                </div>
-                                <div>
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Status</span>
-                                    <div className="mt-1">{getStatusBadge(assessment?.status || '')}</div>
+                {/* Sidebar: Progress & Score - 4 columns */}
+                <div className="lg:col-span-4 space-y-8">
+                    <div className="sticky top-24 space-y-8">
+                        {/* Score Comparison Widget - same as director page */}
+                        <ScoreComparisonWidget
+                            domains={domains}
+                            finalScore={managerWeightedScore}
+                            projectedScore={staffWeightedScore}
+                        />
+
+                        <Card className="bg-muted/30 border-dashed border-2 border-muted-foreground/10">
+                            <CardContent className="pt-6 pb-6 px-6">
+                                <div className="flex gap-4 items-start">
+                                    <Info className="h-5 w-5 text-muted-foreground/60 shrink-0 mt-0.5" />
+                                    <p className="text-xs text-muted-foreground leading-relaxed italic">
+                                        The Grade is calculated based on domain weights defined in the organizational playbook.
+                                        KPIs marked as <strong>'X'</strong> are excluded from the performance calculation for this period.
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <WeightedScoreDisplay
-                            domains={domains}
-                            score={staffWeightedScore}
-                            label="Staff Self-Grade"
-                            type="staff"
-                        />
-                        <WeightedScoreDisplay
-                            domains={domains}
-                            score={managerWeightedScore}
-                            label="Manager Review Grade"
-                            type="manager"
-                        />
-
-                        <Alert className="bg-primary/5 border-primary/10">
-                            <AlertCircle className="h-4 w-4 text-primary" />
-                            <AlertTitle className="text-sm font-semibold">Quick Tip</AlertTitle>
-                            <AlertDescription className="text-xs">
-                                Compare the staff's self-assessment with their evidence. You can provide your own scores and feedback for each indicator.
-                            </AlertDescription>
-                        </Alert>
+                        {!isReadOnly && (
+                            <Alert className="bg-primary/5 border-primary/10">
+                                <AlertCircle className="h-4 w-4 text-primary" />
+                                <AlertTitle className="text-sm font-semibold">Quick Tip</AlertTitle>
+                                <AlertDescription className="text-xs">
+                                    Compare the staff's self-assessment with their evidence. You can provide your own scores and feedback for each indicator.
+                                </AlertDescription>
+                            </Alert>
+                        )}
                     </div>
                 </div>
             </div>
@@ -473,15 +517,4 @@ export default function ManagerPage() {
             </Suspense>
         </ProtectedRoute>
     );
-}
-
-// Simple Alert components if not available
-function Alert({ children, className }: { children: React.ReactNode, className?: string }) {
-    return <div className={`p-4 rounded-lg flex gap-3 ${className}`}>{children}</div>;
-}
-function AlertTitle({ children, className }: { children: React.ReactNode, className?: string }) {
-    return <h5 className={`font-medium mb-1 ${className}`}>{children}</h5>;
-}
-function AlertDescription({ children, className }: { children: React.ReactNode, className?: string }) {
-    return <div className={`text-sm ${className}`}>{children}</div>;
 }

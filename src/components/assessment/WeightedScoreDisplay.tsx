@@ -116,11 +116,17 @@ export function WeightedScoreDisplay({ domains, score, label, type = 'staff', sh
       d.standards.forEach(s => {
         s.kpis.forEach(k => {
           totalKPIs++;
+          // 'X' (Not Implemented) KPIs count as completed/covered
+          // Check the staff score for 'X' since that's where it's marked
+          if (k.score === 'X') {
+            completedKPIs++;
+            return;
+          }
           const val = type === 'manager' ? k.managerScore : k.score;
           if (type === 'manager') {
             if (val !== null && val !== undefined) completedKPIs++;
           } else {
-            if (val !== null && (val === 'X' || hasValidEvidence(k.evidence))) completedKPIs++;
+            if (val !== null && hasValidEvidence(k.evidence)) completedKPIs++;
           }
         });
       });

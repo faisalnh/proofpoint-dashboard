@@ -25,7 +25,9 @@ export async function GET(request: Request) {
                 sp.department_id as staff_department_id,
                 d.name as staff_department,
                 mp.full_name as manager_name,
-                dp.full_name as director_name
+                mp.job_title as manager_job_title,
+                dp.full_name as director_name,
+                dp.job_title as director_job_title
          FROM assessments a
          LEFT JOIN rubric_templates rt ON a.template_id = rt.id
          LEFT JOIN profiles sp ON a.staff_id = sp.user_id
@@ -45,7 +47,9 @@ export async function GET(request: Request) {
              sp.full_name as staff_name,
              sp.job_title as staff_job_title,
              d.name as staff_department,
-             mp.full_name as manager_name
+             d.name as staff_department,
+             mp.full_name as manager_name,
+             mp.job_title as manager_job_title
       FROM assessments a
       LEFT JOIN rubric_templates rt ON a.template_id = rt.id
       LEFT JOIN profiles sp ON a.staff_id = sp.user_id

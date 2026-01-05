@@ -232,3 +232,65 @@
   0%, 100% { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
   50% { box-shadow: 0 0 40px hsl(var(--primary) / 0.5), 0 0 60px hsl(var(--primary) / 0.2); }
 }
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    font-size: 10pt !important;
+    line-height: 1.3 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force background colors to print */
+  .print-domain-header,
+  .bg-slate-800,
+  .bg-slate-900 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page break control */
+  .avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .page-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /* Hide non-print elements */
+  .print-hide,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Remove shadows and unnecessary decorations */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Compact table styles */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  /* Ensure links don't show URLs */
+  a[href]:after {
+    content: none !important;
+  }
+}

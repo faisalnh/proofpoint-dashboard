@@ -301,6 +301,52 @@ function AssessmentContent() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* My Previous Appraisals Section */}
+                {assessments.filter(a => a.status === 'director_approved' || a.status === 'acknowledged').length > 0 && (
+                    <Card className="glass-panel border-border/30 shadow-lg overflow-hidden mt-8">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-xl font-bold flex items-center gap-2">
+                                <ClipboardList className="h-5 w-5 text-primary" />
+                                My Previous Appraisals
+                            </CardTitle>
+                            <CardDescription>View your finalized performance assessments from previous cycles.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {assessments
+                                .filter(a => a.status === 'director_approved' || a.status === 'acknowledged')
+                                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                .map((a: Assessment) => (
+                                    <div
+                                        key={a.id}
+                                        onClick={() => router.push(`/assessment?id=${a.id}`)}
+                                        className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-primary/50 hover:bg-primary/[0.02] transition-all cursor-pointer group"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-foreground group-hover:text-primary transition-colors">{a.period}</h4>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {new Date(a.created_at).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <Badge className={a.status === 'acknowledged'
+                                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                                : "bg-blue-100 text-blue-700 border-blue-200"
+                                            }>
+                                                {a.status === 'acknowledged' ? 'Completed' : 'Pending Acknowledgement'}
+                                            </Badge>
+                                            <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180 group-hover:text-primary transition-all" />
+                                        </div>
+                                    </div>
+                                ))}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         );
     }
@@ -308,7 +354,7 @@ function AssessmentContent() {
     // Active Assessment Form View
     const isApproved = assessment?.status === 'director_approved';
     const isAcknowledged = assessment?.status === 'acknowledged';
-    const isReadOnly = assessment?.status !== 'draft' && assessment?.status !== 'rejected';
+    const isReadOnly = assessment?.status !== 'draft' && assessment?.status !== 'rejected' && assessment?.status !== 'director_approved';
     const showComparison = isApproved || isAcknowledged;
 
     return (
@@ -344,7 +390,7 @@ function AssessmentContent() {
                     </div>
                 </div>
 
-                {!isReadOnly && (
+                {!isReadOnly && !isApproved && (
                     <div className="flex items-center gap-4">
                         <Button variant="outline" onClick={saveDraft} disabled={saving} className="h-12 px-6 rounded-xl border-primary/20 hover:bg-primary/5 transition-all">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
@@ -377,7 +423,7 @@ function AssessmentContent() {
                     </div>
                 )}
 
-                {!isReadOnly && (
+                {!isReadOnly && !isApproved && (
                     <div className="ml-4">
                         <Button
                             variant="ghost"
@@ -421,6 +467,7 @@ function AssessmentContent() {
                                 <ReviewComparisonSection
                                     key={domain.id}
                                     readonly={true}
+                                    reviewerLabel="Director"
                                     section={{
                                         ...domain,
                                         standards: domain.standards.map((s: StandardData) => ({
@@ -437,6 +484,38 @@ function AssessmentContent() {
                                     }}
                                 />
                             ))}
+
+                            {/* Director Final Feedback Section (Read-only for staff) */}
+                            <Card className="glass-panel border-border/30 overflow-hidden shadow-xl">
+                                <CardHeader className="bg-emerald-500/5 border-b border-border/10 pb-6 pt-8 px-8">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+                                            <ShieldCheck className="h-6 w-6" />
+                                        </div>
+                                        <CardTitle className="text-2xl font-black">Director Final Feedback</CardTitle>
+                                    </div>
+                                    <CardDescription className="text-base mt-2">Final assessment summary and organizational feedback from the Director.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="pt-8 px-8 pb-10">
+                                    <div className="space-y-6">
+                                        <div className="relative">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/20 rounded-full" />
+                                            <div className="pl-6 py-2">
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Director's Comments</span>
+                                                <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap">
+                                                    {directorFeedback || <span className="text-muted-foreground italic">No feedback provided</span>}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-500/20 text-emerald-700">
+                                            <ShieldCheck className="h-6 w-6" />
+                                            <div className="text-sm font-bold">
+                                                Director Approved & Signed
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
                             {/* Staff Acknowledgement Section */}
                             <Card className="glass-panel border-border/30 overflow-hidden shadow-2xl">
@@ -529,6 +608,7 @@ function AssessmentContent() {
                             score={showComparison ? finalWeightedScore : weightedScore}
                             label={showComparison ? "Final Score" : "Projected Score"}
                             type={showComparison ? "manager" : "staff"}
+                            showAlways={showComparison}
                         />
 
                         <Card className="bg-muted/30 border-dashed border-2 border-muted-foreground/10">

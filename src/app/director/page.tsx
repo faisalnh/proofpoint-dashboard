@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from '@/hooks/use-toast';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -9,6 +10,7 @@ import {
     ReviewComparisonSection,
     WeightedScoreDisplay
 } from '@/components/assessment';
+import { AssessmentPrintView } from '@/components/assessment/AssessmentPrintView';
 import { ScoreComparisonWidget } from '@/components/assessment/ScoreComparisonWidget';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,6 +61,7 @@ function DirectorContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const assessmentId = searchParams.get('id');
+    const isPrintMode = searchParams.get('print') === 'true';
     const { user, isAdmin } = useAuth();
 
     const [assessments, setAssessments] = useState<any[]>([]);
@@ -94,6 +97,30 @@ function DirectorContent() {
         handleScroll(); // Check initial position
         return () => window.removeEventListener('scroll', handleScroll);
     }, [assessmentId]);
+
+    // Handle print mode
+    useEffect(() => {
+        if (isPrintMode && !assessmentLoading && !workflowLoading && assessment) {
+            const originalTitle = document.title;
+            // Format: "Name - Period" e.g. "Faisal Nur Hidayat - Semester 1 2025/2026"
+            const period = assessment.period || 'Assessment';
+            const name = assessment.staff_name || 'Staff';
+            document.title = `${name} - ${period}`;
+
+            // Wait for render to complete
+            setTimeout(() => {
+                window.print();
+            }, 800);
+
+            return () => {
+                document.title = originalTitle;
+            };
+        }
+    }, [isPrintMode, assessmentLoading, workflowLoading, assessment]);
+
+    const currentStaffName = assessments.find(a => a.id === assessmentId)?.staff_name;
+
+
 
     // Fetch organizational assessments (those pending director approval)
     useEffect(() => {
@@ -211,6 +238,31 @@ function DirectorContent() {
         }
     };
 
+    const handleDownloadPDF = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+
+        toast({
+            title: "Opening Report",
+            description: "Opening print view for assessment report...",
+        });
+
+        // Open the assessment detail in a new window with print=true param
+        // Note: Director view also supports print mode via specific route handling or component check
+        // For consistency, we'll route to manager view which has the print logic, or ensure director view handles it
+        // Since print view is shared, we can reuse the print parameter on the director route if implemented,
+        // or route to a dedicated print view. 
+        // Checking manager page implementation: it checks `isPrintMode` search param.
+        // Director page doesn't seem to have `isPrintMode` logic in the beginning of the component yet.
+        // Let's check if we need to add print mode logic to Director page first.
+        // Actually, let's route to /manager?id=...&print=true since that page already has the print logic
+        // But wait, access control might be an issue if director doesn't have manager role?
+        // Directors usually have high privs. Let's see.
+        // Alternatively, I should implement isPrintMode logic in Director page too if not present.
+
+        // Let's implement isPrintMode logic in Director page as well to be safe and clean.
+        window.open(`/director?id=${id}&print=true`, '_blank');
+    };
+
     const filteredAssessments = assessments.filter(a =>
         a.staff_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.period.toLowerCase().includes(searchTerm.toLowerCase())
@@ -224,6 +276,16 @@ function DirectorContent() {
                     <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
                     <p className="text-muted-foreground">Loading assessment details...</p>
                 </div>
+            );
+        }
+
+        if (isPrintMode && assessment && domains) {
+            return (
+                <AssessmentPrintView
+                    assessment={assessment}
+                    domains={domains}
+                    staffName={currentStaffName || assessment.staff_name}
+                />
             );
         }
 
@@ -558,6 +620,15 @@ function DirectorContent() {
                                     </div>
 
                                     <div className="flex items-center gap-6 mt-4 md:mt-0">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-9 gap-2 text-xs"
+                                            onClick={(e) => handleDownloadPDF(e, a.id)}
+                                        >
+                                            <FileText className="h-3 w-3" />
+                                            Download Report
+                                        </Button>
                                         <div className="text-right">
                                             <p className="text-xs text-muted-foreground uppercase font-semibold">Status</p>
                                             <div className="mt-1">{getStatusBadge(a.status)}</div>
@@ -574,18 +645,31 @@ function DirectorContent() {
     );
 }
 
+function DirectorLayoutWrapper() {
+    const searchParams = useSearchParams();
+    const isPrintMode = searchParams.get('print') === 'true';
+
+    if (isPrintMode) {
+        return <DirectorContent />;
+    }
+
+    return (
+        <div className="min-h-screen bg-background relative">
+            <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
+            <Header />
+            <main className="container relative px-4 py-8">
+                <DirectorContent />
+            </main>
+        </div>
+    );
+}
+
 export default function DirectorPage() {
     return (
         <ProtectedRoute requiredRoles={['director', 'admin']}>
-            <div className="min-h-screen bg-background relative">
-                <div className="fixed inset-0 grid-pattern opacity-50 pointer-events-none" />
-                <Header />
-                <main className="container relative px-4 py-8">
-                    <Suspense fallback={<Loader2 className="h-12 w-12 animate-spin fixed top-1/2 left-1/2" />}>
-                        <DirectorContent />
-                    </Suspense>
-                </main>
-            </div>
+            <Suspense fallback={<Loader2 className="h-12 w-12 animate-spin fixed top-1/2 left-1/2" />}>
+                <DirectorLayoutWrapper />
+            </Suspense>
         </ProtectedRoute>
     );
 }
