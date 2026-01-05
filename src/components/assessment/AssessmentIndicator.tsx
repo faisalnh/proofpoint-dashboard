@@ -54,7 +54,7 @@ export function AssessmentIndicator({ indicator, onChange, index, readonly = fal
 
   return (
     <div className={cn(
-      "border rounded-xl transition-all duration-200 bg-card group",
+      "border rounded-xl transition-all duration-200 bg-card group min-w-0",
       statusColor,
       isExcluded && "opacity-75 grayscale-[0.5]",
       isExpanded ? "shadow-md ring-1 ring-primary/5" : "hover:shadow-sm"

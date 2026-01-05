@@ -64,6 +64,32 @@ export async function GET(request: Request) {
         const params: unknown[] = [];
         let paramIndex = 1;
 
+        // Apply Role-Based Filtering
+        const roles = (session.user as { roles?: string[] }).roles || [];
+        const departmentId = (session.user as { departmentId?: string }).departmentId;
+        const userId = session.user.id;
+
+        const isAdmin = roles.includes("admin");
+        const isDirector = roles.includes("director");
+        const isManager = roles.includes("manager");
+
+        if (isDirector) {
+            // See all assessments (Directors only)
+        } else if (isManager) {
+            // Manager sees:
+            // 1. Staff in their department
+            // 2. Assessments they explicitly manage
+            // 3. Their own assessments
+            // Note: Admins who are also Managers will fall into this bucket, 
+            // ensuring they don't see assessments outside their department.
+            sql += ` AND (sp.department_id = $${paramIndex++} OR a.manager_id = $${paramIndex++} OR a.staff_id = $${paramIndex++})`;
+            params.push(departmentId, userId, userId);
+        } else {
+            // Staff (and pure Admins) see only their own assessments
+            sql += ` AND a.staff_id = $${paramIndex++}`;
+            params.push(userId);
+        }
+
         if (staffId) {
             sql += ` AND a.staff_id = $${paramIndex++}`;
             params.push(staffId);

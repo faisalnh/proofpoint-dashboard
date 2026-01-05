@@ -79,6 +79,20 @@ function AssessmentContent() {
     const [selectedTemplate, setSelectedTemplate] = useState<string>('');
     const [period, setPeriod] = useState<string>('');
     const [isCreating, setIsCreating] = useState(false);
+    const [showStickyBar, setShowStickyBar] = useState(false);
+
+    // Scroll detection for sticky bar
+    useEffect(() => {
+        if (!assessmentId) return;
+
+        const handleScroll = () => {
+            setShowStickyBar(window.scrollY > 300);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        handleScroll();
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [assessmentId]);
 
     // Auto-prefill period and rubric based on assignment
     useEffect(() => {
@@ -701,6 +715,37 @@ function AssessmentContent() {
                     </div>
                 </div>
             </div>
+
+            {/* Sticky Action Bar at Bottom */}
+            {!isReadOnly && !isDirectorApprovedOnly && showStickyBar && (
+                <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t border-border/50 py-4 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
+                    <div className="container px-4 flex items-center justify-between">
+                        <div className="hidden md:flex flex-col">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Current Assessment</span>
+                            <span className="text-sm font-bold truncate max-w-[200px]">{assessment?.period}</span>
+                        </div>
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                            <Button
+                                variant="outline"
+                                onClick={saveDraft}
+                                disabled={saving}
+                                className="flex-1 md:flex-none h-12 px-6 rounded-xl border-primary/20 hover:bg-primary/5 transition-all"
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                                Save Draft
+                            </Button>
+                            <Button
+                                className="flex-[2] md:flex-none h-12 px-8 rounded-xl font-bold glow-primary transition-all duration-300"
+                                onClick={submitAssessment}
+                                disabled={saving}
+                            >
+                                <Send className="h-4 w-4 mr-2" />
+                                Submit Review
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
