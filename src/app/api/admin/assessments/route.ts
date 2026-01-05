@@ -19,6 +19,7 @@ export async function GET(request: Request) {
         let sql = `
             SELECT a.*, 
                    sp.full_name as staff_name,
+                   sp.niy as staff_niy,
                    d.name as staff_department,
                    mp.full_name as manager_name,
                    dp.full_name as director_name
@@ -79,6 +80,18 @@ export async function PUT(request: Request) {
                 [id]
             );
             return NextResponse.json({ data: updated });
+        }
+
+        if (action === 'release_all') {
+            // Release all assessments with 'director_approved' status
+            const updated = await query(
+                `UPDATE assessments 
+                 SET status = 'admin_reviewed', 
+                     updated_at = now() 
+                 WHERE status = 'director_approved' 
+                 RETURNING id`
+            );
+            return NextResponse.json({ data: updated, count: updated?.length || 0 });
         }
 
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
