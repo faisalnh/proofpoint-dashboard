@@ -43,7 +43,8 @@ import {
     ShieldCheck,
     MessageSquare,
     Info,
-    Trash2
+    Trash2,
+    Clock
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -160,7 +161,7 @@ function AssessmentContent() {
         const existingDraft = assessments.find((a: Assessment) =>
             a.template_id === selectedTemplate &&
             a.period === period &&
-            (a.status === 'draft' || a.status === 'rejected')
+            a.status !== 'acknowledged'
         );
 
         if (existingDraft) {
@@ -259,13 +260,13 @@ function AssessmentContent() {
                                 {period && selectedTemplate && assessments.find((a: Assessment) =>
                                     a.template_id === selectedTemplate &&
                                     a.period === period &&
-                                    (a.status === 'draft' || a.status === 'rejected')
+                                    a.status !== 'acknowledged'
                                 ) ? (
                                     <Alert className="bg-primary/5 border-primary/20">
                                         <Info className="h-4 w-4 text-primary" />
-                                        <AlertTitle className="text-sm font-bold">Existing Draft Found</AlertTitle>
+                                        <AlertTitle className="text-sm font-bold">Active Assessment Found</AlertTitle>
                                         <AlertDescription className="text-xs">
-                                            You already have an active draft for this period and rubric.
+                                            You already have an active assessment for this period and rubric.
                                         </AlertDescription>
                                     </Alert>
                                 ) : null}
@@ -284,11 +285,11 @@ function AssessmentContent() {
                                         assessments.find((a: Assessment) =>
                                             a.template_id === selectedTemplate &&
                                             a.period === period &&
-                                            (a.status === 'draft' || a.status === 'rejected')
+                                            a.status !== 'acknowledged'
                                         ) ? (
                                             <>
                                                 <ClipboardList className="h-4 w-4 mr-2" />
-                                                Continue Previous Draft
+                                                Continue Assessment
                                             </>
                                         ) : (
                                             <>
@@ -304,7 +305,7 @@ function AssessmentContent() {
                 </Card>
 
                 {/* My Previous Appraisals Section */}
-                {assessments.filter(a => a.status === 'director_approved' || a.status === 'acknowledged').length > 0 && (
+                {assessments.filter(a => ['director_approved', 'admin_reviewed', 'acknowledged'].includes(a.status)).length > 0 && (
                     <Card className="glass-panel border-border/30 shadow-lg overflow-hidden mt-8">
                         <CardHeader className="pb-4">
                             <CardTitle className="text-xl font-bold flex items-center gap-2">
@@ -315,7 +316,7 @@ function AssessmentContent() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {assessments
-                                .filter(a => a.status === 'director_approved' || a.status === 'acknowledged')
+                                .filter(a => ['director_approved', 'admin_reviewed', 'acknowledged'].includes(a.status))
                                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                                 .map((a: Assessment) => (
                                     <div
@@ -353,10 +354,13 @@ function AssessmentContent() {
     }
 
     // Active Assessment Form View
-    const isApproved = assessment?.status === 'director_approved';
+    const isDirectorApprovedOnly = assessment?.status === 'director_approved';
+    const isAdminReviewed = assessment?.status === 'admin_reviewed';
     const isAcknowledged = assessment?.status === 'acknowledged';
-    const isReadOnly = assessment?.status !== 'draft' && assessment?.status !== 'rejected' && assessment?.status !== 'director_approved';
-    const showComparison = isApproved || isAcknowledged;
+    const isReadOnly = assessment?.status !== 'draft' && assessment?.status !== 'rejected' && !isDirectorApprovedOnly;
+
+    // Only show comparison and allow acknowledgment if Admin has reviewed/released it (or it's already acknowledged)
+    const showComparison = isAdminReviewed || isAcknowledged;
 
     return (
         <div className="max-w-7xl mx-auto py-8">
@@ -364,14 +368,30 @@ function AssessmentContent() {
             {isReadOnly && (
                 <Alert className={cn(
                     "mb-8 border-2 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500",
-                    isAcknowledged ? "bg-emerald-50 border-emerald-500/30" : "bg-primary/5 border-primary/20"
+                    isAcknowledged ? "bg-emerald-50 border-emerald-500/30" :
+                        isAdminReviewed ? "bg-amber-50 border-amber-500/30" :
+                            isDirectorApprovedOnly ? "bg-blue-50 border-blue-500/30" :
+                                "bg-primary/5 border-primary/20"
                 )}>
-                    {isAcknowledged ? <ShieldCheck className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-primary" />}
-                    <AlertTitle className="font-bold text-lg mb-1">{isAcknowledged ? "Cycle Complete" : "Review in Progress"}</AlertTitle>
+                    {isAcknowledged ? <ShieldCheck className="h-5 w-5 text-emerald-600" /> :
+                        isAdminReviewed ? <MessageSquare className="h-5 w-5 text-amber-600" /> :
+                            isDirectorApprovedOnly ? <Clock className="h-5 w-5 text-blue-600" /> :
+                                <AlertCircle className="h-5 w-5 text-primary" />}
+
+                    <AlertTitle className="font-bold text-lg mb-1">
+                        {isAcknowledged ? "Cycle Complete" :
+                            isAdminReviewed ? "Action Required" :
+                                isDirectorApprovedOnly ? "Review Process Update" :
+                                    "Review in Progress"}
+                    </AlertTitle>
                     <AlertDescription className="text-base">
                         {isAcknowledged
                             ? "This assessment cycle is complete. Final results have been archived."
-                            : `This assessment has been submitted and is currently ${assessment?.status?.replace('_', ' ') || 'pending'}.`}
+                            : isAdminReviewed
+                                ? "The Admin has released your assessment results. Please review and acknowledge below."
+                                : isDirectorApprovedOnly
+                                    ? "Your assessment has been approved by the Director and is currently pending final release by an Administrator."
+                                    : `This assessment has been submitted and is currently ${assessment?.status?.replace('_', ' ') || 'pending'}.`}
                     </AlertDescription>
                 </Alert>
             )}
@@ -391,7 +411,7 @@ function AssessmentContent() {
                     </div>
                 </div>
 
-                {!isReadOnly && !isApproved && (
+                {!isReadOnly && !isDirectorApprovedOnly && (
                     <div className="flex items-center gap-4">
                         <Button variant="outline" onClick={saveDraft} disabled={saving} className="h-12 px-6 rounded-xl border-primary/20 hover:bg-primary/5 transition-all">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
@@ -424,7 +444,7 @@ function AssessmentContent() {
                     </div>
                 )}
 
-                {!isReadOnly && !isApproved && (
+                {!isReadOnly && !isDirectorApprovedOnly && (
                     <div className="ml-4">
                         <Button
                             variant="ghost"
@@ -520,7 +540,7 @@ function AssessmentContent() {
                                 </CardContent>
                             </Card>
 
-                            {/* Staff Acknowledgement Section */}
+                            {/* Staff Acknowledgement Section - ONLY SHOW IF ADMIN REVIEWED OR ACKNOWLEDGED */}
                             <Card className="glass-panel border-border/30 overflow-hidden shadow-2xl">
                                 <CardHeader className="bg-primary/5 border-b border-border/10 pb-6 pt-8 px-8">
                                     <div className="flex items-center gap-3">
@@ -592,29 +612,80 @@ function AssessmentContent() {
                             </Card>
                         </>
                     ) : (
-                        <Accordion type="multiple" className="w-full space-y-4">
-                            {domains.map((domain) => (
-                                <AssessmentSection
-                                    key={domain.id}
-                                    section={domain}
-                                    onIndicatorChange={updateKPI}
-                                    readonly={isReadOnly}
-                                />
-                            ))}
-                        </Accordion>
+                        <div className="space-y-4">
+                            {/* If waiting for admin, show placeholder or readonly self assessment */}
+                            {isDirectorApprovedOnly && (
+                                <Card className="glass-panel border-border/30 p-8 text-center flex flex-col items-center justify-center min-h-[400px]">
+                                    <div className="p-4 rounded-full bg-blue-100 mb-6 animate-pulse">
+                                        <Clock className="h-12 w-12 text-blue-600" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold mb-2">Pending Administrative Release</h3>
+                                    <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">
+                                        Your assessment has been approved by the Director and is currently awaiting final release by the Administration team.
+                                        You will be notified once the results are available for your acknowledgment.
+                                    </p>
+                                </Card>
+                            )}
+
+                            {/* Still show the accordion, but maybe strictly readonly with NO manager scores visible if we want? 
+                                 Actually, if it's NOT ShowComparison, we usually show the editable form.
+                                 If it IS readOnly (which isDirectorApprovedOnly is part of), we show the form in readonly mode.
+                                 BUT, we want to hide Manager Scores. 
+                                 The standard AssessmentSection shows manager scores if they exist? 
+                                 Let's check AssessmentSection. 
+                                 
+                                 If showComparison is false, we render AssessmentSection. 
+                                 AssessmentSection handles readonly. 
+                                 Does it show manager scores? Usually no, unless we pass them?
+                                 Actually, AssessmentSection uses the 'section' prop which is from 'domains'.
+                                 'domains' has manager scores.
+                                 
+                                 Wait, AssessmentSection is for the USER's input. 
+                                 It usually doesn't show manager scores. That's what ReviewComparisonSection is for.
+                                 So if showComparison is false, we are just showing the user's self assessment.
+                                 Which is CORRECT for the "Pending" state - they see what they submitted, but not the result yet.
+                             */}
+                            <Accordion type="multiple" className="w-full space-y-4">
+                                {domains.map((domain) => (
+                                    <AssessmentSection
+                                        key={domain.id}
+                                        section={domain}
+                                        onIndicatorChange={updateKPI}
+                                        readonly={isReadOnly}
+                                    />
+                                ))}
+                            </Accordion>
+                        </div>
                     )}
                 </div>
 
                 {/* Sidebar: Progress & Score */}
                 <div className="lg:col-span-4 space-y-8">
                     <div className="sticky top-24 space-y-8">
-                        <WeightedScoreDisplay
-                            domains={domains}
-                            score={showComparison ? finalWeightedScore : weightedScore}
-                            label={showComparison ? "Final Score" : "Projected Score"}
-                            type={showComparison ? "manager" : "staff"}
-                            showAlways={showComparison}
-                        />
+                        {/* Only show Final Score if authorized */}
+                        {showComparison && (
+                            <WeightedScoreDisplay
+                                domains={domains}
+                                score={finalWeightedScore}
+                                label="Final Score"
+                                type="manager"
+                                showAlways={true}
+                            />
+                        )}
+
+                        {/* Always show projected score (self score) if NOT comparison mode? Or maybe keep it? 
+                            If showComparison is false, weightedScoreDisplay shows "Projected Score" (self).
+                            That is fine to keep visible as it's their own input.
+                        */}
+                        {!showComparison && (
+                            <WeightedScoreDisplay
+                                domains={domains}
+                                score={weightedScore}
+                                label="Projected Score"
+                                type="staff"
+                                showAlways={true}
+                            />
+                        )}
 
                         <Card className="bg-muted/30 border-dashed border-2 border-muted-foreground/10">
                             <CardContent className="pt-6 pb-6 px-6">

@@ -422,7 +422,44 @@ class ApiClient {
             method: "DELETE",
         });
     }
+
+    // Generic Methods
+    async get<T>(endpoint: string, params?: QueryParams): Promise<ApiResponse<T>> {
+        const searchParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    searchParams.set(key, String(value));
+                }
+            });
+        }
+        const query = searchParams.toString();
+        const cleanEndpoint = endpoint.startsWith("/api") ? endpoint.slice(4) : endpoint;
+        return this.request(`${cleanEndpoint}${query ? `?${query}` : ""}`);
+    }
+
+    async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+        const cleanEndpoint = endpoint.startsWith("/api") ? endpoint.slice(4) : endpoint;
+        return this.request(cleanEndpoint, {
+            method: "POST",
+            body: data ? JSON.stringify(data) : undefined,
+        });
+    }
+
+    async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+        const cleanEndpoint = endpoint.startsWith("/api") ? endpoint.slice(4) : endpoint;
+        return this.request(cleanEndpoint, {
+            method: "PUT",
+            body: data ? JSON.stringify(data) : undefined,
+        });
+    }
+
+    async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+        const cleanEndpoint = endpoint.startsWith("/api") ? endpoint.slice(4) : endpoint;
+        return this.request(cleanEndpoint, {
+            method: "DELETE",
+        });
+    }
 }
 
 export const api = new ApiClient();
-

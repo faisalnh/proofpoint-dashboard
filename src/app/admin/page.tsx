@@ -27,7 +27,8 @@ import {
     FolderTree,
     Plus,
     Clock,
-    ChevronDown
+    ChevronDown,
+    FileText
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api-client';
@@ -62,6 +63,7 @@ import {
 import { UserManagementModal } from '@/components/admin/UserManagementModal';
 import { DepartmentModal } from '@/components/admin/DepartmentModal';
 import { WorkflowEditor } from '@/components/admin/WorkflowEditor';
+import { AdminAssessmentReview } from '@/components/admin/AdminAssessmentReview';
 
 interface User {
     id: string;
@@ -465,6 +467,10 @@ function AdminContent() {
                         <GitBranch className="h-4 w-4" />
                         Workflows
                     </TabsTrigger>
+                    <TabsTrigger value="reviews" className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Reviews
+                    </TabsTrigger>
                 </TabsList>
 
                 {/* Users Tab */}
@@ -719,6 +725,10 @@ function AdminContent() {
                 {/* Workflows Tab */}
                 <TabsContent value="workflows">
                     <WorkflowEditor departments={departments} />
+                </TabsContent>
+
+                <TabsContent value="reviews">
+                    <AdminAssessmentReview />
                 </TabsContent>
             </Tabs>
 

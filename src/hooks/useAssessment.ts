@@ -377,6 +377,23 @@ export function useAssessment(assessmentId?: string) {
 
     setSaving(true);
 
+    // Collect current manager scores and evidence to ensure they are saved
+    const managerScores: Record<string, number | 'X'> = {};
+    const managerEvidence: Record<string, string | EvidenceItem[]> = {};
+
+    domains.forEach(domain => {
+      domain.standards.forEach(standard => {
+        standard.kpis.forEach(kpi => {
+          if (kpi.managerScore !== null && kpi.managerScore !== undefined) {
+            managerScores[kpi.id] = kpi.managerScore;
+          }
+          if (kpi.managerEvidence) {
+            managerEvidence[kpi.id] = kpi.managerEvidence;
+          }
+        });
+      });
+    });
+
     const finalScore = calculateWeightedScore(domains, 'manager');
     const finalGrade = finalScore !== null ? getGradeFromScore(finalScore) : null;
 
@@ -386,6 +403,8 @@ export function useAssessment(assessmentId?: string) {
       director_approved_at: new Date().toISOString(),
       final_score: finalScore,
       final_grade: finalGrade,
+      manager_scores: managerScores,
+      manager_evidence: managerEvidence
     });
 
     setSaving(false);
