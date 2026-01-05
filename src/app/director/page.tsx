@@ -58,6 +58,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Accordion } from '@/components/ui/accordion';
 
 interface WorkflowStep {
     id: string;
@@ -465,29 +466,31 @@ function DirectorContent() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Main Content: Domains - 8 columns */}
                     <div className="lg:col-span-8 space-y-10">
-                        {domains.map((domain: DomainData, index: number) => (
-                            <ReviewComparisonSection
-                                key={domain.id}
-                                index={index}
-                                onIndicatorChange={isReadOnly ? undefined : updateKPI}
-                                readonly={isReadOnly}
-                                reviewerLabel={isDirectorReviewAndApproval ? "Director" : "Manager"}
-                                section={{
-                                    ...domain,
-                                    standards: domain.standards.map((s: StandardData) => ({
-                                        ...s,
-                                        kpis: s.kpis.map((i: KPIData) => ({
-                                            ...i,
-                                            description: i.description || '',
-                                            staffScore: i.score,
-                                            staffEvidence: i.evidence,
-                                            managerScore: i.managerScore ?? null,
-                                            managerEvidence: i.managerEvidence ?? ''
+                        <Accordion type="multiple" className="w-full space-y-4">
+                            {domains.map((domain: DomainData, index: number) => (
+                                <ReviewComparisonSection
+                                    key={domain.id}
+                                    index={index}
+                                    onIndicatorChange={isReadOnly ? undefined : updateKPI}
+                                    readonly={isReadOnly}
+                                    reviewerLabel={isDirectorReviewAndApproval ? "Director" : "Manager"}
+                                    section={{
+                                        ...domain,
+                                        standards: domain.standards.map((s: StandardData) => ({
+                                            ...s,
+                                            kpis: s.kpis.map((i: KPIData) => ({
+                                                ...i,
+                                                description: i.description || '',
+                                                staffScore: i.score,
+                                                staffEvidence: i.evidence,
+                                                managerScore: i.managerScore ?? null,
+                                                managerEvidence: i.managerEvidence ?? ''
+                                            }))
                                         }))
-                                    }))
-                                }}
-                            />
-                        ))}
+                                    }}
+                                />
+                            ))}
+                        </Accordion>
 
                         {/* Final Director Feedback Section - at bottom of form column */}
                         <Card className="glass-panel border-border/30 overflow-hidden shadow-2xl">

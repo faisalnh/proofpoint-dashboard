@@ -145,16 +145,7 @@ export function ScoreSelector({ value, onChange, disabled, rubricDescriptions, h
               </div>
 
               {/* Tooltip */}
-              <div className={cn(
-                "absolute top-full mt-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg text-xs text-center font-medium",
-                "bg-foreground text-background opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-20",
-                "w-max max-w-[220px] shadow-xl"
-              )}>
-                <div className="font-bold mb-1">{option.label}</div>
-                {option.description && <div className="text-[10px] leading-tight opacity-80">{option.description}</div>}
-                {/* Arrow */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-foreground" />
-              </div>
+              {/* Tooltip Removed per user request */}
             </button>
           );
         })}

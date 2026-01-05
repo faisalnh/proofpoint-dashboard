@@ -12,6 +12,7 @@ import {
     ReviewComparisonSection,
     WeightedScoreDisplay
 } from '@/components/assessment';
+import { Accordion } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -463,27 +464,29 @@ function AssessmentContent() {
                 <div className="lg:col-span-8 space-y-10">
                     {showComparison ? (
                         <>
-                            {domains.map((domain: DomainData) => (
-                                <ReviewComparisonSection
-                                    key={domain.id}
-                                    readonly={true}
-                                    reviewerLabel="Director"
-                                    section={{
-                                        ...domain,
-                                        standards: domain.standards.map((s: StandardData) => ({
-                                            ...s,
-                                            kpis: s.kpis.map((k: KPIData) => ({
-                                                ...k,
-                                                description: k.description || '',
-                                                staffScore: k.score,
-                                                staffEvidence: k.evidence,
-                                                managerScore: k.managerScore ?? null,
-                                                managerEvidence: k.managerEvidence ?? ''
+                            <Accordion type="multiple" className="w-full space-y-4">
+                                {domains.map((domain: DomainData) => (
+                                    <ReviewComparisonSection
+                                        key={domain.id}
+                                        readonly={true}
+                                        reviewerLabel="Director"
+                                        section={{
+                                            ...domain,
+                                            standards: domain.standards.map((s: StandardData) => ({
+                                                ...s,
+                                                kpis: s.kpis.map((k: KPIData) => ({
+                                                    ...k,
+                                                    description: k.description || '',
+                                                    staffScore: k.score,
+                                                    staffEvidence: k.evidence,
+                                                    managerScore: k.managerScore ?? null,
+                                                    managerEvidence: k.managerEvidence ?? ''
+                                                }))
                                             }))
-                                        }))
-                                    }}
-                                />
-                            ))}
+                                        }}
+                                    />
+                                ))}
+                            </Accordion>
 
                             {/* Director Final Feedback Section (Read-only for staff) */}
                             <Card className="glass-panel border-border/30 overflow-hidden shadow-xl">
@@ -589,14 +592,16 @@ function AssessmentContent() {
                             </Card>
                         </>
                     ) : (
-                        domains.map((domain) => (
-                            <AssessmentSection
-                                key={domain.id}
-                                section={domain}
-                                onIndicatorChange={updateKPI}
-                                readonly={isReadOnly}
-                            />
-                        ))
+                        <Accordion type="multiple" className="w-full space-y-4">
+                            {domains.map((domain) => (
+                                <AssessmentSection
+                                    key={domain.id}
+                                    section={domain}
+                                    onIndicatorChange={updateKPI}
+                                    readonly={isReadOnly}
+                                />
+                            ))}
+                        </Accordion>
                     )}
                 </div>
 
