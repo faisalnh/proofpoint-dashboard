@@ -22,7 +22,8 @@ import {
     CheckCircle2,
     FileSearch,
     CheckCheck,
-    Layout
+    Layout,
+    ShieldCheck
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 
@@ -62,6 +63,7 @@ const STEP_TYPES = [
     { value: 'review', label: 'Review', icon: FileSearch, color: 'text-blue-500' },
     { value: 'approval', label: 'Approval', icon: CheckCircle2, color: 'text-green-500' },
     { value: 'review_and_approval', label: 'Review + Approval', icon: CheckCheck, color: 'text-purple-500' },
+    { value: 'admin_review', label: 'Admin Review', icon: ShieldCheck, color: 'text-orange-500' },
     { value: 'acknowledge', label: 'Acknowledge', icon: User, color: 'text-amber-500' },
 ] as const;
 
@@ -97,11 +99,63 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
         }
     }, [selectedDeptRoleId]);
 
+    const ensureMandatorySteps = async (currentWorkflows: WorkflowStep[], deptRoleId: string) => {
+        const hasAdminReview = currentWorkflows.some(w => w.step_type === 'admin_review');
+        const hasAcknowledge = currentWorkflows.some(w => w.step_type === 'acknowledge');
+
+        // Identify the correct acknowledge role based on the department role
+        // For "Mad Labs - Manager", the role is "manager", so the acknowledger should be "manager"
+        // For "Global - Director", role is "director", acknowledger "director"
+        // We can get this from departmentRoles list
+        const deptRole = departmentRoles.find(dr => dr.id === deptRoleId);
+        // Default to staff if we can't determine (safe fallback), but logic should hold
+        // The role string in departmentRoles is exactly what we need (e.g., 'manager', 'director', 'staff')
+        const acknowledgeRole = deptRole?.role || 'staff';
+
+        if (!hasAdminReview) {
+            await api.createApprovalWorkflow({
+                department_role_id: deptRoleId,
+                step_order: 100, // Large number to force to end
+                approver_role: 'admin',
+                step_type: 'admin_review',
+            });
+        }
+
+        if (!hasAcknowledge) {
+            await api.createApprovalWorkflow({
+                department_role_id: deptRoleId,
+                step_order: 200, // Even larger number
+                approver_role: acknowledgeRole,
+                step_type: 'acknowledge',
+            });
+        }
+
+        // If we created anything, we'll re-fetch in the main loop or just let the next fetch handle it effectively?
+        // Actually, better to just let the caller re-fetch or we assume the next fetchWorkflows call will pick them up
+        // But since this is called INSIDE fetchWorkflows, we should be careful.
+        // Let's modify the flow: ensure steps exist -> then set state.
+    };
+
     const fetchWorkflows = async (deptRoleId: string) => {
         setLoading(true);
-        const { data } = await api.getApprovalWorkflows(deptRoleId);
+        let { data } = await api.getApprovalWorkflows(deptRoleId);
+
         if (data) {
-            setWorkflows((data as WorkflowStep[]).sort((a, b) => a.step_order - b.step_order));
+            // Check for mandatory steps and create if missing
+            const currentWorkflows = data as WorkflowStep[];
+            const hasAdminReview = currentWorkflows.some(w => w.step_type === 'admin_review');
+            const hasAcknowledge = currentWorkflows.some(w => w.step_type === 'acknowledge');
+
+            if (!hasAdminReview || !hasAcknowledge) {
+                await ensureMandatorySteps(currentWorkflows, deptRoleId);
+                // Re-fetch to get the new IDs
+                const res = await api.getApprovalWorkflows(deptRoleId);
+                data = res.data;
+            }
+
+            if (data) {
+                setWorkflows((data as WorkflowStep[]).sort((a, b) => a.step_order - b.step_order));
+            }
         }
         setLoading(false);
     };
@@ -110,19 +164,22 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
         if (!selectedDeptRoleId) return;
 
         setSaving(true);
-        const nextOrder = workflows.length > 0
-            ? Math.max(...workflows.map(w => w.step_order)) + 1
+        // Only consider user-defined steps for the order calculation (steps < 100)
+        const userSteps = workflows.filter(w => w.step_order < 100);
+        const nextOrder = userSteps.length > 0
+            ? Math.max(...userSteps.map(w => w.step_order)) + 1
             : 1;
 
         const { data, error } = await api.createApprovalWorkflow({
             department_role_id: selectedDeptRoleId,
             step_order: nextOrder,
-            approver_role: 'director', // Default to director as a safe high-level fallback
+            approver_role: 'director', // Default
             step_type: 'review',
         });
 
         if (!error && data) {
-            setWorkflows(prev => [...prev, data as WorkflowStep]);
+            // Refetch to ensure correct ordering with mandatory steps
+            fetchWorkflows(selectedDeptRoleId);
         }
         setSaving(false);
     };
@@ -389,7 +446,7 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
                                     </Badge>
                                 </div>
 
-                                {workflows.map((step, index) => {
+                                {workflows.filter(w => w.step_order < 100).map((step, index) => {
                                     return (
                                         <div key={step.id}>
                                             <div className="flex justify-center py-1">
@@ -408,7 +465,7 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            {STEP_TYPES.map(st => (
+                                                            {STEP_TYPES.filter(st => !['admin_review', 'acknowledge'].includes(st.value)).map(st => (
                                                                 <SelectItem key={st.value} value={st.value}>
                                                                     <div className="flex items-center gap-2">
                                                                         <st.icon className={`h-4 w-4 ${st.color}`} />
@@ -429,7 +486,6 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
                                                             <SelectItem value="manager">Manager</SelectItem>
                                                             <SelectItem value="supervisor">Supervisor</SelectItem>
                                                             <SelectItem value="director">Director</SelectItem>
-                                                            <SelectItem value="staff">Staff (Self)</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
@@ -442,6 +498,45 @@ export function WorkflowEditor({ departments }: WorkflowEditorProps) {
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                {/* Mandatory Steps */}
+                                {workflows.filter(w => w.step_order >= 100).map((step) => {
+                                    // Determine visual index (1-based after user steps)
+                                    const userStepCount = workflows.filter(w => w.step_order < 100).length;
+                                    // admin_review is typically 100 -> index + 1
+                                    // acknowledge is 200 -> index + 2
+                                    // But let's just use the relative order in the full list + 1
+                                    const stepIndex = workflows.indexOf(step) + 1;
+
+                                    const stepInfo = getStepTypeInfo(step.step_type);
+
+                                    return (
+                                        <div key={step.id}>
+                                            <div className="flex justify-center py-1">
+                                                <ArrowDown className="h-4 w-4 text-muted-foreground" />
+                                            </div>
+                                            <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 font-bold text-sm">
+                                                    {stepIndex}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 font-medium">
+                                                        <stepInfo.icon className={`h-4 w-4 ${stepInfo.color}`} />
+                                                        {stepInfo.label}
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {step.step_type === 'admin_review'
+                                                            ? 'Admin reviews completion and correctness'
+                                                            : 'Employee acknowledges final score'}
+                                                    </p>
+                                                </div>
+                                                <Badge variant="outline" className="capitalize">
+                                                    {step.approver_role}
+                                                </Badge>
                                             </div>
                                         </div>
                                     );

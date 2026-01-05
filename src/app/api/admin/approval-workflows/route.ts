@@ -72,7 +72,7 @@ export async function POST(request: Request) {
             }, { status: 400 });
         }
 
-        const validStepTypes = ["review", "approval", "review_and_approval", "acknowledge"];
+        const validStepTypes = ["review", "approval", "review_and_approval", "acknowledge", "admin_review"];
         if (!validStepTypes.includes(step_type)) {
             return NextResponse.json({
                 error: `Invalid step_type. Must be one of: ${validStepTypes.join(", ")}`
