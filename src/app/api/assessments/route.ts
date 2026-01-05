@@ -47,9 +47,13 @@ export async function GET(request: Request) {
              sp.full_name as staff_name,
              sp.job_title as staff_job_title,
              d.name as staff_department,
-             d.name as staff_department,
              mp.full_name as manager_name,
-             mp.job_title as manager_job_title
+             mp.job_title as manager_job_title,
+             (
+                SELECT array_agg(role) 
+                FROM user_roles 
+                WHERE user_id = a.staff_id
+             ) as staff_roles
       FROM assessments a
       LEFT JOIN rubric_templates rt ON a.template_id = rt.id
       LEFT JOIN profiles sp ON a.staff_id = sp.user_id

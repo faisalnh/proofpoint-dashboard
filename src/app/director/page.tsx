@@ -20,7 +20,9 @@ import {
     calculateWeightedScore,
     DomainData,
     StandardData,
-    KPIData
+    KPIData,
+    getGradeFromScore,
+    getPerformanceDetails
 } from '@/hooks/useAssessment';
 import {
     Building2,
@@ -48,6 +50,14 @@ import {
     AlertTitle,
     AlertDescription
 } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 interface WorkflowStep {
     id: string;
@@ -83,7 +93,16 @@ function DirectorContent() {
         deleteAssessment
     } = useAssessment(assessmentId || undefined);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState<'ongoing' | 'done'>('ongoing');
+    const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+    const [roleFilter, setRoleFilter] = useState<string>('all');
+    const [periodFilter, setPeriodFilter] = useState<string>('all');
     const [showStickyBar, setShowStickyBar] = useState(false);
+
+    // Derived filters
+    const uniqueDepartments = Array.from(new Set(assessments.map(a => a.staff_department).filter(Boolean))).sort();
+    const uniqueRoles = Array.from(new Set(assessments.flatMap(a => a.staff_roles || []).filter(Boolean))).sort();
+    const uniquePeriods = Array.from(new Set(assessments.map(a => a.period).filter(Boolean))).sort();
 
     // Scroll detection to show sticky bar after scrolling past header
     useEffect(() => {
@@ -138,6 +157,39 @@ function DirectorContent() {
 
         fetchOrgAssessments();
     }, [user]);
+
+    // Self-healing: Update final_score if missing for completed assessments
+    // Moved to top level to comply with Rules of Hooks
+    const managerScoreForEffect = domains && domains.length > 0 ? calculateWeightedScore(domains, 'manager') : null;
+
+    useEffect(() => {
+        if (!assessment || !managerScoreForEffect) return;
+
+        const isComplete = ['manager_reviewed', 'director_approved', 'acknowledged'].includes(assessment.status);
+        const isMissingScore = assessment.final_score === null || assessment.final_score === undefined;
+
+        // Also check if the grade matches the current scoring logic (e.g. migrating from 'A' to 'Rising Star')
+        const calculatedGrade = getGradeFromScore(managerScoreForEffect);
+        const isWrongGrade = assessment.final_grade !== calculatedGrade;
+
+        if (isComplete && (isMissingScore || isWrongGrade)) {
+            console.log('Self-healing: Updating assessment score/grade', {
+                score: managerScoreForEffect,
+                oldGrade: assessment.final_grade,
+                newGrade: calculatedGrade
+            });
+
+            api.updateAssessment(assessment.id, {
+                final_score: managerScoreForEffect,
+                final_grade: calculatedGrade
+            }).then(() => {
+                toast({
+                    title: "Grade Updated",
+                    description: "Assessment grade has been updated to the new format.",
+                });
+            });
+        }
+    }, [assessment?.id, assessment?.status, assessment?.final_score, assessment?.final_grade, managerScoreForEffect]);
 
     // Fetch workflow steps when assessment is loaded to determine flow type
     useEffect(() => {
@@ -263,10 +315,30 @@ function DirectorContent() {
         window.open(`/director?id=${id}&print=true`, '_blank');
     };
 
-    const filteredAssessments = assessments.filter(a =>
-        a.staff_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.period.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredAssessments = assessments.filter(a => {
+        // Search filter
+        const matchesSearch =
+            a.staff_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            a.period.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        // Tab filter
+        const isDone = ['director_approved', 'acknowledged'].includes(a.status);
+        if (activeTab === 'ongoing' && isDone) return false;
+        if (activeTab === 'done' && !isDone) return false;
+
+        // Department filter
+        if (departmentFilter !== 'all' && a.staff_department !== departmentFilter) return false;
+
+        // Role filter
+        if (roleFilter !== 'all' && !(a.staff_roles || []).includes(roleFilter)) return false;
+
+        // Period filter
+        if (periodFilter !== 'all' && a.period !== periodFilter) return false;
+
+        return true;
+    });
 
     // Detail View
     if (assessmentId) {
@@ -561,86 +633,168 @@ function DirectorContent() {
     }
 
     // Dashboard List View
+    // Dashboard List View
     return (
-        <div className="max-w-6xl mx-auto py-8">
+        <div className="max-w-7xl mx-auto py-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
                     <h1 className="text-4xl font-bold tracking-tight mb-2 text-gradient-hero">Organization Oversight</h1>
                     <p className="text-muted-foreground">Executive dashboard for organizational performance approval and monitoring.</p>
                 </div>
-
-                <div className="relative w-full md:w-72">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search organization..."
-                        className="pl-10 glass-panel"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
             </div>
 
-            <Card className="glass-panel border-border/30 overflow-hidden">
-                <div className="h-1 bg-gradient-to-r from-emerald-500/30 via-emerald-500 to-emerald-500/30" />
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-emerald-500" />
-                        Organizational Assessments
-                    </CardTitle>
-                    <CardDescription>Comprehensive view of all departmental performance evaluations</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loadingList ? (
-                        <div className="flex flex-col items-center justify-center py-20">
-                            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                            <p className="text-muted-foreground">Analyzing organizational data...</p>
-                        </div>
-                    ) : filteredAssessments.length === 0 ? (
-                        <div className="text-center py-20 bg-muted/20 rounded-xl border border-dashed">
-                            <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold">No data available</h3>
-                            <p className="text-muted-foreground">No assessments are currently under review.</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {filteredAssessments.map((a) => (
-                                <div
-                                    key={a.id}
-                                    onClick={() => router.push(`/director?id=${a.id}`)}
-                                    className="group flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-emerald-500/50 hover:bg-emerald-500/[0.02] transition-all cursor-pointer"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                            <ShieldCheck className="h-6 w-6 text-emerald-600" />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-foreground group-hover:text-emerald-600 transition-colors">{a.staff_name}</h4>
-                                            <p className="text-sm text-muted-foreground">{a.period} • {new Date(a.created_at).toLocaleDateString()}</p>
-                                        </div>
-                                    </div>
+            <Tabs defaultValue="ongoing" value={activeTab} onValueChange={(v) => setActiveTab(v as 'ongoing' | 'done')} className="space-y-6">
+                <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
+                    <TabsList className="grid w-full xl:w-[400px] grid-cols-2">
+                        <TabsTrigger value="ongoing">Ongoing Assessments</TabsTrigger>
+                        <TabsTrigger value="done">Done</TabsTrigger>
+                    </TabsList>
 
-                                    <div className="flex items-center gap-6 mt-4 md:mt-0">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-9 gap-2 text-xs"
-                                            onClick={(e) => handleDownloadPDF(e, a.id)}
-                                        >
-                                            <FileText className="h-3 w-3" />
-                                            Download Report
-                                        </Button>
-                                        <div className="text-right">
-                                            <p className="text-xs text-muted-foreground uppercase font-semibold">Status</p>
-                                            <div className="mt-1">{getStatusBadge(a.status)}</div>
-                                        </div>
-                                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-500 transition-all" />
-                                    </div>
-                                </div>
-                            ))}
+                    <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search organization..."
+                                className="pl-10 glass-panel"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
-                    )}
-                </CardContent>
-            </Card>
+
+                        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                            <SelectTrigger className="w-full sm:w-[200px] glass-panel">
+                                <SelectValue placeholder="Department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Departments</SelectItem>
+                                {uniqueDepartments.map(dept => (
+                                    <SelectItem key={dept as string} value={dept as string}>{dept as string}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={roleFilter} onValueChange={setRoleFilter}>
+                            <SelectTrigger className="w-full sm:w-[150px] glass-panel">
+                                <SelectValue placeholder="Role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Roles</SelectItem>
+                                {uniqueRoles.map((role: any) => (
+                                    <SelectItem key={role} value={role}>{role}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                            <SelectTrigger className="w-full sm:w-[150px] glass-panel">
+                                <SelectValue placeholder="Period" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Periods</SelectItem>
+                                {uniquePeriods.map(period => (
+                                    <SelectItem key={period as string} value={period as string}>{period as string}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <TabsContent value={activeTab} className="mt-0">
+                    <Card className="glass-panel border-border/30 overflow-hidden min-h-[500px]">
+                        <div className="h-1 bg-gradient-to-r from-emerald-500/30 via-emerald-500 to-emerald-500/30" />
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Building2 className="h-5 w-5 text-emerald-500" />
+                                {activeTab === 'ongoing' ? 'Ongoing Assessments' : 'Completed Assessments'}
+                            </CardTitle>
+                            <CardDescription>
+                                {activeTab === 'ongoing'
+                                    ? 'Assessments requiring review or approval'
+                                    : 'History of approved and finalized assessments'}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {loadingList ? (
+                                <div className="flex flex-col items-center justify-center py-20">
+                                    <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                                    <p className="text-muted-foreground">Analyzing organizational data...</p>
+                                </div>
+                            ) : filteredAssessments.length === 0 ? (
+                                <div className="text-center py-20 bg-muted/20 rounded-xl border border-dashed">
+                                    <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                    <h3 className="text-lg font-semibold">No assessments found</h3>
+                                    <p className="text-muted-foreground">Try adjusting your filters or search terms.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {filteredAssessments.map((a) => (
+                                        <div
+                                            key={a.id}
+                                            onClick={() => router.push(`/director?id=${a.id}`)}
+                                            className="group flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl bg-background/50 border border-border/30 hover:border-emerald-500/50 hover:bg-emerald-500/[0.02] transition-all cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform text-lg font-bold text-emerald-700">
+                                                    {a.staff_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || <ShieldCheck className="h-6 w-6 text-emerald-600" />}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-bold text-foreground group-hover:text-emerald-600 transition-colors">{a.staff_name}</h4>
+                                                        {a.staff_department && (
+                                                            <Badge variant="outline" className="text-[10px] h-5 hidden sm:flex">
+                                                                {a.staff_department}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground">{a.period} • {new Date(a.created_at).toLocaleDateString()}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-4 lg:gap-8 mt-4 md:mt-0">
+                                                {/* Score Display (Visible if available or if status implies it should be there) */}
+                                                {((a.final_score !== null && a.final_score !== undefined) || ['director_approved', 'acknowledged'].includes(a.status)) && (
+                                                    <div className="hidden sm:block text-right">
+                                                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">Final Score</p>
+                                                        <div className="flex flex-col items-end">
+                                                            <p className="font-mono font-bold text-emerald-600">
+                                                                {(a.final_score !== null && a.final_score !== undefined) ? Number(a.final_score).toFixed(2) : '-'}
+                                                                <span className="text-muted-foreground/50 mx-1">/</span>
+                                                                {a.final_grade || '-'}
+                                                            </p>
+                                                            {(a.final_score !== null && a.final_score !== undefined) && (
+                                                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                                    Bonus: <span className="font-bold text-amber-600">{getPerformanceDetails(Number(a.final_score)).bonusPayout}%</span>
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex items-center gap-4">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-9 w-9 p-0 rounded-full"
+                                                        onClick={(e) => handleDownloadPDF(e, a.id)}
+                                                    >
+                                                        <FileText className="h-4 w-4 text-muted-foreground" />
+                                                    </Button>
+
+                                                    <div className="min-w-[140px] text-right">
+                                                        {getStatusBadge(a.status)}
+                                                    </div>
+                                                </div>
+
+                                                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-500 transition-all opacity-0 group-hover:opacity-100" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
