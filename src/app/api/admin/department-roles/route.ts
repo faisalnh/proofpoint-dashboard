@@ -88,9 +88,15 @@ export async function POST(request: Request) {
         const finalDeptId = (department_id === "" || department_id === "none") ? null : department_id;
 
         const newRole = await queryOne(
-            `INSERT INTO department_roles (department_id, role, default_template_id, name)
-             VALUES ($1, $2, $3, $4)
-             RETURNING *`,
+            `WITH inserted AS (
+                INSERT INTO department_roles (department_id, role, default_template_id, name)
+                VALUES ($1, $2, $3, $4)
+                RETURNING *
+             )
+             SELECT i.*, d.name as department_name, rt.name as template_name
+             FROM inserted i
+             LEFT JOIN departments d ON i.department_id = d.id
+             LEFT JOIN rubric_templates rt ON i.default_template_id = rt.id`,
             [finalDeptId, role, default_template_id ?? null, name ?? null]
         );
 
