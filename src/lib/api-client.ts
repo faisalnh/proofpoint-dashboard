@@ -299,6 +299,7 @@ class ApiClient {
         email: string;
         password: string;
         full_name?: string;
+        niy?: string;
         job_title?: string;
         department_id?: string;
         roles?: string[];
@@ -311,6 +312,7 @@ class ApiClient {
 
     async updateUser(id: string, data: {
         full_name?: string;
+        niy?: string;
         job_title?: string;
         department_id?: string;
         roles?: string[];

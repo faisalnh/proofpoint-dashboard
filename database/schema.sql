@@ -29,6 +29,8 @@ CREATE TABLE public.profiles (
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
   email TEXT NOT NULL,
   full_name TEXT,
+  niy TEXT,
+  job_title TEXT,
   department_id UUID REFERENCES public.departments(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

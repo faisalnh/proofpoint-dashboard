@@ -47,7 +47,10 @@ export function AdminAssessmentReview() {
                 variant: "destructive"
             });
         } else if (data) {
-            setAssessments(data as Assessment[]);
+            const pendingAssessments = (data as Assessment[]).filter(
+                a => a.status === 'director_approved'
+            );
+            setAssessments(pendingAssessments);
         }
         setLoading(false);
     };
@@ -145,7 +148,6 @@ export function AdminAssessmentReview() {
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span>{assessment.staff_name}</span>
-                                                    <span className="text-xs text-muted-foreground">Manager: {assessment.manager_name}</span>
                                                 </div>
                                             </div>
                                         </TableCell>

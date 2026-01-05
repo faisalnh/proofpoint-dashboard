@@ -32,6 +32,7 @@ interface User {
     id: string;
     email: string;
     full_name: string | null;
+    niy: string | null;
     job_title: string | null;
     department_id: string | null;
     department_name: string | null;
@@ -62,6 +63,7 @@ export function UserManagementModal({
         email: '',
         password: '',
         full_name: '',
+        niy: '',
         job_title: '',
         department_id: 'none',
         roles: ['staff'] as string[],
@@ -75,6 +77,7 @@ export function UserManagementModal({
                 email: user.email || '',
                 password: '',
                 full_name: user.full_name || '',
+                niy: user.niy || '',
                 job_title: user.job_title || '',
                 department_id: user.department_id || 'none',
                 roles: user.roles?.length ? user.roles : ['staff'],
@@ -84,6 +87,7 @@ export function UserManagementModal({
                 email: '',
                 password: '',
                 full_name: '',
+                niy: '',
                 job_title: '',
                 department_id: 'none',
                 roles: ['staff'],
@@ -112,6 +116,7 @@ export function UserManagementModal({
             if (isEditMode && user) {
                 const { error: updateError } = await api.updateUser(user.id, {
                     full_name: formData.full_name || undefined,
+                    niy: formData.niy || undefined,
                     job_title: formData.job_title || undefined,
                     department_id: finalDeptId,
                     roles: formData.roles,
@@ -126,6 +131,7 @@ export function UserManagementModal({
                     email: formData.email,
                     password: formData.password,
                     full_name: formData.full_name || undefined,
+                    niy: formData.niy || undefined,
                     job_title: formData.job_title || undefined,
                     department_id: finalDeptId,
                     roles: formData.roles,
@@ -198,6 +204,17 @@ export function UserManagementModal({
                                 value={formData.full_name}
                                 onChange={e => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
                                 placeholder="John Doe"
+                                className="glass-panel"
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="niy">NIY (Nomor Induk Yayasan)</Label>
+                            <Input
+                                id="niy"
+                                value={formData.niy}
+                                onChange={e => setFormData(prev => ({ ...prev, niy: e.target.value }))}
+                                placeholder="e.g. 1234567890"
                                 className="glass-panel"
                             />
                         </div>

@@ -69,6 +69,7 @@ interface User {
     id: string;
     email: string;
     full_name: string | null;
+    niy: string | null;
     job_title: string | null;
     department_id: string | null;
     department_name: string | null;
@@ -515,7 +516,8 @@ function AdminContent() {
                                     <Table>
                                         <TableHeader className="bg-muted/50">
                                             <TableRow>
-                                                <TableHead className="w-[300px]">User</TableHead>
+                                                <TableHead className="w-[250px]">User</TableHead>
+                                                <TableHead>NIY</TableHead>
                                                 <TableHead>Job Title</TableHead>
                                                 <TableHead>Department</TableHead>
                                                 <TableHead>Roles</TableHead>
@@ -538,6 +540,11 @@ function AdminContent() {
                                                                 </span>
                                                             </div>
                                                         </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <code className="text-xs bg-muted px-2 py-1 rounded">
+                                                            {user.niy || '—'}
+                                                        </code>
                                                     </TableCell>
                                                     <TableCell>
                                                         <span className="text-sm text-muted-foreground">

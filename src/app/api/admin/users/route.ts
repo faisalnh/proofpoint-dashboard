@@ -31,7 +31,7 @@ export async function GET(request: Request) {
             // Get specific user with all details
             const user = await queryOne(
                 `SELECT u.id, u.email, u.status, u.created_at,
-                        p.full_name, p.job_title, p.department_id,
+                        p.full_name, p.niy, p.job_title, p.department_id,
                         d.name as department_name,
                         ARRAY_AGG(ur.role::text) FILTER (WHERE ur.role IS NOT NULL) as roles
                  FROM users u
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         // Get all users with roles and department info
         const users = await query(
             `SELECT u.id, u.email, u.status, u.created_at,
-                    p.full_name, p.job_title, p.department_id,
+                    p.full_name, p.niy, p.job_title, p.department_id,
                     d.name as department_name,
                     ARRAY_AGG(ur.role::text) FILTER (WHERE ur.role IS NOT NULL) as roles
              FROM users u
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { email, password, full_name, job_title, department_id, roles } = body;
+        const { email, password, full_name, niy, job_title, department_id, roles } = body;
 
         if (!email || !password) {
             return NextResponse.json({ error: "Email and password required" }, { status: 400 });
@@ -108,9 +108,9 @@ export async function POST(request: Request) {
 
         // Create profile
         await queryOne(
-            `INSERT INTO profiles (user_id, email, full_name, job_title, department_id)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [newUser.id, email, full_name ?? null, job_title ?? null, department_id ?? null]
+            `INSERT INTO profiles (user_id, email, full_name, niy, job_title, department_id)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [newUser.id, email, full_name ?? null, niy ?? null, job_title ?? null, department_id ?? null]
         );
 
         // Assign roles (default to 'staff' if not specified)
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
         // Return created user with full details
         const createdUser = await queryOne(
             `SELECT u.id, u.email, u.status, u.created_at,
-                    p.full_name, p.job_title, p.department_id,
+                    p.full_name, p.niy, p.job_title, p.department_id,
                     d.name as department_name,
                     ARRAY_AGG(ur.role::text) FILTER (WHERE ur.role IS NOT NULL) as roles
              FROM users u
@@ -168,7 +168,7 @@ export async function PUT(request: Request) {
 
         const body = await request.json();
         console.log("Update user body:", JSON.stringify(body, null, 2));
-        const { id, full_name, job_title, department_id, roles, password, status } = body;
+        const { id, full_name, niy, job_title, department_id, roles, password, status } = body;
 
         if (!id) {
             return NextResponse.json({ error: "User ID required" }, { status: 400 });
@@ -181,11 +181,12 @@ export async function PUT(request: Request) {
         await queryOne(
             `UPDATE profiles 
              SET full_name = COALESCE($1, full_name),
-                 job_title = COALESCE($2, job_title),
-                 department_id = $3,
+                 niy = COALESCE($2, niy),
+                 job_title = COALESCE($3, job_title),
+                 department_id = $4,
                  updated_at = now()
-             WHERE user_id = $4`,
-            [full_name || null, job_title || null, finalDeptId, id]
+             WHERE user_id = $5`,
+            [full_name || null, niy || null, job_title || null, finalDeptId, id]
         );
 
         // Update password if provided
@@ -234,7 +235,7 @@ export async function PUT(request: Request) {
         // Return updated user
         const updatedUser = await queryOne(
             `SELECT u.id, u.email, u.status, u.created_at,
-                    p.full_name, p.job_title, p.department_id,
+                    p.full_name, p.niy, p.job_title, p.department_id,
                     d.name as department_name,
                     ARRAY_AGG(ur.role::text) FILTER (WHERE ur.role IS NOT NULL) as roles
              FROM users u
