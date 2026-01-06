@@ -4,7 +4,7 @@ services:
   # ============================================
   app:
     build:
-      context: .
+      context: https://github.com/faisalnurhidayat/proofpoint-dashboard.git#main
       dockerfile: Dockerfile
     container_name: proofpoint-app
     restart: unless-stopped
