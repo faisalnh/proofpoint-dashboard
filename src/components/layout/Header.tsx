@@ -194,6 +194,15 @@ export function Header({ className }: HeaderProps) {
                   </Link>
                 </DropdownMenuItem>
 
+                <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
+                  <Link href="/profile" className="flex items-center gap-2 p-2">
+                    <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
+                      <User className="h-4 w-4 text-foreground" />
+                    </div>
+                    <span>Profile Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+
                 <DropdownMenuSeparator className="my-2 bg-border/50" />
 
                 <DropdownMenuItem
