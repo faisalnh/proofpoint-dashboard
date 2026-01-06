@@ -27,7 +27,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
+                console.log("[Auth] authorize called with email:", credentials?.email);
+
                 if (!credentials?.email || !credentials?.password) {
+                    console.log("[Auth] Missing credentials");
                     return null;
                 }
 
@@ -35,18 +38,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 const password = credentials.password as string;
 
                 // Find user by email
+                console.log("[Auth] Looking up user:", email);
                 const user = await queryOne<DbUser>(
                     "SELECT id, email, password_hash FROM users WHERE email = $1",
                     [email]
                 );
 
                 if (!user) {
+                    console.log("[Auth] User not found:", email);
                     return null;
                 }
+                console.log("[Auth] User found:", user.id, "hash exists:", !!user.password_hash);
 
                 // Verify password
                 const isValid = await bcrypt.compare(password, user.password_hash);
+                console.log("[Auth] Password validation result:", isValid);
                 if (!isValid) {
+                    console.log("[Auth] Invalid password for user:", email);
                     return null;
                 }
 

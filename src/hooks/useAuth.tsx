@@ -101,7 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('SignIn Result:', result); // Debugging
 
       if (result?.error) {
-        return { error: new Error(result.error) };
+        // Convert Auth.js error codes to user-friendly messages
+        let errorMessage = result.error;
+        if (result.error === 'CredentialsSignin') {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+        }
+        return { error: new Error(errorMessage) };
       }
 
       return { error: null };
