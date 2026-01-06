@@ -3,9 +3,11 @@ services:
   # Next.js Application (Frontend + API)
   # ============================================
   app:
-    build:
-      context: https://github.com/faisalnurhidayat/proofpoint-dashboard.git#main
-      dockerfile: Dockerfile
+    image: ghcr.io/faisalnh/proofpoint-dashboard:latest
+    # To build locally instead, comment out 'image' and uncomment:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     container_name: proofpoint-app
     restart: unless-stopped
     depends_on:
