@@ -3,6 +3,9 @@ import {
     PutObjectCommand,
     GetObjectCommand,
     DeleteObjectCommand,
+    HeadBucketCommand,
+    CreateBucketCommand,
+    PutBucketPolicyCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -19,6 +22,52 @@ const s3Client = new S3Client({
 
 const BUCKET_NAME = process.env.MINIO_BUCKET || "evidence";
 
+// Track if bucket has been verified to exist (avoid repeated checks)
+let bucketVerified = false;
+
+/**
+ * Ensure the bucket exists, create it if not
+ */
+async function ensureBucketExists(): Promise<void> {
+    if (bucketVerified) return;
+
+    try {
+        await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET_NAME }));
+        bucketVerified = true;
+    } catch (error: unknown) {
+        const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+        if (err.name === 'NotFound' || err.name === 'NoSuchBucket' || err.$metadata?.httpStatusCode === 404) {
+            console.log(`Bucket '${BUCKET_NAME}' not found. Creating...`);
+
+            await s3Client.send(new CreateBucketCommand({ Bucket: BUCKET_NAME }));
+            console.log(`Bucket '${BUCKET_NAME}' created successfully.`);
+
+            // Set bucket policy to allow public read access
+            const policy = {
+                Version: "2012-10-17",
+                Statement: [
+                    {
+                        Effect: "Allow",
+                        Principal: { AWS: ["*"] },
+                        Action: ["s3:GetObject"],
+                        Resource: [`arn:aws:s3:::${BUCKET_NAME}/*`],
+                    },
+                ],
+            };
+
+            await s3Client.send(new PutBucketPolicyCommand({
+                Bucket: BUCKET_NAME,
+                Policy: JSON.stringify(policy),
+            }));
+            console.log(`Public read policy applied to '${BUCKET_NAME}'.`);
+
+            bucketVerified = true;
+        } else {
+            throw error;
+        }
+    }
+}
+
 export interface UploadResult {
     key: string;
     url: string;
@@ -33,6 +82,9 @@ export async function uploadFile(
     userId: string,
     contentType: string
 ): Promise<UploadResult> {
+    // Ensure bucket exists before upload
+    await ensureBucketExists();
+
     const timestamp = Date.now();
     const key = `${userId}/${timestamp}_${fileName}`;
 
