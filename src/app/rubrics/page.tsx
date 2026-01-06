@@ -157,7 +157,7 @@ function RubricsContent() {
         } else {
             setEditData((prev: any) => ({
                 ...prev,
-                domains: [...(prev.domains || []), { ...data, standards: [] }]
+                domains: [...(prev.domains || []), { ...(data as Record<string, unknown>), standards: [] }]
             }));
             setExpandedDomains(prev => new Set([...prev, (data as any).id]));
         }
@@ -205,7 +205,7 @@ function RubricsContent() {
                 ...prev,
                 domains: prev.domains.map((d: any) => d.id === domainId ? {
                     ...d,
-                    standards: [...(d.standards || []), { ...data, kpis: [] }]
+                    standards: [...(d.standards || []), { ...(data as Record<string, unknown>), kpis: [] }]
                 } : d)
             }));
             setExpandedStandards(prev => new Set([...prev, (data as any).id]));

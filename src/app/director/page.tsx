@@ -738,7 +738,7 @@ function DirectorContent() {
                                         >
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform text-lg font-bold text-emerald-700">
-                                                    {a.staff_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || <ShieldCheck className="h-6 w-6 text-emerald-600" />}
+                                                    {a.staff_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || <ShieldCheck className="h-6 w-6 text-emerald-600" />}
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2">

@@ -216,7 +216,7 @@ export async function DELETE(request: Request) {
         }
 
         // Fetch assessment to check ownership and status
-        const assessment = await queryOne(
+        const assessment = await queryOne<{ staff_id: string; status: string }>(
             "SELECT staff_id, status FROM assessments WHERE id = $1",
             [id]
         );

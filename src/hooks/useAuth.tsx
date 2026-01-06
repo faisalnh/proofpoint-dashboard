@@ -98,8 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         redirect: false,
       });
 
+      console.log('SignIn Result:', result); // Debugging
+
       if (result?.error) {
-        return { error: new Error('Invalid email or password') };
+        return { error: new Error(result.error) };
       }
 
       return { error: null };

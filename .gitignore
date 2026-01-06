@@ -48,3 +48,4 @@ next-env.d.ts
 # Backend
 backend/node_modules/
 backend/.env
+.env
