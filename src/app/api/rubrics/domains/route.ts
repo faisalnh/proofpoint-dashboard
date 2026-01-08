@@ -40,7 +40,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, name, sort_order } = body;
+        const { id, name, sort_order, weight } = body;
 
         if (!id) {
             return NextResponse.json({ error: "Domain ID is required" }, { status: 400 });
@@ -49,10 +49,11 @@ export async function PATCH(request: Request) {
         const updatedDomain = await queryOne(
             `UPDATE kpi_domains 
              SET name = COALESCE($1, name), 
-                 sort_order = COALESCE($2, sort_order)
-             WHERE id = $3
+                 sort_order = COALESCE($2, sort_order),
+                 weight = COALESCE($3, weight)
+             WHERE id = $4
              RETURNING *`,
-            [name, sort_order, id]
+            [name, sort_order, weight, id]
         );
 
         if (!updatedDomain) {
