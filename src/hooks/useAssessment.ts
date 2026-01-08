@@ -58,6 +58,9 @@ export interface Assessment {
   manager_notes: string | null;
   director_comments: string | null;
   staff_notes: string | null;
+  return_feedback: string | null;
+  returned_at: string | null;
+  returned_by: string | null;
   staff_submitted_at: string | null;
   manager_reviewed_at: string | null;
   director_approved_at: string | null;
@@ -484,6 +487,39 @@ export function useAssessment(assessmentId?: string) {
     }
   };
 
+  const returnAssessment = async (returnFeedback: string, returnedBy: string) => {
+    if (!assessment) return false;
+
+    if (!returnFeedback || !returnFeedback.trim()) {
+      toast({
+        title: "Feedback Required",
+        description: "Please provide feedback explaining why the assessment is being returned.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    setSaving(true);
+
+    const { error } = await api.updateAssessment(assessment.id, {
+      status: 'returned',
+      return_feedback: returnFeedback,
+      returned_at: new Date().toISOString(),
+      returned_by: returnedBy,
+    });
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to return assessment", variant: "destructive" });
+      return false;
+    } else {
+      toast({ title: "Returned", description: "Assessment returned to staff for revision" });
+      setAssessment(prev => prev ? { ...prev, status: 'returned', return_feedback: returnFeedback } : null);
+      return true;
+    }
+  };
+
   return {
     assessment,
     domains,
@@ -503,6 +539,7 @@ export function useAssessment(assessmentId?: string) {
     approveAssessment,
     acknowledgeAssessment,
     deleteAssessment,
+    returnAssessment,
   };
 }
 

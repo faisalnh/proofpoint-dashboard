@@ -87,7 +87,7 @@ CREATE TABLE public.assessments (
   template_id UUID REFERENCES public.rubric_templates(id) ON DELETE SET NULL,
   period TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (
-    status IN ('draft', 'self_submitted', 'manager_reviewed', 'director_approved', 'acknowledged', 'rejected')
+    status IN ('draft', 'self_submitted', 'manager_reviewed', 'director_approved', 'acknowledged', 'rejected', 'returned')
   ),
   staff_scores JSONB DEFAULT '{}',
   manager_scores JSONB DEFAULT '{}',
@@ -95,6 +95,9 @@ CREATE TABLE public.assessments (
   manager_evidence JSONB DEFAULT '{}',
   manager_notes TEXT,
   director_comments TEXT,
+  return_feedback TEXT,
+  returned_at TIMESTAMPTZ,
+  returned_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
   final_score DECIMAL(4,2),
   final_grade TEXT,
   staff_submitted_at TIMESTAMPTZ,

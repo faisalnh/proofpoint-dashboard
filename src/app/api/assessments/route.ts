@@ -81,7 +81,7 @@ export async function GET(request: Request) {
             // 2. Assessments they explicitly manage
             // 3. Their own assessments
             sql += ` AND (sp.department_id = $${paramIndex++} OR a.manager_id = $${paramIndex++} OR a.staff_id = $${paramIndex++})`;
-            params.push(departmentId, userId, userId);
+            params.push(departmentId ?? null, userId, userId);
         } else {
             // Staff see only their own assessments
             sql += ` AND a.staff_id = $${paramIndex++}`;
@@ -171,7 +171,8 @@ export async function PUT(request: Request) {
         const allowedFields = [
             "staff_scores", "manager_scores", "staff_evidence", "manager_evidence",
             "manager_notes", "director_comments", "final_score", "final_grade",
-            "status", "staff_submitted_at", "manager_reviewed_at", "director_approved_at"
+            "status", "staff_submitted_at", "manager_reviewed_at", "director_approved_at",
+            "return_feedback", "returned_at", "returned_by"
         ];
 
         for (const [key, value] of Object.entries(updates)) {
@@ -227,7 +228,7 @@ export async function DELETE(request: Request) {
 
         const isAdmin = ((session.user as { roles?: string[] }).roles ?? []).includes("admin");
         const isOwner = assessment.staff_id === session.user.id;
-        const isDraft = assessment.status === 'draft' || assessment.status === 'rejected';
+        const isDraft = assessment.status === 'draft' || assessment.status === 'rejected' || assessment.status === 'returned';
 
         // Permissions: 
         // 1. Admin can delete anything

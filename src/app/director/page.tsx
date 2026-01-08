@@ -39,6 +39,7 @@ import {
     FileText,
     Info,
     AlertCircle,
+    RotateCcw,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,6 +60,17 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Accordion } from '@/components/ui/accordion';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface WorkflowStep {
     id: string;
@@ -91,7 +103,8 @@ function DirectorContent() {
         managerFeedback,
         directorFeedback,
         setDirectorFeedback,
-        deleteAssessment
+        deleteAssessment,
+        returnAssessment
     } = useAssessment(assessmentId || undefined);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'ongoing' | 'done'>('ongoing');
@@ -99,6 +112,8 @@ function DirectorContent() {
     const [roleFilter, setRoleFilter] = useState<string>('all');
     const [periodFilter, setPeriodFilter] = useState<string>('all');
     const [showStickyBar, setShowStickyBar] = useState(false);
+    const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+    const [returnFeedbackInput, setReturnFeedbackInput] = useState('');
 
     // Derived filters
     const uniqueDepartments = Array.from(new Set(assessments.map(a => a.staff_department).filter(Boolean))).sort();
@@ -415,6 +430,69 @@ function DirectorContent() {
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                                 Save Draft
                             </Button>
+
+                            {/* Return for Revision Dialog */}
+                            <AlertDialog open={returnDialogOpen} onOpenChange={setReturnDialogOpen}>
+                                <AlertDialogTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="h-12 px-6 rounded-xl border-amber-500/30 text-amber-600 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all"
+                                        disabled={saving}
+                                    >
+                                        <RotateCcw className="h-4 w-4 mr-2" />
+                                        Return for Revision
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="max-w-lg">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+                                            <RotateCcw className="h-5 w-5" />
+                                            Return Assessment for Revision
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription asChild>
+                                            <div className="space-y-4">
+                                                <p>
+                                                    This will return the assessment to <strong>{assessment?.staff_name}</strong> for revision.
+                                                    Please provide clear feedback on what needs to be corrected.
+                                                </p>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="return-feedback" className="text-sm font-semibold text-foreground">
+                                                        Return Feedback <span className="text-destructive">*</span>
+                                                    </Label>
+                                                    <Textarea
+                                                        id="return-feedback"
+                                                        placeholder="Please describe what needs to be revised or corrected..."
+                                                        className="min-h-[120px] resize-none"
+                                                        value={returnFeedbackInput}
+                                                        onChange={(e) => setReturnFeedbackInput(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel onClick={() => setReturnFeedbackInput('')}>
+                                            Cancel
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                                            disabled={!returnFeedbackInput.trim() || saving}
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                if (user && await returnAssessment(returnFeedbackInput, user.id)) {
+                                                    setReturnDialogOpen(false);
+                                                    setReturnFeedbackInput('');
+                                                    router.push('/director');
+                                                }
+                                            }}
+                                        >
+                                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                                            Return for Revision
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+
                             <Button
                                 className="h-12 px-8 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 glow-primary transition-all duration-300"
                                 onClick={approveAssessment}
@@ -618,6 +696,15 @@ function DirectorContent() {
                                 >
                                     {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                                     Save Draft
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setReturnDialogOpen(true)}
+                                    disabled={saving}
+                                    className="flex-1 md:flex-none h-12 px-6 rounded-xl border-amber-500/30 text-amber-600 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all"
+                                >
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Return
                                 </Button>
                                 <Button
                                     className="flex-[2] md:flex-none h-12 px-8 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 glow-primary transition-all duration-300"
