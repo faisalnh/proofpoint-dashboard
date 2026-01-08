@@ -38,7 +38,9 @@ import {
     Trash2,
     ShieldCheck,
     Layout,
-    Info
+    Info,
+    RotateCcw,
+    Save
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +51,17 @@ import {
     AlertTitle,
     AlertDescription
 } from '@/components/ui/alert';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 function ManagerContent() {
     const router = useRouter();
@@ -68,10 +81,15 @@ function ManagerContent() {
         saving,
         managerFeedback,
         setManagerFeedback,
-        deleteAssessment
+        deleteAssessment,
+        returnAssessment
     } = useAssessment(assessmentId || undefined);
 
     const { isAdmin, user } = useAuth();
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+    const [returnFeedbackInput, setReturnFeedbackInput] = useState('');
 
 
     useEffect(() => {
@@ -92,8 +110,6 @@ function ManagerContent() {
     }, [isPrintMode, assessmentLoading, assessment]);
 
     const currentStaffName = assessments.find(a => a.id === assessmentId)?.staff_name;
-
-    const [searchTerm, setSearchTerm] = useState('');
 
     if (isPrintMode && assessment && domains) {
         return (
@@ -194,9 +210,72 @@ function ManagerContent() {
                 {!isReadOnly && (
                     <div className="flex items-center gap-4">
                         <Button variant="outline" onClick={saveDraft} disabled={saving} className="h-12 px-6 rounded-xl border-primary/20 hover:bg-primary/5 transition-all">
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                             Save Draft
                         </Button>
+
+                        {/* Return for Revision Dialog */}
+                        <AlertDialog open={returnDialogOpen} onOpenChange={setReturnDialogOpen}>
+                            <AlertDialogTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className="h-12 px-6 rounded-xl border-amber-500/30 text-amber-600 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all"
+                                    disabled={saving}
+                                >
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Return for Revision
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="max-w-lg">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+                                        <RotateCcw className="h-5 w-5" />
+                                        Return Assessment for Revision
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription asChild>
+                                        <div className="space-y-4">
+                                            <p>
+                                                This will return the assessment to <strong>{assessment?.staff_name}</strong> for revision.
+                                                Please provide clear feedback on what needs to be corrected.
+                                            </p>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="return-feedback-manager" className="text-sm font-semibold text-foreground">
+                                                    Return Feedback <span className="text-destructive">*</span>
+                                                </Label>
+                                                <Textarea
+                                                    id="return-feedback-manager"
+                                                    placeholder="Please describe what needs to be revised or corrected..."
+                                                    className="min-h-[120px] resize-none"
+                                                    value={returnFeedbackInput}
+                                                    onChange={(e) => setReturnFeedbackInput(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel onClick={() => setReturnFeedbackInput('')}>
+                                        Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                        className="bg-amber-600 hover:bg-amber-700 text-white"
+                                        disabled={!returnFeedbackInput.trim() || saving}
+                                        onClick={async (e) => {
+                                            e.preventDefault();
+                                            if (user && await returnAssessment(returnFeedbackInput, user.id)) {
+                                                setReturnDialogOpen(false);
+                                                setReturnFeedbackInput('');
+                                                router.push('/manager');
+                                            }
+                                        }}
+                                    >
+                                        {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                                        Return for Revision
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
                         <Button
                             className="h-12 px-8 rounded-xl font-bold glow-primary transition-all duration-300"
                             onClick={submitReview}

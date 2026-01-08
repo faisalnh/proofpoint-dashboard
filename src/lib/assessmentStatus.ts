@@ -6,7 +6,8 @@ export type AssessmentStatus =
   | 'manager_reviewed'
   | 'acknowledged'
   | 'director_approved'
-  | 'rejected';
+  | 'rejected'
+  | 'returned';
 
 export interface StatusInfo {
   label: string;
@@ -44,6 +45,11 @@ export const STATUS_CONFIG: Record<AssessmentStatus, StatusInfo> = {
     label: 'Rejected',
     description: 'Sent back for revision',
     step: 3,
+  },
+  returned: {
+    label: 'Returned',
+    description: 'Returned for revision - please review feedback',
+    step: 1,
   },
 };
 

@@ -44,7 +44,8 @@ import {
     MessageSquare,
     Info,
     Trash2,
-    Clock
+    Clock,
+    RotateCcw
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -371,13 +372,38 @@ function AssessmentContent() {
     const isDirectorApprovedOnly = assessment?.status === 'director_approved';
     const isAdminReviewed = assessment?.status === 'admin_reviewed';
     const isAcknowledged = assessment?.status === 'acknowledged';
-    const isReadOnly = assessment?.status !== 'draft' && assessment?.status !== 'rejected' && !isDirectorApprovedOnly;
+    const isReturned = assessment?.status === 'returned';
+    const isReadOnly = assessment?.status !== 'draft' && assessment?.status !== 'rejected' && assessment?.status !== 'returned' && !isDirectorApprovedOnly;
 
     // Only show comparison and allow acknowledgment if Admin has reviewed/released it (or it's already acknowledged)
     const showComparison = isAdminReviewed || isAcknowledged;
 
     return (
         <div className="max-w-7xl mx-auto py-8">
+            {/* Returned for Revision Alert */}
+            {isReturned && assessment?.return_feedback && (
+                <Alert className="mb-8 border-2 shadow-lg animate-in fade-in slide-in-from-top-4 duration-500 bg-amber-50 border-amber-500/50">
+                    <RotateCcw className="h-5 w-5 text-amber-600" />
+                    <AlertTitle className="font-bold text-lg mb-2 text-amber-800">
+                        Assessment Returned for Revision
+                    </AlertTitle>
+                    <AlertDescription className="space-y-3">
+                        <p className="text-amber-900">
+                            Your assessment has been returned by your reviewer. Please review the feedback below and make the necessary corrections before resubmitting.
+                        </p>
+                        <div className="bg-white/50 border border-amber-200 rounded-lg p-4 mt-3">
+                            <div className="flex items-center gap-2 mb-2">
+                                <MessageSquare className="h-4 w-4 text-amber-600" />
+                                <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Reviewer Feedback</span>
+                            </div>
+                            <p className="text-amber-950 whitespace-pre-wrap leading-relaxed">
+                                {assessment.return_feedback}
+                            </p>
+                        </div>
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {/* Feedback Bar */}
             {isReadOnly && (
                 <Alert className={cn(
