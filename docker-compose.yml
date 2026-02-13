@@ -26,6 +26,8 @@ services:
       # NextAuth
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       AUTH_TRUST_HOST: "true"
       # MinIO
       MINIO_ENDPOINT: http://minio:9000
@@ -35,7 +37,7 @@ services:
     ports:
       - "3060:3000"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/" ]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       start_period: 40s
@@ -58,7 +60,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proofpoint}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proofpoint}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -80,7 +82,7 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -88,5 +90,3 @@ services:
 volumes:
   postgres-data:
   minio-data:
-
-

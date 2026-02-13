@@ -52,6 +52,12 @@ ProofPoint Dashboard is a premium performance assessment platform designed for M
    ```bash
    cp .env.example .env
    ```
+   For Google OAuth, also set:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - In Google Cloud Console, add an authorized redirect URI:
+     - `http://localhost:3000/api/auth/callback/google` (local `npm run dev`)
+     - `http://localhost:3060/api/auth/callback/google` (Docker Compose app port)
 
 3. **Start Infrastructure (Databases & Storage)**
    ```bash
