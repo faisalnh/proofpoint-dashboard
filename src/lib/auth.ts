@@ -131,8 +131,11 @@ async function upsertGoogleUserByEmail(email: string, fullName: string | null) {
       [userId],
     );
 
+    console.log("Upserting Google user:", { email: normalizedEmail, fullName });
     await client.query("COMMIT");
-    return getAuthUserById(userId);
+    const user = await getAuthUserById(userId);
+    console.log("Upsert result user:", user);
+    return user;
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Google sign-in upsert failed:", error);
@@ -149,11 +152,11 @@ const googleClientSecret =
 const googleProvider =
   googleClientId && googleClientSecret
     ? [
-        Google({
-          clientId: googleClientId,
-          clientSecret: googleClientSecret,
-        }),
-      ]
+      Google({
+        clientId: googleClientId,
+        clientSecret: googleClientSecret,
+      }),
+    ]
     : [];
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -205,6 +208,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
+      console.log("SignIn Callback started:", { provider: account?.provider, email: user.email });
       if (account?.provider !== "google") {
         return true;
       }
@@ -212,24 +216,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const googleEmail =
         typeof user.email === "string" ? normalizeEmail(user.email) : "";
       if (!googleEmail) {
+        console.warn("SignIn Callback: No google email found");
         return false;
       }
 
       const emailVerifiedValue = (
         profile as { email_verified?: boolean | string } | undefined
       )?.email_verified;
+      console.log("Email verified value:", emailVerifiedValue);
       const isEmailVerified = Boolean(
         emailVerifiedValue === true || emailVerifiedValue === "true",
       );
       if (!isEmailVerified) {
+        console.warn("SignIn Callback: Email not verified");
         return false;
       }
 
+      console.log("Attempting upsert for:", googleEmail);
       const dbUser = await upsertGoogleUserByEmail(
         googleEmail,
         user.name ?? null,
       );
       if (!dbUser) {
+        console.warn("SignIn Callback: upsertGoogleUserByEmail returned null");
         return false;
       }
 
@@ -240,6 +249,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       user.roles = mappedUser.roles;
       user.departmentId = mappedUser.departmentId;
 
+      console.log("SignIn Callback: Successful for", googleEmail);
       return true;
     },
     async jwt({ token, user, account }) {
