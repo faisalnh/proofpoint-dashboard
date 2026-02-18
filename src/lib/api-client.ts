@@ -540,7 +540,7 @@ class ApiClient {
     return this.request(`${cleanEndpoint}${query ? `?${query}` : ""}`);
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     const cleanEndpoint = endpoint.startsWith("/api")
       ? endpoint.slice(4)
       : endpoint;
@@ -550,7 +550,7 @@ class ApiClient {
     });
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     const cleanEndpoint = endpoint.startsWith("/api")
       ? endpoint.slice(4)
       : endpoint;

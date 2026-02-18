@@ -77,6 +77,44 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 
+// Type definitions
+interface KPI {
+  id: string;
+  name: string;
+  description: string | null;
+  evidence_guidance: string | null;
+  trainings: string | null;
+  sort_order: number;
+  rubric_4: string;
+  rubric_3: string;
+  rubric_2: string;
+  rubric_1: string;
+}
+
+interface Standard {
+  id: string;
+  domain_id: string;
+  name: string;
+  sort_order: number;
+  kpis: KPI[];
+}
+
+interface Domain {
+  id: string;
+  template_id: string;
+  name: string;
+  weight: number;
+  sort_order: number;
+  standards: Standard[];
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description: string | null;
+  domains: Domain[];
+}
+
 // ============================================================================
 // TEMPLATE SELECTOR DIALOG COMPONENT (Centered Modal)
 // ============================================================================
@@ -90,9 +128,9 @@ function TemplateSelectorDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  templates: any[];
-  selectedTemplate: any;
-  onSelectTemplate: (template: any) => void;
+  templates: Template[];
+  selectedTemplate: Template | null;
+  onSelectTemplate: (template: Template) => void;
   isEditMode: boolean;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,7 +139,7 @@ function TemplateSelectorDialog({
     if (!searchQuery.trim()) return templates;
     const query = searchQuery.toLowerCase();
     return templates.filter(
-      (t: any) =>
+      (t: Template) =>
         t.name.toLowerCase().includes(query) ||
         (t.description?.toLowerCase() || "").includes(query),
     );
@@ -136,7 +174,7 @@ function TemplateSelectorDialog({
         {/* Template List (Single Column) */}
         <ScrollArea className="flex-1 p-6">
           <div className="grid grid-cols-1 gap-3">
-            {filteredTemplates.map((template: any) => (
+            {filteredTemplates.map((template: Template) => (
               <Card
                 key={template.id}
                 onClick={() => {
@@ -207,9 +245,9 @@ function ImportDomainDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  templates: any[];
+  templates: Template[];
   currentTemplateId: string;
-  onImport: (domains: any[]) => void;
+  onImport: (domains: Template[]) => void;
 }) {
   const [selectedSourceTemplate, setSelectedSourceTemplate] =
     useState<any>(null);
@@ -221,7 +259,7 @@ function ImportDomainDialog({
 
   const otherTemplates = templates.filter((t) => t.id !== currentTemplateId);
 
-  const handleSelectSourceTemplate = async (template: any) => {
+  const handleSelectSourceTemplate = async (template: Template) => {
     setSelectedSourceTemplate(template);
     setSelectedDomains(new Set());
     setIsLoading(true);
@@ -248,7 +286,7 @@ function ImportDomainDialog({
   const handleImport = async () => {
     if (!sourceTemplateData || selectedDomains.size === 0) return;
 
-    const domainsToImport = sourceTemplateData.domains.filter((d: any) =>
+    const domainsToImport = sourceTemplateData.domains.filter((d: Domain) =>
       selectedDomains.has(d.id),
     );
     onImport(domainsToImport);
@@ -278,7 +316,7 @@ function ImportDomainDialog({
               Source Template
             </h4>
             <ScrollArea className="h-[300px] border rounded-lg p-2">
-              {otherTemplates.map((template: any) => (
+              {otherTemplates.map((template: Template) => (
                 <div
                   key={template.id}
                   onClick={() => handleSelectSourceTemplate(template)}
@@ -308,7 +346,7 @@ function ImportDomainDialog({
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : sourceTemplateData ? (
-                (sourceTemplateData.domains || []).map((domain: any) => (
+                (sourceTemplateData.domains || []).map((domain: Domain) => (
                   <div
                     key={domain.id}
                     className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 flex items-start gap-3 ${
@@ -363,7 +401,7 @@ function DomainWeightEditor({
   onUpdateWeight,
   onAutoBalance,
 }: {
-  domains: any[];
+  domains: Template[];
   onUpdateWeight: (domainId: string, weight: number) => void;
   onAutoBalance: () => void;
 }) {
@@ -459,7 +497,7 @@ function RubricsContent() {
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
-  const handleSelectTemplate = async (template: any) => {
+  const handleSelectTemplate = async (template: Template) => {
     if (selectedTemplate?.id === template.id) return;
 
     setIsEditMode(false);
@@ -473,14 +511,14 @@ function RubricsContent() {
       if (!error && data) {
         setSelectedTemplate(data);
         const allDomainIds = ((data as any).domains || []).map(
-          (d: any) => d.id,
+          (d: Domain) => d.id,
         );
         setExpandedDomains(new Set(allDomainIds));
       }
       setIsDetailLoading(false);
     } else {
       setSelectedTemplate(template);
-      const allDomainIds = (template.domains || []).map((d: any) => d.id);
+      const allDomainIds = (template.domains || []).map((d: Domain) => d.id);
       setExpandedDomains(new Set(allDomainIds));
     }
   };
@@ -511,7 +549,7 @@ function RubricsContent() {
       // 2. Deep sync domains, standards, and KPIs
       for (const domain of editData.domains || []) {
         const originalDomain = selectedTemplate.domains?.find(
-          (d: any) => d.id === domain.id,
+          (d: Domain) => d.id === domain.id,
         );
 
         // Sync domain if name or weight changed
@@ -639,8 +677,8 @@ function RubricsContent() {
 
   const expandAll = () => {
     const currentData = isEditMode ? editData : selectedTemplate;
-    const allDomainIds = (currentData?.domains || []).map((d: any) => d.id);
-    const allStandardIds = (currentData?.domains || []).flatMap((d: any) =>
+    const allDomainIds = (currentData?.domains || []).map((d: Domain) => d.id);
+    const allStandardIds = (currentData?.domains || []).flatMap((d: Domain) =>
       (d.standards || []).map((s: any) => s.id),
     );
     setExpandedDomains(new Set(allDomainIds));
@@ -681,7 +719,7 @@ function RubricsContent() {
   const handleUpdateDomain = (domainId: string, updates: any) => {
     setEditData((prev: any) => ({
       ...prev,
-      domains: prev.domains.map((d: any) =>
+      domains: prev.domains.map((d: Domain) =>
         d.id === domainId ? { ...d, ...updates } : d,
       ),
     }));
@@ -705,7 +743,7 @@ function RubricsContent() {
     } else {
       setEditData((prev: any) => ({
         ...prev,
-        domains: prev.domains.filter((d: any) => d.id !== domainId),
+        domains: prev.domains.filter((d: Domain) => d.id !== domainId),
       }));
     }
   };
@@ -718,11 +756,11 @@ function RubricsContent() {
 
     setEditData((prev: any) => ({
       ...prev,
-      domains: prev.domains.map((d: any) => ({ ...d, weight: equalWeight })),
+      domains: prev.domains.map((d: Domain) => ({ ...d, weight: equalWeight })),
     }));
   };
 
-  const handleImportDomains = async (domainsToImport: any[]) => {
+  const handleImportDomains = async (domainsToImport: Template[]) => {
     // For each domain, create it with its standards and KPIs
     for (const domain of domainsToImport) {
       // Create domain
@@ -806,7 +844,7 @@ function RubricsContent() {
 
   // Standard CRUD handlers
   const handleAddStandard = async (domainId: string) => {
-    const domain = editData.domains.find((d: any) => d.id === domainId);
+    const domain = editData.domains.find((d: Domain) => d.id === domainId);
     const { data, error } = await api.createStandard({
       domain_id: domainId,
       name: "New Standard",
@@ -822,7 +860,7 @@ function RubricsContent() {
     } else {
       setEditData((prev: any) => ({
         ...prev,
-        domains: prev.domains.map((d: any) =>
+        domains: prev.domains.map((d: Domain) =>
           d.id === domainId
             ? {
                 ...d,
@@ -841,7 +879,7 @@ function RubricsContent() {
   const handleUpdateStandard = (standardId: string, updates: any) => {
     setEditData((prev: any) => ({
       ...prev,
-      domains: prev.domains.map((d: any) => ({
+      domains: prev.domains.map((d: Domain) => ({
         ...d,
         standards: d.standards.map((s: any) =>
           s.id === standardId ? { ...s, ...updates } : s,
@@ -868,7 +906,7 @@ function RubricsContent() {
     } else {
       setEditData((prev: any) => ({
         ...prev,
-        domains: prev.domains.map((d: any) =>
+        domains: prev.domains.map((d: Domain) =>
           d.id === domainId
             ? {
                 ...d,
@@ -883,7 +921,7 @@ function RubricsContent() {
   // KPI CRUD handlers
   const handleAddKPI = async (standardId: string) => {
     let standard: any = null;
-    editData.domains.forEach((d: any) => {
+    editData.domains.forEach((d: Domain) => {
       const found = d.standards.find((s: any) => s.id === standardId);
       if (found) standard = found;
     });
@@ -910,7 +948,7 @@ function RubricsContent() {
     } else {
       setEditData((prev: any) => ({
         ...prev,
-        domains: prev.domains.map((d: any) => ({
+        domains: prev.domains.map((d: Domain) => ({
           ...d,
           standards: d.standards.map((s: any) =>
             s.id === standardId
@@ -928,7 +966,7 @@ function RubricsContent() {
   const handleUpdateKPI = (kpiId: string, updates: any) => {
     setEditData((prev: any) => ({
       ...prev,
-      domains: prev.domains.map((d: any) => ({
+      domains: prev.domains.map((d: Domain) => ({
         ...d,
         standards: d.standards.map((s: any) => ({
           ...s,
@@ -951,7 +989,7 @@ function RubricsContent() {
     } else {
       setEditData((prev: any) => ({
         ...prev,
-        domains: prev.domains.map((d: any) => ({
+        domains: prev.domains.map((d: Domain) => ({
           ...d,
           standards: d.standards.map((s: any) =>
             s.id === standardId
@@ -978,7 +1016,7 @@ function RubricsContent() {
   const currentData = isEditMode ? editData : selectedTemplate;
 
   // Count KPIs across all domains and standards
-  const countKPIs = (domains: any[]) => {
+  const countKPIs = (domains: Template[]) => {
     if (!domains) return 0;
     return domains.reduce(
       (acc, d) =>
@@ -991,7 +1029,7 @@ function RubricsContent() {
     );
   };
 
-  const countStandards = (domains: any[]) => {
+  const countStandards = (domains: Template[]) => {
     if (!domains) return 0;
     return domains.reduce((acc, d) => acc + (d.standards?.length || 0), 0);
   };
