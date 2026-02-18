@@ -25,11 +25,13 @@ ProofPoint Dashboard is a premium performance assessment platform designed for M
 - **Core**: [Next.js](https://nextjs.org/) (App Router)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **Database**: [PostgreSQL](https://www.postgresql.org/) (Dockerized)
+- **ORM**: [Prisma](https://www.prisma.io/)
 - **Authentication**: [NextAuth.js](https://next-auth.js.org/)
 - **Storage**: [MinIO](https://min.io/) (S3-Compatible Evidence Storage)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/)
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **Inspiration**: AI Assisted Codes
+- **CI/CD**: GitHub Actions → Komodo Webhook
+- **Container**: Docker (multi-stage builds)
 
 ---
 
@@ -69,11 +71,46 @@ ProofPoint Dashboard is a premium performance assessment platform designed for M
    npm install
    ```
 
-5. **Run Development Server**
+5. **Generate Prisma Client**
+   ```bash
+   npm run db:generate
+   ```
+
+6. **Run Development Server**
    ```bash
    npm run dev
    ```
    Visit [http://localhost:3000](http://localhost:3000) to see the dashboard.
+
+---
+
+## 🚢 Deployment
+
+### Automated CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration and deployment:
+
+```
+Push to main
+  ↓
+GitHub Actions
+  ├─ Test & Build
+  ├─ Build Docker Image
+  └─ Trigger Komodo Webhook
+  ↓
+Komodo Server
+  ├─ Pull Image
+  ├─ Run Migrations
+  └─ Restart Services
+```
+
+**See [CI_CD.md](./CI_CD.md) for complete deployment documentation.**
+
+### Manual Deployment
+
+```bash
+./deploy.sh
+```
 
 ---
 
@@ -86,6 +123,15 @@ The system enforces a strict hierarchy for role availability:
 | **Global** | Director, Admin |
 | **Root Department** | Manager, Staff |
 | **Sub-Department** | Supervisor, Staff |
+
+---
+
+## 📚 Documentation
+
+- [CI/CD Pipeline](./CI_CD.md) - Complete deployment guide
+- [Prisma Setup](./PRISMA_SETUP.md) - Database ORM guide
+- [Database Migrations](./database/DATABASE_MIGRATIONS.md) - Schema history
+- [Secrets Setup](./SECRETS_SETUP.md) - GitHub secrets configuration
 
 ---
 
