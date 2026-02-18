@@ -46,19 +46,14 @@ jobs:
 
       - name: Trigger Komodo deployment
         if: success()
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.KOMODO_HOST }}
-          username: ${{ secrets.KOMODO_USER }}
-          password: ${{ secrets.KOMODO_PASSWORD }}
-          script: |
-            # Trigger deployment script on Komodo
-            curl -X POST "${{ secrets.KOMODO_WEBHOOK_URL }}" \
-              -H "Content-Type: application/json" \
-              -d '{
-                "image": "ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}",
-                "app_name": "proofpoint-dashboard",
-                "sha": "${{ github.sha }}",
-                "branch": "${{ github.ref_name }}",
-                "commit_message": "${{ github.event.head_commit.message }}"
-              }'
+        run: |
+          curl -X POST "${{ secrets.KOMODO_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "x-webhook-secret: ${{ secrets.KOMODO_WEBHOOK_SECRET }}" \
+            -d "{
+              \"image\": \"ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}\",
+              \"app_name\": \"proofpoint-dashboard\",
+              \"sha\": \"${{ github.sha }}\",
+              \"branch\": \"${{ github.ref_name }}\",
+              \"commit_message\": \"${{ github.event.head_commit.message }}\"
+            }"
