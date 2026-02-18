@@ -1,32 +1,52 @@
-name: Deploy to Production
+name: Build and Deploy
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    name: Deploy to Production Server
+    name: Build Application
 
     steps:
-      - name: Deploy to server
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Build application
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+
+      - name: Trigger server deployment
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
-          script_stop: true
+          script_stop: false
           script: |
             cd /root/proofpoint-dashboard
 
-            # Backup database
-            echo "Creating database backup..."
-            docker exec proofpoint-db pg_dump -U proofpoint proofpoint > /tmp/backup_$(date +%Y%m%d_%H%M%S).sql
-
-            # Pull latest code
+            # Pull latest changes
             echo "Pulling latest code..."
             git fetch origin
             git reset --hard origin/main
@@ -39,13 +59,9 @@ jobs:
             echo "Generating Prisma Client..."
             npm run db:generate
 
-            # Apply migrations
+            # Apply database migrations
             echo "Applying database migrations..."
             npm run db:migrate:deploy
-
-            # Build application
-            echo "Building application..."
-            npm run build
 
             # Restart application
             echo "Restarting application..."
@@ -55,8 +71,8 @@ jobs:
             echo "Waiting for application to start..."
             sleep 15
 
-            # Health check
-            echo "Checking application health..."
+            # Check status
+            echo "Checking application status..."
             docker ps --filter name=proofpoint-app
 
             echo "Deployment completed successfully! 🚀"

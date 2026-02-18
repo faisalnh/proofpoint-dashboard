@@ -1,95 +1,110 @@
 # Deployment Guide
 
-This guide covers how to deploy the ProofPoint Dashboard to production using automated scripts.
+This guide covers how to deploy the ProofPoint Dashboard to production.
+
+## Deployment Architecture
+
+The deployment process uses a **hybrid approach**:
+- **GitHub Actions**: Builds application and triggers server deployment
+- **Server-side script**: Handles the actual deployment with database backups
+
+## GitHub Actions Setup
+
+### Required Secrets
+
+Go to repository → **Settings** → **Secrets and variables** → **Actions** and add:
+
+| Secret Name | Description | Example Value |
+|------------|-------------|---------------|
+| `SERVER_HOST` | Server IP address | `172.16.0.189` |
+| `SERVER_USER` | SSH username | `root` |
+| `SERVER_PASSWORD` | SSH password | `your_password` |
+| `DATABASE_URL` | Database connection string | `postgresql://...` |
+| `NEXTAUTH_URL` | Application URL | `http://172.16.0.189:3060` |
+| `NEXTAUTH_SECRET` | Auth secret | `your_secret_key` |
+
+### How It Works
+
+When you push to `main` branch:
+
+1. **GitHub Actions (CI)**
+   - Checks out code
+   - Installs dependencies
+   - Generates Prisma Client
+   - Builds Next.js application
+   - SSHs into server
+   - Triggers server deployment script
+
+2. **Server Script (CD)**
+   - Creates database backup
+   - Pulls latest code
+   - Installs dependencies
+   - Applies migrations
+   - Restarts application
+   - Health checks
 
 ## Deployment Options
 
-### 1. Local Deployment Script (Recommended)
+### Option 1: Automatic (GitHub Actions) - **Recommended**
 
-Use the deployment script from your local machine:
+Push to `main` branch:
+```bash
+git add .
+git commit -m "Your changes"
+git push origin main
+```
 
+GitHub Actions automatically builds and deploys. Watch progress in the **Actions** tab.
+
+### Option 2: Manual Local Script
+
+From your local machine:
 ```bash
 ./deploy.sh
 ```
 
-This script will:
-- ✅ Check dependencies
-- ✅ Backup the database
-- ✅ Pull latest code from git
-- ✅ Install dependencies
-- ✅ Generate Prisma Client
-- ✅ Apply database migrations
-- ✅ Build the application
-- ✅ Restart the application
+This does the same as GitHub Actions but triggered manually.
 
-### 2. Quick Deploy (For Small Updates)
+### Option 3: Server-Side Only
 
-For quick updates that don't require a full rebuild:
+SSH into server and run:
+```bash
+ssh root@172.16.0.189
+cd /root/proofpoint-dashboard
+./scripts/server-deploy.sh
+```
+
+### Option 4: Quick Deploy (For Small Updates)
 
 ```bash
 ./quick-deploy.sh
 ```
 
-This skips the build step and just restarts the application.
-
-### 3. GitHub Actions (CI/CD)
-
-Automatically deploy when pushing to `main` branch:
-
-**Setup Required:**
-
-1. Go to GitHub repository settings
-2. Navigate to **Secrets and variables** → **Actions**
-3. Add the following secrets:
-
-| Secret Name | Value | Description |
-|------------|-------|-------------|
-| `SERVER_HOST` | `172.16.0.189` | Server IP address |
-| `SERVER_USER` | `root` | SSH username |
-| `SERVER_PASSWORD` | `root` | SSH password |
-
-4. Enable GitHub Actions in your repository
-5. Push to `main` branch - deployment runs automatically
-
-**Manual Trigger:**
-
-You can also trigger the workflow manually from GitHub:
-1. Go to **Actions** tab
-2. Select **Deploy to Production**
-3. Click **Run workflow**
-
-### 4. Manual Server Deployment
-
-SSH into the server and run:
-
-```bash
-ssh root@172.16.0.189
-cd /root/proofpoint-dashboard
-git pull origin main
-npm install
-npm run db:generate
-npm run db:migrate:deploy
-npm run build
-docker-compose restart app
-```
+Skips the build step. Use for:
+- Database migrations only
+- Environment variable changes
+- Small CSS fixes
 
 ## Server-Side Setup
 
-### Initial Setup
+### Initial Setup (One-Time)
 
-Run these commands once on the server:
+Run these on the server once:
 
 ```bash
 # SSH to server
 ssh root@172.16.0.189
 
-# Navigate to project directory
+# Navigate to project
 cd /root/proofpoint-dashboard
 
-# Make post-deploy script executable
+# Make scripts executable
+chmod +x scripts/server-deploy.sh
 chmod +x scripts/post-deploy.sh
+chmod +x deploy.sh
+chmod +x quick-deploy.sh
 
-# Create docker-compose.yml if not exists
+# Create docker-compose.yml if needed
 cat > docker-compose.yml << 'EOF'
 version: '3.8'
 
@@ -129,41 +144,50 @@ docker-compose up -d
 
 ## Deployment Scripts
 
-### `deploy.sh` (Full Deployment)
+### `scripts/server-deploy.sh` (Main Server Script)
 
-Full deployment with database backup and rebuild:
+Full production deployment:
+```bash
+./scripts/server-deploy.sh
+```
 
+**Steps:**
+1. Database backup
+2. Pull latest code
+3. Install dependencies (`npm ci`)
+4. Generate Prisma Client
+5. Apply migrations
+6. Build application (`npm run build`)
+7. Restart container
+8. Health check
+
+### `scripts/post-deploy.sh` (Post-Deploy Hook)
+
+Runs after deployment for additional tasks:
+```bash
+./scripts/post-deploy.sh
+```
+
+**Steps:**
+1. Generate Prisma Client
+2. Apply migrations
+3. Clear Next.js cache
+4. Restart application
+5. Health verification
+
+### `deploy.sh` (Local Machine)
+
+Triggers server deployment from your local machine:
 ```bash
 ./deploy.sh
 ```
 
-**Features:**
-- Database backup before deployment
-- Pull latest code
-- Install dependencies
-- Generate Prisma Client
-- Apply migrations
-- Build Next.js app
-- Restart application
-- Health check
-
-### `quick-deploy.sh` (Fast Deployment)
+### `quick-deploy.sh` (Fast Updates)
 
 Quick deployment without rebuild:
-
 ```bash
 ./quick-deploy.sh
 ```
-
-**Use when:**
-- Only database changes (migrations)
-- Environment variable changes
-- Small CSS/fix changes
-
-**Don't use when:**
-- New dependencies added
-- Major code changes
-- API changes
 
 ## Database Migrations
 
@@ -175,59 +199,84 @@ After modifying `prisma/schema.prisma`:
 # Create migration locally
 npm run db:migrate:dev --name description
 
+# Test it
+npm run db:push
+
 # Commit the migration
 git add prisma/migrations/
 git commit -m "Add migration: description"
 git push origin main
 ```
 
-### Applying Migrations on Production
+Migrations are **automatically applied** during deployment!
 
-Migrations are **automatically applied** during deployment via:
-- `deploy.sh` (local script)
-- GitHub Actions workflow
-- `quick-deploy.sh`
+### Manual Migration
 
-To manually apply migrations:
+To apply migrations without full deployment:
 
 ```bash
-# From local machine
-sshpass -p 'root' ssh root@172.16.0.189 \
-  'cd /root/proofpoint-dashboard && npm run db:migrate:deploy'
+ssh root@172.16.0.189
+cd /root/proofpoint-dashboard
+npm run db:migrate:deploy
+```
+
+## Monitoring
+
+### Check Deployment Status
+
+```bash
+# GitHub Actions
+# Go to repository → Actions tab
+
+# Server logs
+ssh root@172.16.0.189
+docker logs proofpoint-app --tail 100 -f
+
+# Container status
+docker ps --filter name=proofpoint
+```
+
+### Application Health
+
+```bash
+# HTTP check
+curl http://172.16.0.189:3060
+
+# Container health
+ssh root@172.16.0.189 'docker ps --filter name=proofpoint'
 ```
 
 ## Troubleshooting
 
 ### Deployment Fails
 
-1. **Check logs:**
+1. **Check GitHub Actions logs** in the Actions tab
+2. **Check server logs:**
    ```bash
    ssh root@172.16.0.189
    docker logs proofpoint-app --tail 100
    ```
-
-2. **Check container status:**
-   ```bash
-   docker ps
-   ```
-
 3. **Restart manually:**
    ```bash
    cd /root/proofpoint-dashboard
    docker-compose restart app
    ```
 
-### Migration Conflicts
+### Migration Errors
 
 If migrations fail:
 
 ```bash
-# Check migration status
 ssh root@172.16.0.189
 cd /root/proofpoint-dashboard
+
+# Check migration status
 npx prisma migrate status
 
-# Reset (WARNING: Deletes data!)
+# Reset last migration (WARNING: Can't undo)
+npx prisma migrate resolve --rolled-back [migration-name]
+
+# Or reset everything (WARNING: Deletes data!)
 npm run db:migrate:reset
 ```
 
@@ -238,65 +287,46 @@ To rollback to previous version:
 ```bash
 ssh root@172.16.0.189
 cd /root/proofpoint-dashboard
+
+# Reset to previous commit
 git reset --hard HEAD~1
+
+# Rebuild and restart
+npm run build
 docker-compose restart app
 ```
 
-## Monitoring
-
-### Check Application Health
-
-```bash
-# Check if app is running
-curl http://172.16.0.189:3060
-
-# Check container status
-ssh root@172.16.0.189 'docker ps --filter name=proofpoint'
-```
-
-### View Logs
-
-```bash
-# Real-time logs
-ssh root@172.16.0.189 'docker logs -f proofpoint-app'
-
-# Last 100 lines
-ssh root@172.16.0.189 'docker logs --tail 100 proofpoint-app'
-```
+Or from GitHub:
+1. Go to Actions tab
+2. Find previous successful workflow
+3. Re-run that workflow
 
 ## Best Practices
 
-1. **Always backup before major changes**
-   - The `deploy.sh` script creates automatic backups
-
-2. **Test migrations locally first**
+1. **Test migrations locally first**
    ```bash
-   # Local test
    npm run db:migrate:dev --name test_migration
-   
-   # Only then commit and push
-   git add .
-   git commit -m "Add migration"
-   git push
+   npm run db:push
    ```
 
-3. **Use GitHub Actions for team deployments**
-   - Prevents manual errors
-   - Keeps deployment history
-   - Easy rollback
+2. **Small, frequent deployments** are better than large ones
 
-4. **Monitor after deployment**
-   - Check application health
+3. **Always check Actions tab** after pushing to ensure deployment succeeded
+
+4. **Monitor application** after deployment:
+   - Check if critical features work
    - Monitor error logs
-   - Verify critical features
+   - Verify database operations
+
+5. **Keep backups** - The script automatically creates backups before deployment
 
 ## Production Checklist
 
 Before deploying to production:
 
-- [ ] Tests pass locally
-- [ ] Migration tested on staging
-- [ ] Environment variables updated
+- [ ] Code tested locally
+- [ ] Migration tested on staging/dev
+- [ ] Environment variables configured
 - [ ] Database backup verified
 - [ ] Sufficient disk space on server
 - [ ] Docker containers healthy
@@ -305,13 +335,22 @@ Before deploying to production:
 ## Security Notes
 
 - ⚠️ **Never commit `.env` file** to git
-- ⚠️ **Use strong passwords** for production
+- ⚠️ **Use GitHub Secrets** for sensitive data
+- ⚠️ **Rotate passwords** regularly
 - ⚠️ **Keep dependencies updated** with `npm audit fix`
-- ⚠️ **Use SSH keys** instead of passwords (preferred)
-- ⚠️ **Limit SSH access** to specific IPs
-- ⚠️ **Enable HTTPS** in production (use reverse proxy like nginx)
+- ⚠️ **Limit SSH access** to specific IPs (firewall)
+- ⚠️ **Use HTTPS** in production (setup reverse proxy)
 
 ## URLs
 
 - **Application:** http://172.16.0.189:3060
-- **Prisma Studio:** Run `npm run db:studio` locally and connect to DATABASE_URL
+- **GitHub Actions:** https://github.com/[your-repo]/actions
+- **Server:** ssh root@172.16.0.189
+
+## Support
+
+For deployment issues:
+1. Check GitHub Actions logs
+2. Check server logs: `docker logs proofpoint-app`
+3. Review this documentation
+4. Check Prisma docs: https://www.prisma.io/docs
