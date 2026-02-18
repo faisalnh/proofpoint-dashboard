@@ -51,7 +51,6 @@ jobs:
           host: ${{ secrets.KOMODO_HOST }}
           username: ${{ secrets.KOMODO_USER }}
           password: ${{ secrets.KOMODO_PASSWORD }}
-          script_stop: false
           script: |
             # Trigger deployment script on Komodo
             curl -X POST "${{ secrets.KOMODO_WEBHOOK_URL }}" \
