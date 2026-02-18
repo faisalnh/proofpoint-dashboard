@@ -1,92 +1,40 @@
+version: "3.8"
+
 services:
-  # ============================================
-  # Next.js Application (Frontend + API)
-  # ============================================
+  db:
+    image: postgres:15
+    container_name: proofpoint-db
+    environment:
+      POSTGRES_DB: proofpoint
+      POSTGRES_USER: proofpoint
+      POSTGRES_PASSWORD: UgQp4XEDDFsbpRZYkhEEdMXP
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - proofpoint-network
+
   app:
     image: ghcr.io/faisalnh/proofpoint-dashboard:latest
-    # To build locally instead, comment out 'image' and uncomment:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
     container_name: proofpoint-app
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    environment:
-      # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-proofpoint}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-proofpoint}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-proofpoint}
-      POSTGRES_USER: ${POSTGRES_USER:-proofpoint}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      # NextAuth
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      AUTH_TRUST_HOST: "true"
-      # MinIO
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
-      MINIO_BUCKET: ${MINIO_BUCKET:-evidence}
     ports:
       - "3060:3000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 10s
-      start_period: 40s
-      retries: 3
-
-  # ============================================
-  # PostgreSQL Database
-  # ============================================
-  postgres:
-    image: postgres:16-alpine
-    container_name: proofpoint-db
-    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-proofpoint}
-      POSTGRES_USER: ${POSTGRES_USER:-proofpoint}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    ports:
-      - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proofpoint}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ============================================
-  # MinIO S3-Compatible Storage
-  # ============================================
-  minio:
-    image: minio/minio
-    container_name: proofpoint-minio
+      - DATABASE_URL=postgresql://proofpoint:UgQp4XEDDFsbpRZYkhEEdMXP@db:5432/proofpoint
+      - NODE_ENV=production
+      - NEXTAUTH_URL=http://172.16.0.189:3060
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+    depends_on:
+      - db
     restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
-    volumes:
-      - minio-data:/data
-    ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    networks:
+      - proofpoint-network
 
 volumes:
-  postgres-data:
-  minio-data:
+  postgres_data:
+
+networks:
+  proofpoint-network:
+    driver: bridge

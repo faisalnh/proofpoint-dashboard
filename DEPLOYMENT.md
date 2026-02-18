@@ -1,218 +1,160 @@
-# Deployment Guide
+# Deployment Guide (Komodo + Docker)
 
-This guide covers how to deploy the ProofPoint Dashboard to production.
+This guide covers the Docker-based deployment workflow for ProofPoint Dashboard using GitHub Actions and Komodo webhook.
 
 ## Deployment Architecture
 
-The deployment process uses a **hybrid approach**:
-- **GitHub Actions**: Builds application and triggers server deployment
-- **Server-side script**: Handles the actual deployment with database backups
+```
+GitHub Push
+  ↓
+GitHub Actions (CI)
+  ├─ Build Docker image
+  ├─ Push to GHCR (GitHub Container Registry)
+  └─ Trigger Komodo webhook
+  ↓
+Komodo Server (CD)
+  ├─ Pull new Docker image
+  ├─ Backup database
+  ├─ Run Prisma migrations
+  ├─ Update container
+  └─ Health check
+```
 
-## GitHub Actions Setup
+## Prerequisites
 
-### Required Secrets
+### GitHub Secrets
 
-Go to repository → **Settings** → **Secrets and variables** → **Actions** and add:
+Configure these in your repository → **Settings** → **Secrets and variables** → **Actions**:
 
-| Secret Name | Description | Example Value |
-|------------|-------------|---------------|
-| `SERVER_HOST` | Server IP address | `172.16.0.189` |
-| `SERVER_USER` | SSH username | `root` |
-| `SERVER_PASSWORD` | SSH password | `your_password` |
-| `DATABASE_URL` | Database connection string | `postgresql://...` |
+| Secret Name | Description | Example |
+|------------|-------------|---------|
+| `GITHUB_TOKEN` | GitHub token (auto-provided) | `***` |
+| `KOMODO_HOST` | Komodo server IP | `172.16.0.189` |
+| `KOMODO_USER` | SSH username | `root` |
+| `KOMODO_PASSWORD` | SSH password | `your_password` |
+| `KOMODO_WEBHOOK_URL` | Webhook endpoint | `http://komodo-server/deploy` |
+| `DATABASE_URL` | Database connection | `postgresql://...` |
 | `NEXTAUTH_URL` | Application URL | `http://172.16.0.189:3060` |
-| `NEXTAUTH_SECRET` | Auth secret | `your_secret_key` |
+| `NEXTAUTH_SECRET` | Auth secret key | `your_secret_key` |
 
-### How It Works
+### Server Setup
 
-When you push to `main` branch:
+On the Komodo server (172.16.0.189):
 
-1. **GitHub Actions (CI)**
-   - Checks out code
-   - Installs dependencies
-   - Generates Prisma Client
-   - Builds Next.js application
-   - SSHs into server
-   - Triggers server deployment script
+```bash
+# 1. Install Docker and Docker Compose
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
 
-2. **Server Script (CD)**
-   - Creates database backup
-   - Pulls latest code
-   - Installs dependencies
-   - Applies migrations
-   - Restarts application
-   - Health checks
+# 2. Clone repository
+cd /root
+git clone https://github.com/faisalnh/proofpoint-dashboard.git
+cd proofpoint-dashboard
 
-## Deployment Options
+# 3. Make scripts executable
+chmod +x scripts/komodo-deploy.sh
+chmod +x scripts/server-deploy.sh
 
-### Option 1: Automatic (GitHub Actions) - **Recommended**
+# 4. Create environment file
+cat > .env << EOF
+DATABASE_URL=postgresql://proofpoint:UgQp4XEDDFsbpRZYkhEEdMXP@db:5432/proofpoint
+NEXTAUTH_URL=http://172.16.0.189:3060
+NEXTAUTH_SECRET=your-secret-key-here
+GITHUB_USERNAME=your-github-username
+GITHUB_TOKEN=your-github-token
+EOF
 
-Push to `main` branch:
+# 5. Start containers
+docker-compose up -d
+```
+
+## Dockerfile
+
+The application is containerized with a multi-stage Dockerfile:
+
+- **Stage 1 (builder):** Builds Next.js app and generates Prisma Client
+- **Stage 2 (runner):** Minimal production image with built artifacts
+
+## Deployment Workflow
+
+### Automatic Deployment (Push to Main)
+
 ```bash
 git add .
 git commit -m "Your changes"
 git push origin main
 ```
 
-GitHub Actions automatically builds and deploys. Watch progress in the **Actions** tab.
+**What happens:**
 
-### Option 2: Manual Local Script
+1. **GitHub Actions:**
+   ```yaml
+   - Build Docker image
+   - Push to ghcr.io/faisalnh/proofpoint-dashboard:latest
+   - Push to ghcr.io/faisalnh/proofpoint-dashboard:<commit-sha>
+   - Trigger Komodo webhook
+   ```
 
-From your local machine:
+2. **Komodo Server:**
+   ```bash
+   - Backup database
+   - Pull latest code
+   - Login to GHCR
+   - Pull new Docker image
+   - Apply Prisma migrations
+   - Update docker-compose.yml
+   - Restart container
+   - Health check
+   ```
+
+### Manual Deployment
+
+#### Option 1: Build and Deploy Locally
+
 ```bash
-./deploy.sh
+# Build image
+docker build -t proofpoint-dashboard .
+
+# Tag for GHCR
+docker tag proofpoint-dashboard ghcr.io/faisalnh/proofpoint-dashboard:latest
+
+# Push to GHCR
+docker push ghcr.io/faisalnh/proofpoint-dashboard:latest
+
+# SSH to server and trigger deployment
+ssh root@172.16.0.189
+cd /root/proofpoint-dashboard
+./scripts/komodo-deploy.sh ghcr.io/faisalnh/proofpoint-dashboard:latest
 ```
 
-This does the same as GitHub Actions but triggered manually.
+#### Option 2: Direct Server Deployment
 
-### Option 3: Server-Side Only
-
-SSH into server and run:
 ```bash
 ssh root@172.16.0.189
 cd /root/proofpoint-dashboard
 ./scripts/server-deploy.sh
-```
-
-### Option 4: Quick Deploy (For Small Updates)
-
-```bash
-./quick-deploy.sh
-```
-
-Skips the build step. Use for:
-- Database migrations only
-- Environment variable changes
-- Small CSS fixes
-
-## Server-Side Setup
-
-### Initial Setup (One-Time)
-
-Run these on the server once:
-
-```bash
-# SSH to server
-ssh root@172.16.0.189
-
-# Navigate to project
-cd /root/proofpoint-dashboard
-
-# Make scripts executable
-chmod +x scripts/server-deploy.sh
-chmod +x scripts/post-deploy.sh
-chmod +x deploy.sh
-chmod +x quick-deploy.sh
-
-# Create docker-compose.yml if needed
-cat > docker-compose.yml << 'EOF'
-version: '3.8'
-
-services:
-  db:
-    image: postgres:15
-    container_name: proofpoint-db
-    environment:
-      POSTGRES_DB: proofpoint
-      POSTGRES_USER: proofpoint
-      POSTGRES_PASSWORD: UgQp4XEDDFsbpRZYkhEEdMXP
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-
-  app:
-    build: .
-    container_name: proofpoint-app
-    ports:
-      - "3060:3000"
-    environment:
-      - DATABASE_URL=postgresql://proofpoint:UgQp4XEDDFsbpRZYkhEEdMXP@db:5432/proofpoint
-      - NODE_ENV=production
-    depends_on:
-      - db
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-EOF
-
-# Start containers
-docker-compose up -d
-```
-
-## Deployment Scripts
-
-### `scripts/server-deploy.sh` (Main Server Script)
-
-Full production deployment:
-```bash
-./scripts/server-deploy.sh
-```
-
-**Steps:**
-1. Database backup
-2. Pull latest code
-3. Install dependencies (`npm ci`)
-4. Generate Prisma Client
-5. Apply migrations
-6. Build application (`npm run build`)
-7. Restart container
-8. Health check
-
-### `scripts/post-deploy.sh` (Post-Deploy Hook)
-
-Runs after deployment for additional tasks:
-```bash
-./scripts/post-deploy.sh
-```
-
-**Steps:**
-1. Generate Prisma Client
-2. Apply migrations
-3. Clear Next.js cache
-4. Restart application
-5. Health verification
-
-### `deploy.sh` (Local Machine)
-
-Triggers server deployment from your local machine:
-```bash
-./deploy.sh
-```
-
-### `quick-deploy.sh` (Fast Updates)
-
-Quick deployment without rebuild:
-```bash
-./quick-deploy.sh
 ```
 
 ## Database Migrations
 
 ### Creating a Migration
 
-After modifying `prisma/schema.prisma`:
-
 ```bash
-# Create migration locally
-npm run db:migrate:dev --name description
+# After modifying prisma/schema.prisma
+npm run db:migrate:dev --name describe_changes
 
-# Test it
+# Test migration locally
 npm run db:push
 
-# Commit the migration
+# Commit migration
 git add prisma/migrations/
-git commit -m "Add migration: description"
+git commit -m "Add migration: describe_changes"
 git push origin main
 ```
 
-Migrations are **automatically applied** during deployment!
+Migrations run **automatically** during deployment on the server!
 
 ### Manual Migration
-
-To apply migrations without full deployment:
 
 ```bash
 ssh root@172.16.0.189
@@ -220,51 +162,98 @@ cd /root/proofpoint-dashboard
 npm run db:migrate:deploy
 ```
 
-## Monitoring
+## Docker Commands
 
-### Check Deployment Status
+### View Logs
 
 ```bash
-# GitHub Actions
-# Go to repository → Actions tab
+# Application logs
+docker logs proofpoint-app -f
 
-# Server logs
-ssh root@172.16.0.189
-docker logs proofpoint-app --tail 100 -f
+# Last 100 lines
+docker logs proofpoint-app --tail 100
 
-# Container status
-docker ps --filter name=proofpoint
+# Database logs
+docker logs proofpoint-db -f
 ```
 
-### Application Health
+### Container Management
 
 ```bash
-# HTTP check
-curl http://172.16.0.189:3060
+# Check status
+docker ps
 
-# Container health
-ssh root@172.16.0.189 'docker ps --filter name=proofpoint'
+# Restart container
+docker restart proofpoint-app
+
+# Stop container
+docker stop proofpoint-app
+
+# Start container
+docker start proofpoint-app
+
+# Rebuild and restart
+docker-compose up -d --build app
+```
+
+### Database Access
+
+```bash
+# Connect to PostgreSQL
+docker exec -it proofpoint-db psql -U proofpoint -d proofpoint
+
+# Backup database
+docker exec proofpoint-db pg_dump -U proofpoint proofpoint > backup.sql
+
+# Restore database
+docker exec -i proofpoint-db psql -U proofpoint proofpoint < backup.sql
 ```
 
 ## Troubleshooting
 
-### Deployment Fails
+### Container Won't Start
 
-1. **Check GitHub Actions logs** in the Actions tab
-2. **Check server logs:**
-   ```bash
-   ssh root@172.16.0.189
-   docker logs proofpoint-app --tail 100
-   ```
-3. **Restart manually:**
-   ```bash
-   cd /root/proofpoint-dashboard
-   docker-compose restart app
-   ```
+```bash
+# Check logs
+docker logs proofpoint-app
 
-### Migration Errors
+# Check container status
+docker ps -a
 
-If migrations fail:
+# Inspect container
+docker inspect proofpoint-app
+```
+
+### Database Connection Issues
+
+```bash
+# Check if database is running
+docker ps | grep proofpoint-db
+
+# Test connection
+docker exec proofpoint-app ping -c 3 db
+
+# Check database logs
+docker logs proofpoint-db
+```
+
+### Rollback to Previous Image
+
+```bash
+ssh root@172.16.0.189
+cd /root/proofpoint-dashboard
+
+# List available images
+docker images | grep proofpoint-dashboard
+
+# Update docker-compose.yml with previous image tag
+vim docker-compose.yml
+
+# Restart with previous image
+docker-compose up -d app
+```
+
+### Migration Failed
 
 ```bash
 ssh root@172.16.0.189
@@ -273,84 +262,117 @@ cd /root/proofpoint-dashboard
 # Check migration status
 npx prisma migrate status
 
-# Reset last migration (WARNING: Can't undo)
+# Resolve failed migration
 npx prisma migrate resolve --rolled-back [migration-name]
 
-# Or reset everything (WARNING: Deletes data!)
-npm run db:migrate:reset
+# Re-run migration
+npm run db:migrate:deploy
 ```
 
-### Rollback
+## Monitoring
 
-To rollback to previous version:
+### Health Checks
+
+```bash
+# HTTP check
+curl http://172.16.0.189:3060
+
+# Container health
+ssh root@172.16.0.189 'docker ps --filter name=proofpoint'
+
+# Docker stats
+ssh root@172.16.0.189 'docker stats proofpoint-app'
+```
+
+### View Deployment History
+
+```bash
+# GitHub Actions
+# Go to: https://github.com/faisalnh/proofpoint-dashboard/actions
+
+# Server logs
+ssh root@172.16.0.189 'docker logs proofpoint-app --tail 100'
+```
+
+## Environment Variables
+
+### Required Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection | `postgresql://user:pass@host:5432/db` |
+| `NEXTAUTH_URL` | Application URL | `http://172.16.0.189:3060` |
+| `NEXTAUTH_SECRET` | NextAuth secret | Random string |
+| `NODE_ENV` | Environment | `production` |
+
+### Updating Environment Variables
 
 ```bash
 ssh root@172.16.0.189
 cd /root/proofpoint-dashboard
 
-# Reset to previous commit
-git reset --hard HEAD~1
+# Edit .env file
+vim .env
 
-# Rebuild and restart
-npm run build
+# Restart container to apply
 docker-compose restart app
 ```
 
-Or from GitHub:
-1. Go to Actions tab
-2. Find previous successful workflow
-3. Re-run that workflow
+## Security Best Practices
 
-## Best Practices
+1. **Use GitHub Secrets** for sensitive data
+2. **Rotate secrets** regularly
+3. **Use specific image tags** in production (not just `latest`)
+4. **Keep backups** before major deployments
+5. **Monitor logs** for suspicious activity
+6. **Use SSH keys** instead of passwords
+7. **Enable HTTPS** with reverse proxy (nginx)
+8. **Scan images** for vulnerabilities: `docker scan proofpoint-dashboard`
 
-1. **Test migrations locally first**
-   ```bash
-   npm run db:migrate:dev --name test_migration
-   npm run db:push
-   ```
+## Performance Optimization
 
-2. **Small, frequent deployments** are better than large ones
+1. **Use BuildKit** for faster builds
+2. **Layer caching** in Dockerfile
+3. **Multi-stage builds** to reduce image size
+4. **.dockerignore** to exclude unnecessary files
+5. **Image pruning** to free disk space: `docker image prune -a`
 
-3. **Always check Actions tab** after pushing to ensure deployment succeeded
+## Disaster Recovery
 
-4. **Monitor application** after deployment:
-   - Check if critical features work
-   - Monitor error logs
-   - Verify database operations
+### Backup Strategy
 
-5. **Keep backups** - The script automatically creates backups before deployment
+```bash
+# Automated backup (in deployment script)
+docker exec proofpoint-db pg_dump -U proofpoint proofpoint > backup.sql
 
-## Production Checklist
+# Off-site backup
+scp backup.sql backup-server:/backups/proofpoint_$(date +%Y%m%d).sql
+```
 
-Before deploying to production:
+### Restore from Backup
 
-- [ ] Code tested locally
-- [ ] Migration tested on staging/dev
-- [ ] Environment variables configured
-- [ ] Database backup verified
-- [ ] Sufficient disk space on server
-- [ ] Docker containers healthy
-- [ ] Rollback plan ready
+```bash
+# Stop application
+docker-compose stop app
 
-## Security Notes
+# Restore database
+docker exec -i proofpoint-db psql -U proofpoint proofpoint < backup.sql
 
-- ⚠️ **Never commit `.env` file** to git
-- ⚠️ **Use GitHub Secrets** for sensitive data
-- ⚠️ **Rotate passwords** regularly
-- ⚠️ **Keep dependencies updated** with `npm audit fix`
-- ⚠️ **Limit SSH access** to specific IPs (firewall)
-- ⚠️ **Use HTTPS** in production (setup reverse proxy)
+# Restart application
+docker-compose start app
+```
 
 ## URLs
 
 - **Application:** http://172.16.0.189:3060
-- **GitHub Actions:** https://github.com/[your-repo]/actions
-- **Server:** ssh root@172.16.0.189
+- **GitHub:** https://github.com/faisalnh/proofpoint-dashboard
+- **GitHub Actions:** https://github.com/faisalnh/proofpoint-dashboard/actions
+- **Docker Registry:** https://github.com/faisalnh/proofpoint-dashboard/pkgs/container/proofpoint-dashboard
 
 ## Support
 
-For deployment issues:
+For issues:
 1. Check GitHub Actions logs
-2. Check server logs: `docker logs proofpoint-app`
+2. Check Docker logs: `docker logs proofpoint-app`
 3. Review this documentation
 4. Check Prisma docs: https://www.prisma.io/docs
