@@ -1,11 +1,30 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Activity, User, LogOut, ClipboardList, Users, Building2, FileText, Shield, LayoutDashboard, ChevronDown, Moon, Sun, TrendingUp } from "lucide-react";
+import {
+  Activity,
+  User,
+  LogOut,
+  ClipboardList,
+  Users,
+  Building2,
+  FileText,
+  Shield,
+  LayoutDashboard,
+  ChevronDown,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 
@@ -20,18 +39,18 @@ export function Header({ className }: HeaderProps) {
 
   useEffect(() => {
     // Check initial theme from localStorage or document
-    const savedTheme = localStorage.getItem('theme');
+    const savedTheme = localStorage.getItem("theme");
     const isDarkMode = savedTheme
-      ? savedTheme === 'dark'
-      : document.documentElement.classList.contains('dark');
+      ? savedTheme === "dark"
+      : document.documentElement.classList.contains("dark");
 
     setIsDark(isDarkMode);
 
     // Ensure class is applied if it was missing
     if (isDarkMode) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
   }, []);
 
@@ -40,11 +59,11 @@ export function Header({ className }: HeaderProps) {
     setIsDark(newIsDark);
 
     if (newIsDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
     } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
     }
   };
 
@@ -52,48 +71,44 @@ export function Header({ className }: HeaderProps) {
 
   const navItems = [
     {
-      path: '/assessment',
-      label: 'Self-Assessment',
+      path: "/assessment",
+      label: "Self-Assessment",
       icon: ClipboardList,
-      show: true
+      show: true,
     },
     {
-      path: '/performance',
-      label: 'Tracker',
-      icon: TrendingUp,
-      show: true
-    },
-    {
-      path: '/manager',
-      label: 'Team',
+      path: "/manager",
+      label: "Team",
       icon: Users,
-      show: isManager || isAdmin
+      show: isManager || isAdmin,
     },
     {
-      path: '/director',
-      label: 'Organization',
+      path: "/director",
+      label: "Organization",
       icon: Building2,
-      show: isDirector || isAdmin
+      show: isDirector || isAdmin,
     },
     {
-      path: '/rubrics',
-      label: 'Rubrics',
+      path: "/rubrics",
+      label: "Rubrics",
       icon: FileText,
-      show: isManager || isDirector || isAdmin
+      show: isManager || isDirector || isAdmin,
     },
     {
-      path: '/admin',
-      label: 'Admin',
+      path: "/admin",
+      label: "Admin",
       icon: Shield,
-      show: isAdmin
-    }
-  ].filter(item => item.show);
+      show: isAdmin,
+    },
+  ].filter((item) => item.show);
 
   return (
-    <header className={cn(
-      "h-16 border-b border-border/50 glass-panel-strong sticky top-0 z-50",
-      className
-    )}>
+    <header
+      className={cn(
+        "h-16 border-b border-border/50 glass-panel-strong sticky top-0 z-50",
+        className,
+      )}
+    >
       <div className="container h-full flex items-center justify-between">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-3 group">
@@ -104,7 +119,9 @@ export function Header({ className }: HeaderProps) {
             </div>
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">ProofPoint</h1>
+            <h1 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+              ProofPoint
+            </h1>
             <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
               Command Center
             </p>
@@ -125,13 +142,15 @@ export function Header({ className }: HeaderProps) {
                       "gap-2 rounded-lg transition-all duration-300",
                       active
                         ? "bg-background/80 text-primary shadow-sm border border-border/50"
-                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50",
                     )}
                   >
-                    <item.icon className={cn(
-                      "h-4 w-4 transition-colors",
-                      active ? "text-primary" : ""
-                    )} />
+                    <item.icon
+                      className={cn(
+                        "h-4 w-4 transition-colors",
+                        active ? "text-primary" : "",
+                      )}
+                    />
                     <span className="hidden lg:inline">{item.label}</span>
                   </Button>
                 </Link>
@@ -168,16 +187,25 @@ export function Header({ className }: HeaderProps) {
                   </div>
                   <div className="hidden sm:block text-left">
                     <p className="text-sm font-medium text-foreground leading-none">
-                      {profile?.full_name?.split(' ')[0] || 'User'}
+                      {profile?.full_name?.split(" ")[0] || "User"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {isAdmin ? 'Admin' : isDirector ? 'Director' : isManager ? 'Manager' : 'Staff'}
+                      {isAdmin
+                        ? "Admin"
+                        : isDirector
+                          ? "Director"
+                          : isManager
+                            ? "Manager"
+                            : "Staff"}
                     </p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 glass-panel-strong border-border/30 p-2">
+              <DropdownMenuContent
+                align="end"
+                className="w-64 glass-panel-strong border-border/30 p-2"
+              >
                 {/* User Info */}
                 <div className="px-3 py-3 rounded-lg bg-muted/30 mb-2">
                   <div className="flex items-center gap-3">
@@ -185,14 +213,21 @@ export function Header({ className }: HeaderProps) {
                       <User className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">{profile?.full_name || 'User'}</p>
-                      <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {profile?.full_name || "User"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {profile?.email}
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
-                  <Link href="/dashboard" className="flex items-center gap-2 p-2">
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-2 p-2"
+                  >
                     <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
                       <LayoutDashboard className="h-4 w-4 text-foreground" />
                     </div>

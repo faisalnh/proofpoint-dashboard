@@ -214,7 +214,8 @@ docker exec -it proofpoint-db psql -U proofpoint -d proofpoint
 |------|---------------|-------------|------------|
 | 2026-01-21 | 007_performance_tracker.sql | Added performance tracking tables (performance_entries, performance_artifacts) | Faisal |
 | 2026-01-21 | 008_work_log_dashboard.sql | Added work log tables (work_tasks, work_subtasks, work_task_kpis) and extended performance_artifacts | Faisal |
+| 2026-02-17 | 010_remove_tracker.sql | Removed all Tracker features - dropped work_tasks, work_subtasks, work_task_kpis, performance_artifacts, and performance_entries tables | Faisal |
 
 ---
 
-**Last Updated:** 2026-01-21
+**Last Updated:** 2026-02-17

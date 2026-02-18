@@ -1,0 +1,62 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Production Server
+
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script_stop: true
+          script: |
+            cd /root/proofpoint-dashboard
+
+            # Backup database
+            echo "Creating database backup..."
+            docker exec proofpoint-db pg_dump -U proofpoint proofpoint > /tmp/backup_$(date +%Y%m%d_%H%M%S).sql
+
+            # Pull latest code
+            echo "Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
+
+            # Install dependencies
+            echo "Installing dependencies..."
+            npm ci
+
+            # Generate Prisma Client
+            echo "Generating Prisma Client..."
+            npm run db:generate
+
+            # Apply migrations
+            echo "Applying database migrations..."
+            npm run db:migrate:deploy
+
+            # Build application
+            echo "Building application..."
+            npm run build
+
+            # Restart application
+            echo "Restarting application..."
+            docker-compose restart app
+
+            # Wait for startup
+            echo "Waiting for application to start..."
+            sleep 15
+
+            # Health check
+            echo "Checking application health..."
+            docker ps --filter name=proofpoint-app
+
+            echo "Deployment completed successfully! 🚀"
