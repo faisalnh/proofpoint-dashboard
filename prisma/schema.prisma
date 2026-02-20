@@ -84,6 +84,8 @@ model User {
   returnedAssessments Assessment[]   @relation("ReturnedAssessments")
   askedQuestions     AssessmentQuestion[] @relation("AskedQuestions")
   answeredQuestions  AssessmentQuestion[] @relation("AnsweredQuestions")
+  notificationPreferences NotificationPreference?
+  notifications Notification[]
 
   @@index([status])
   @@map("users")
@@ -252,6 +254,7 @@ model Assessment {
   template     RubricTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   returnedBy   User? @relation("ReturnedAssessments", fields: [returnedById], references: [id], onDelete: SetNull)
   questions    AssessmentQuestion[]
+  notifications Notification[]
 
   @@index([staffId])
   @@index([managerId])
@@ -314,4 +317,57 @@ model ApprovalWorkflow {
 
   @@index([departmentRoleId])
   @@map("approval_workflows")
+}
+
+model Notification {
+  id           Int                @id @default(autoincrement())
+  assessmentId String?            @map("assessment_id")
+  userId       String?            @map("user_id")
+  type         NotificationType
+  status       NotificationStatus @default(pending)
+  error        String?            @db.Text
+  sentAt       DateTime?          @map("sent_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  assessment Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([assessmentId])
+  @@index([status])
+  @@index([userId])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id                     Int      @id @default(autoincrement())
+  userId                 String   @unique @map("user_id")
+  emailEnabled           Boolean  @default(true) @map("email_enabled")
+  assessmentSubmitted    Boolean  @default(true) @map("assessment_submitted")
+  managerReviewDone      Boolean  @default(true) @map("manager_review_done")
+  directorApproved       Boolean  @default(true) @map("director_approved")
+  adminReleased          Boolean  @default(true) @map("admin_released")
+  assessmentReturned     Boolean  @default(true) @map("assessment_returned")
+  assessmentAcknowledged Boolean  @default(true) @map("assessment_acknowledged")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @default(now()) @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+enum NotificationType {
+  assessment_submitted
+  manager_review_completed
+  director_approved
+  admin_released
+  assessment_returned
+  assessment_acknowledged
 }

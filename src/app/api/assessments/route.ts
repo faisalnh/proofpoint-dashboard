@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { query, queryOne } from "@/lib/db";
+import { triggerNotification } from "@/lib/notifications";
+import type { NotificationType } from "@/lib/notifications/types";
 
 // GET /api/assessments - List assessments based on user role
 export async function GET(request: Request) {
@@ -290,6 +292,24 @@ export async function PUT(request: Request) {
       params,
     );
 
+    if (updates.status && updated) {
+      const newStatus = updates.status;
+      const notificationType = getNotificationTypeForStatus(newStatus);
+
+      if (notificationType) {
+        triggerNotification({
+          assessmentId: id,
+          type: notificationType,
+        }).catch((error) => {
+          const errorMsg =
+            error instanceof Error
+              ? error.message
+              : "Unknown notification error";
+          console.error("[API] Notification trigger failed:", errorMsg);
+        });
+      }
+    }
+
     return NextResponse.json({ data: updated });
   } catch (error) {
     console.error("Update assessment error:", error);
@@ -297,6 +317,26 @@ export async function PUT(request: Request) {
       { error: "Failed to update assessment" },
       { status: 500 },
     );
+  }
+}
+
+function getNotificationTypeForStatus(status: string): NotificationType | null {
+  switch (status) {
+    case "self_submitted":
+      return "assessment_submitted";
+    case "manager_reviewed":
+      return "manager_review_completed";
+    case "director_approved":
+      return "director_approved";
+    case "admin_reviewed":
+      return "admin_released";
+    case "acknowledged":
+      return "assessment_acknowledged";
+    case "rejected":
+    case "returned":
+      return "assessment_returned";
+    default:
+      return null;
   }
 }
 
