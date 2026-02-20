@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const assessmentId = searchParams.get("id");
     const staffId = searchParams.get("staffId");
     const status = searchParams.get("status");
+    const limitParam = searchParams.get("limit");
 
     // Get single assessment
     if (assessmentId) {
@@ -100,6 +101,15 @@ export async function GET(request: Request) {
     }
 
     sql += ` ORDER BY a.created_at DESC`;
+
+    if (limitParam) {
+      const parsedLimit = Number.parseInt(limitParam, 10);
+      if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
+        const safeLimit = Math.min(parsedLimit, 100);
+        sql += ` LIMIT $${paramIndex++}`;
+        params.push(safeLimit);
+      }
+    }
 
     const assessments = await query(sql, params);
     return NextResponse.json({ data: assessments });

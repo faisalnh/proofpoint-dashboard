@@ -26,13 +26,29 @@ class ApiClient {
         },
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { data: null, error: new Error(data.error || "Request failed") };
+      let data: unknown = null;
+      const contentType = response.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        data = await response.json();
       }
 
-      return { data: data.data ?? data, error: null };
+      if (!response.ok) {
+        const errorMessage =
+          typeof data === "object" &&
+          data !== null &&
+          "error" in data &&
+          typeof (data as { error?: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : `Request failed (${response.status})`;
+        return { data: null, error: new Error(errorMessage) };
+      }
+
+      const responseData =
+        typeof data === "object" && data !== null && "data" in data
+          ? (data as { data?: T }).data
+          : (data as T);
+
+      return { data: responseData ?? null, error: null };
     } catch (error) {
       return { data: null, error: error as Error };
     }
