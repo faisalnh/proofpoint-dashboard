@@ -192,6 +192,54 @@ export async function PUT(request: Request) {
       );
     }
 
+    const existingAssessment = await queryOne<{
+      id: string;
+      staff_id: string;
+      status: string;
+    }>("SELECT id, staff_id, status FROM assessments WHERE id = $1", [id]);
+
+    if (!existingAssessment) {
+      return NextResponse.json(
+        { error: "Assessment not found" },
+        { status: 404 },
+      );
+    }
+
+    // Prevent invalid completed state: only the owner can acknowledge, and feedback is mandatory.
+    if (updates.status === "acknowledged") {
+      if (existingAssessment.staff_id !== session.user.id) {
+        return NextResponse.json(
+          { error: "Only the assessment owner can acknowledge this review" },
+          { status: 403 },
+        );
+      }
+
+      const acknowledgementText =
+        typeof updates.staff_notes === "string"
+          ? updates.staff_notes.trim()
+          : "";
+
+      if (!acknowledgementText) {
+        return NextResponse.json(
+          { error: "Staff acknowledgement feedback is required" },
+          { status: 400 },
+        );
+      }
+
+      if (
+        !["admin_reviewed", "acknowledged"].includes(existingAssessment.status)
+      ) {
+        return NextResponse.json(
+          {
+            error: "Assessment can only be acknowledged after admin release",
+          },
+          { status: 400 },
+        );
+      }
+
+      updates.staff_notes = acknowledgementText;
+    }
+
     // Build dynamic update query
     const setClauses: string[] = [];
     const params: unknown[] = [];
