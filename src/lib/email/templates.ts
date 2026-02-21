@@ -41,15 +41,15 @@ function emailBaseTemplate(content: string): string {
 <body>
   <div class="container">
     <div class="header">
-      <h1 class="logo">ProofPoint <span>Dashboard</span></h1>
+      <h1 class="logo">ProofPoint</h1>
     </div>
     <div class="content">
       ${content}
     </div>
     <div class="footer">
-      <p style="margin: 0 0 10px 0; font-weight: 600; color: #495057;">ProofPoint Dashboard</p>
+      <p style="margin: 0 0 10px 0; font-weight: 600; color: #495057;">ProofPoint</p>
       <p>This is an automated email. Please do not reply.</p>
-      <p style="font-size: 11px; margin-top: 10px; color: #adb5bd;">Powered by Millennium IT</p>
+      <p style="font-size: 11px; margin-top: 10px; color: #adb5bd;">© MAD Labs by Millennia World School</p>
     </div>
   </div>
 </body>
