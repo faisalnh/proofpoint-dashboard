@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { query, queryOne } from "@/lib/db";
+import { triggerNotification } from "@/lib/notifications";
 
 // GET /api/admin/assessments - List all assessments for admin review
 export async function GET(request: Request) {
@@ -72,25 +73,49 @@ export async function PUT(request: Request) {
 
         if (action === 'release') {
             const updated = await queryOne(
-                `UPDATE assessments 
-                 SET status = 'admin_reviewed', 
-                     updated_at = now() 
-                 WHERE id = $1 
+                `UPDATE assessments
+                 SET status = 'admin_reviewed',
+                     updated_at = now()
+                 WHERE id = $1
                  RETURNING *`,
                 [id]
             );
+
+            // Trigger notification to staff member
+            if (updated) {
+                triggerNotification({
+                    assessmentId: id,
+                    type: "admin_released",
+                }).catch((error) => {
+                    console.error("[API] Admin release notification failed:", error);
+                });
+            }
+
             return NextResponse.json({ data: updated });
         }
 
         if (action === 'release_all') {
             // Release all assessments with 'director_approved' status
             const updated = await query(
-                `UPDATE assessments 
-                 SET status = 'admin_reviewed', 
-                     updated_at = now() 
-                 WHERE status = 'director_approved' 
+                `UPDATE assessments
+                 SET status = 'admin_reviewed',
+                     updated_at = now()
+                 WHERE status = 'director_approved'
                  RETURNING id`
             );
+
+            // Trigger notifications for all released assessments
+            if (updated && updated.length > 0) {
+                for (const assessment of updated) {
+                    triggerNotification({
+                        assessmentId: assessment.id,
+                        type: "admin_released",
+                    }).catch((error) => {
+                        console.error(`[API] Failed to trigger notification for assessment ${assessment.id}:`, error);
+                    });
+                }
+            }
+
             return NextResponse.json({ data: updated, count: updated?.length || 0 });
         }
 

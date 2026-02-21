@@ -18,6 +18,7 @@ export function AssessmentProgress({ status, className }: AssessmentProgressProp
       case 'manager_reviewed': return 3;
       case 'director_approved': return 4;
       case 'admin_reviewed': return 4;
+      case 'pending_release': return 4;
       case 'acknowledged': return 5;
       default: return 1;
     }
