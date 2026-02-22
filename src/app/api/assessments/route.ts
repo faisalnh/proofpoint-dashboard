@@ -153,6 +153,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // Auto-assign director if not provided
+    let finalDirectorId = director_id;
+    if (!finalDirectorId) {
+      const director = await queryOne(
+        `SELECT ur.user_id FROM user_roles ur
+         JOIN profiles p ON ur.user_id = p.user_id
+         WHERE ur.role = 'director'
+         LIMIT 1`
+      );
+      finalDirectorId = director?.user_id || null;
+    }
+
     const newAssessment = await queryOne(
       `INSERT INTO assessments (staff_id, template_id, period, manager_id, director_id, status)
        VALUES ($1, $2, $3, $4, $5, 'draft')
@@ -162,7 +174,7 @@ export async function POST(request: Request) {
         template_id,
         period,
         manager_id ?? null,
-        director_id ?? null,
+        finalDirectorId,
       ],
     );
 
